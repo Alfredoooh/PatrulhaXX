@@ -1,5 +1,5 @@
 name: patrulha_xx
-description: patrulhaXX - App de navegação segura com múltiplas plataformas.
+description: patrulhaXX - Navegação privada e segura.
 publish_to: "none"
 version: 1.0.0+1
 
@@ -10,34 +10,36 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # WebView in-app completo (NÃO webview_flutter)
+  # InAppWebView — navegador completo (NÃO webview_flutter)
   flutter_inappwebview: ^6.1.5
 
-  # SVG rendering
+  # SVG
   flutter_svg: ^2.0.10+1
 
-  # Armazenamento seguro (criptografado, invisível para outros apps)
+  # Armazenamento seguro criptografado (invisível para outros apps)
   flutter_secure_storage: ^9.2.2
 
-  # Caminhos para salvar arquivos apenas dentro do app
+  # Caminhos de diretório privado do app
   path_provider: ^2.1.4
 
   # HTTP requests
   http: ^1.2.2
 
-  # Permissões em runtime (câmera, storage, etc.)
+  # Download de ficheiros (vídeos/imagens apenas dentro do app)
+  dio: ^5.4.3+1
+
+  # Permissões runtime
   permission_handler: ^11.3.1
 
-  # Download e salvar arquivos dentro do app (invisível para galeria)
-  flutter_downloader: ^1.11.8
+  # Ionicons
+  ionicons: ^0.2.2
 
-  # Abrindo/gerenciando arquivos internos
-  open_filex: ^4.5.0
+  # Cache de imagens de rede (favicons)
+  cached_network_image: ^3.3.1
 
-  # Gerenciamento de estado simples
-  provider: ^6.1.2
+  # Extração de cor dominante do favicon
+  palette_generator: ^0.3.3+3
 
-  # Ícones extras
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
@@ -49,15 +51,4 @@ flutter:
   uses-material-design: true
 
   assets:
-    # Ícones circulares dos apps (512x512px PNG com fundo transparente)
-    - assets/icons/app1.png
-    - assets/icons/app2.png
-    - assets/icons/app3.png
-    - assets/icons/app4.png
-    - assets/icons/app5.png
-    - assets/icons/app6.png
-    - assets/icons/app7.png
-    - assets/icons/app8.png
-
-    # Imagem de fundo da home (1080x1920px JPG ou PNG)
-    - assets/images/background.png
+    - assets/icons/app1.png   # Ícone local PornHub
