@@ -5,7 +5,7 @@ class SiteModel {
   final String name;
   final String baseUrl;
   final String allowedDomain;
-  final String searchUrl; // contém {q}
+  final String searchUrl;
   final String? localIconAsset;
   Color primaryColor;
 
@@ -67,11 +67,11 @@ final List<SiteModel> kSites = [
     primaryColor: const Color(0xFF006600),
   ),
   SiteModel(
-    id: 'tickporn',
-    name: 'Tick Porn',
-    baseUrl: 'https://www.tick.porn',
-    allowedDomain: 'tick.porn',
-    searchUrl: 'https://www.tick.porn/?s={q}',
+    id: 'tikporn',
+    name: 'Tik Porn',
+    baseUrl: 'https://tik.porn',
+    allowedDomain: 'tik.porn',
+    searchUrl: 'https://tik.porn/?s={q}',
     primaryColor: const Color(0xFF0044DD),
   ),
   SiteModel(
