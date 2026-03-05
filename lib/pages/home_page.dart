@@ -19,23 +19,23 @@ const List<AppItem> apps = [
   // ── Linha de cima ──
   AppItem(
     name: 'YouCube',
-    url: 'https://www.youcube.com',
-    iconAsset: 'assets/icons/youcube.png',
+    url: 'https://www.pornhub.com',
+    iconAsset: 'assets/icons/app1',
   ),
   AppItem(
     name: 'MySelf',
-    url: 'https://www.myself.com',
-    iconAsset: 'assets/icons/myself.png',
+    url: 'https://www.xxx.com',
+    iconAsset: 'assets/icons/app2',
   ),
   AppItem(
     name: 'US News',
-    url: 'https://www.us-news.com',
-    iconAsset: 'assets/icons/us_news.png',
+    url: 'https://www.bangbros.com',
+    iconAsset: 'assets/icons/app3',
   ),
   AppItem(
     name: "Today's War",
-    url: 'https://www.todays-war.com',
-    iconAsset: 'assets/icons/todays_war.png',
+    url: 'https://www.example.com',
+    iconAsset: 'assets/icons/app4.png',
   ),
 
   // ── Linha de baixo ── (substitua nome/url/ícone quando tiver os links)
