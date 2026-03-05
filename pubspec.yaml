@@ -50,10 +50,10 @@ flutter:
 
   assets:
     # Ícones circulares dos apps (512x512px PNG com fundo transparente)
-    - assets/icons/youcube.png
-    - assets/icons/myself.png
-    - assets/icons/us_news.png
-    - assets/icons/todays_war.png
+    - assets/icons/app1.png
+    - assets/icons/app2.png
+    - assets/icons/app3.png
+    - assets/icons/app4.png
     - assets/icons/app5.png
     - assets/icons/app6.png
     - assets/icons/app7.png
