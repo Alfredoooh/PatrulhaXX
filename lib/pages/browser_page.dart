@@ -23,9 +23,7 @@ class _BrowserPageState extends State<BrowserPage> {
   Color _barColor = const Color(0xFF111111);
   bool _colorResolved = false;
 
-  // JS channel name para downloads
   static const _dlChannel = 'DownloadChannel';
-
   late final String _startUrl;
 
   @override
@@ -55,8 +53,9 @@ class _BrowserPageState extends State<BrowserPage> {
     }
   }
 
-  // Injeta JS para detectar long-press em vídeos e imagens
-  static const _mediaJs = '''
+  // JS que detecta long-press em vídeos/imagens
+  // Usamos r'...' (raw string) para evitar conflito com $ do Dart
+  static const _mediaJs = r"""
 (function() {
   if (window.__pxListening) return;
   window.__pxListening = true;
@@ -79,10 +78,10 @@ class _BrowserPageState extends State<BrowserPage> {
     var a = target.closest ? target.closest('a') : null;
     if (a && a.href) {
       var href = a.href.toLowerCase();
-      if (href.match(/\\.(mp4|webm|m4v|mov|avi|mkv)(\\?|$)/)) {
+      if (/\.(mp4|webm|m4v|mov|avi|mkv)(\?|$)/.test(href)) {
         return { type: 'video', src: a.href, thumb: '' };
       }
-      if (href.match(/\\.(jpg|jpeg|png|gif|webp|avif)(\\?|$)/)) {
+      if (/\.(jpg|jpeg|png|gif|webp|avif)(\?|$)/.test(href)) {
         return { type: 'image', src: a.href, thumb: a.href };
       }
     }
@@ -92,20 +91,19 @@ class _BrowserPageState extends State<BrowserPage> {
   document.addEventListener('contextmenu', function(e) {
     var data = extractMedia(e.target);
     if (data && data.src) {
-      try { window.$_dlChannel.postMessage(JSON.stringify(data)); } catch(_) {}
+      try { window.flutter_inappwebview.callHandler('DownloadChannel', JSON.stringify(data)); } catch(_) {}
       e.preventDefault();
       return false;
     }
   }, true);
 
-  // Long-press via touchstart/touchend
   var _timer = null;
   document.addEventListener('touchstart', function(e) {
     var t = e.target;
     _timer = setTimeout(function() {
       var data = extractMedia(t);
       if (data && data.src) {
-        try { window.$_dlChannel.postMessage(JSON.stringify(data)); } catch(_) {}
+        try { window.flutter_inappwebview.callHandler('DownloadChannel', JSON.stringify(data)); } catch(_) {}
       }
     }, 600);
   }, { passive: true });
@@ -114,23 +112,24 @@ class _BrowserPageState extends State<BrowserPage> {
     if (_timer) { clearTimeout(_timer); _timer = null; }
   }, { passive: true });
 })();
-''';
+""";
 
-  void _onMediaMessage(JavaScriptMessage msg) {
+  void _onMediaArgs(List<dynamic> args) {
+    if (args.isEmpty) return;
+    final raw = args[0].toString();
     try {
-      final data = _parseJson(msg.message);
+      final data = _parseJson(raw);
       if (data == null) return;
       final type = data['type'] as String? ?? 'video';
       final src = data['src'] as String? ?? '';
-      final thumb = data['thumb'] as String? ?? '';
       if (src.isEmpty) return;
+      final thumb = data['thumb'] as String? ?? '';
       _showDownloadSheet(src: src, type: type, thumb: thumb);
     } catch (_) {}
   }
 
   Map<String, dynamic>? _parseJson(String raw) {
     try {
-      // Simple JSON parse for flat objects
       final cleaned = raw.trim();
       if (!cleaned.startsWith('{')) return null;
       final result = <String, dynamic>{};
@@ -154,12 +153,7 @@ class _BrowserPageState extends State<BrowserPage> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _DownloadSheet(
-        src: src,
-        type: type,
-        thumb: thumb,
-        site: widget.site,
-      ),
+      builder: (_) => _DownloadSheet(src: src, type: type, thumb: thumb, site: widget.site),
     );
   }
 
@@ -185,16 +179,20 @@ class _BrowserPageState extends State<BrowserPage> {
         initialUrlRequest: URLRequest(url: WebUri(_startUrl)),
         initialSettings: InAppWebViewSettings(
           javaScriptEnabled: true,
+          javaScriptCanOpenWindowsAutomatically: true,
           domStorageEnabled: true,
           databaseEnabled: true,
           mediaPlaybackRequiresUserGesture: false,
           allowsInlineMediaPlayback: true,
+          allowsAirPlayForMediaPlayback: true,
           useOnDownloadStart: true,
           useShouldOverrideUrlLoading: true,
           supportZoom: true,
           builtInZoomControls: false,
           displayZoomControls: false,
           cacheEnabled: true,
+          allowFileAccessFromFileURLs: true,
+          allowUniversalAccessFromFileURLs: true,
           userAgent:
               'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
         ),
@@ -202,11 +200,7 @@ class _BrowserPageState extends State<BrowserPage> {
           _wvCtrl = ctrl;
           ctrl.addJavaScriptHandler(
             handlerName: _dlChannel,
-            callback: (args) {
-              if (args.isNotEmpty) {
-                _onMediaMessage(JavaScriptMessage(message: args[0].toString()));
-              }
-            },
+            callback: _onMediaArgs,
           );
         },
         onLoadStart: (_, url) {
@@ -217,7 +211,6 @@ class _BrowserPageState extends State<BrowserPage> {
         },
         onLoadStop: (ctrl, _) async {
           setState(() => _loading = false);
-          // Injeta detector de media
           await ctrl.evaluateJavascript(source: _mediaJs);
         },
         onProgressChanged: (_, p) {
@@ -226,7 +219,6 @@ class _BrowserPageState extends State<BrowserPage> {
         shouldOverrideUrlLoading: (ctrl, action) async {
           final url = action.request.url?.toString() ?? '';
           if (_isAllowed(url)) return NavigationActionPolicy.ALLOW;
-          // Bloqueia navegação para domínios externos
           return NavigationActionPolicy.CANCEL;
         },
         onDownloadStartRequest: (_, req) {
@@ -252,14 +244,12 @@ class _BrowserPageState extends State<BrowserPage> {
         lower.contains('.webm') ||
         lower.contains('.m4v') ||
         lower.contains('.mov') ||
-        lower.contains('video')) {
-      return 'video';
-    }
+        lower.contains('video')) return 'video';
     return 'image';
   }
 }
 
-// ── Animated AppBar ──────────────────────────────────────────────────────────
+// ── Animated AppBar ───────────────────────────────────────────────────────────
 class _AnimatedAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Color color;
   final bool colorResolved;
@@ -278,22 +268,17 @@ class _AnimatedAppBar extends StatelessWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => Size.fromHeight(
-        kToolbarHeight + (progress != null ? 3.0 : 0.0),
-      );
+  Size get preferredSize =>
+      Size.fromHeight(kToolbarHeight + (progress != null ? 3.0 : 0.0));
 
   @override
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<Color?>(
-      tween: ColorTween(
-        begin: const Color(0xFF111111),
-        end: color,
-      ),
+      tween: ColorTween(begin: const Color(0xFF111111), end: color),
       duration: const Duration(milliseconds: 700),
       curve: Curves.easeInOutCubic,
       builder: (ctx, animColor, _) {
         final bg = animColor ?? const Color(0xFF111111);
-        // Luminosidade para decidir cor dos ícones
         final lum = bg.computeLuminance();
         final fgColor = lum > 0.3 ? Colors.black87 : Colors.white;
 
@@ -317,10 +302,7 @@ class _AnimatedAppBar extends StatelessWidget implements PreferredSizeWidget {
                   Text(
                     site.name,
                     style: TextStyle(
-                      color: fgColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                        color: fgColor, fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -337,9 +319,7 @@ class _AnimatedAppBar extends StatelessWidget implements PreferredSizeWidget {
                 value: progress,
                 minHeight: 3,
                 backgroundColor: Colors.transparent,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  fgColor.withOpacity(0.5),
-                ),
+                valueColor: AlwaysStoppedAnimation<Color>(fgColor.withOpacity(0.5)),
               ),
           ],
         );
@@ -370,16 +350,11 @@ class _DownloadSheetState extends State<_DownloadSheet> {
   bool _downloading = false;
   bool _done = false;
   String? _error;
-  double _progress = 0;
 
   Future<void> _doDownload() async {
-    setState(() {
-      _downloading = true;
-      _error = null;
-    });
+    setState(() { _downloading = true; _error = null; });
 
-    final svc = DownloadService.instance;
-    final item = await svc.download(
+    final item = await DownloadService.instance.download(
       url: widget.src,
       type: widget.type,
       context: context,
@@ -388,17 +363,11 @@ class _DownloadSheetState extends State<_DownloadSheet> {
     if (!mounted) return;
 
     if (item != null) {
-      setState(() {
-        _downloading = false;
-        _done = true;
-      });
+      setState(() { _downloading = false; _done = true; });
       await Future.delayed(const Duration(milliseconds: 800));
       if (mounted) Navigator.pop(context);
     } else {
-      setState(() {
-        _downloading = false;
-        _error = 'Falhou. Tenta novamente.';
-      });
+      setState(() { _downloading = false; _error = 'Falhou. Tenta novamente.'; });
     }
   }
 
@@ -410,189 +379,127 @@ class _DownloadSheetState extends State<_DownloadSheet> {
     return Container(
       margin: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(20),
-      ),
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle
             Center(
               child: Container(
-                width: 36,
-                height: 4,
+                width: 36, height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white12,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+                    color: Colors.white12,
+                    borderRadius: BorderRadius.circular(2)),
               ),
             ),
             const SizedBox(height: 20),
-
-            // Header
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
+            Row(children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
                     color: widget.site.primaryColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: widget.site.primaryColor, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Baixar ${isVideo ? 'vídeo' : 'imagem'}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        'Guardado apenas neste app',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.4),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
+                    borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, color: widget.site.primaryColor, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Baixar ${isVideo ? 'vídeo' : 'imagem'}',
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 3),
+                Text('Guardado apenas neste app',
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.4), fontSize: 12)),
+              ])),
+            ]),
             const SizedBox(height: 16),
-
-            // URL preview
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(8),
-              ),
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8)),
               child: Text(
                 widget.src,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.35),
-                  fontSize: 10.5,
-                  fontFamily: 'monospace',
-                ),
+                    color: Colors.white.withOpacity(0.35),
+                    fontSize: 10.5,
+                    fontFamily: 'monospace'),
               ),
             ),
-
             const SizedBox(height: 20),
-
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  _error!,
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 13),
-                ),
+                child: Text(_error!,
+                    style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
               ),
-
             if (_downloading)
-              Column(
-                children: [
-                  LinearProgressIndicator(
-                    value: _progress > 0 ? _progress : null,
-                    backgroundColor: Colors.white10,
-                    valueColor: AlwaysStoppedAnimation(widget.site.primaryColor),
-                    borderRadius: BorderRadius.circular(4),
-                    minHeight: 4,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _progress > 0
-                        ? '${(_progress * 100).toStringAsFixed(0)}%'
-                        : 'A preparar...',
+              Column(children: [
+                LinearProgressIndicator(
+                  backgroundColor: Colors.white10,
+                  valueColor: AlwaysStoppedAnimation(widget.site.primaryColor),
+                  borderRadius: BorderRadius.circular(4),
+                  minHeight: 4,
+                ),
+                const SizedBox(height: 10),
+                Text('A baixar...',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                ],
-              )
+                        color: Colors.white.withOpacity(0.5), fontSize: 12)),
+              ])
             else if (_done)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Ionicons.checkmark_circle,
-                      color: Colors.greenAccent.shade400, size: 20),
-                  const SizedBox(width: 8),
-                  const Text('Guardado!',
-                      style: TextStyle(color: Colors.greenAccent, fontSize: 14)),
-                ],
-              )
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Ionicons.checkmark_circle,
+                    color: Colors.greenAccent.shade400, size: 20),
+                const SizedBox(width: 8),
+                const Text('Guardado!',
+                    style: TextStyle(color: Colors.greenAccent, fontSize: 14)),
+              ])
             else
-              // Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        height: 46,
-                        decoration: BoxDecoration(
+              Row(children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      height: 46,
+                      decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.06),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'Cancelar',
-                            style: TextStyle(
-                                color: Colors.white60,
-                                fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                      ),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: const Center(
+                          child: Text('Cancelar',
+                              style: TextStyle(color: Colors.white60,
+                                  fontWeight: FontWeight.w500))),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: GestureDetector(
-                      onTap: _doDownload,
-                      child: Container(
-                        height: 46,
-                        decoration: BoxDecoration(
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: GestureDetector(
+                    onTap: _doDownload,
+                    child: Container(
+                      height: 46,
+                      decoration: BoxDecoration(
                           color: widget.site.primaryColor,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Ionicons.download_outline,
-                                color: Colors.white, size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Baixar ${isVideo ? 'vídeo' : 'imagem'}',
-                              style: const TextStyle(
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        const Icon(Ionicons.download_outline,
+                            color: Colors.white, size: 18),
+                        const SizedBox(width: 8),
+                        Text('Baixar ${isVideo ? 'vídeo' : 'imagem'}',
+                            style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                                fontSize: 14)),
+                      ]),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ]),
           ],
         ),
       ),
