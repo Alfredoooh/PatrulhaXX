@@ -314,7 +314,7 @@ class _Keypad extends StatelessWidget {
                 child: Text(
                   'Confirmar',
                   style: TextStyle(
-                    color: canConfirm ? Colors.black : Colors.white20,
+                    color: canConfirm ? Colors.black : Colors.white.withOpacity(0.2),
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
