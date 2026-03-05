@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_windowmanager/flutter_windowmanager.dart';
 import 'pages/home_page.dart';
 import 'pages/lock_screen.dart';
 import 'services/favicon_service.dart';
@@ -8,6 +9,9 @@ import 'services/lock_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Bloqueia capturas e esconde conteúdo no switcher de apps (blur/preto)
+  await FlutterWindowManager.addFlags(FlutterWindowManager.FLAG_SECURE);
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -18,9 +22,8 @@ void main() async {
 
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  // Inicializa PIN padrão 0123 na primeira instalação
+  // PIN padrão 0123 na primeira instalação
   await LockService.instance.init();
-
   await DownloadService.instance.loadSaved();
   FaviconService.instance.preloadAll();
 
@@ -49,7 +52,6 @@ class PatrulhaXXApp extends StatelessWidget {
   }
 }
 
-// ── Decide se mostra LockScreen ou HomePage ───────────────────────────────────
 class _AppGate extends StatefulWidget {
   const _AppGate();
 
@@ -75,7 +77,6 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // Bloqueia novamente ao voltar do background
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && _lockEnabled && _unlocked) {
@@ -85,13 +86,11 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
 
   Future<void> _check() async {
     final enabled = await LockService.instance.isEnabled();
-    if (mounted) {
-      setState(() {
-        _lockEnabled = enabled;
-        _unlocked = !enabled;
-        _checking = false;
-      });
-    }
+    if (mounted) setState(() {
+      _lockEnabled = enabled;
+      _unlocked = !enabled;
+      _checking = false;
+    });
   }
 
   @override
@@ -99,17 +98,8 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
     if (_checking) {
       return const Scaffold(
         backgroundColor: Color(0xFF0C0C0C),
-        body: Center(
-          child: Text(
-            'patrulhaXX',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-            ),
-          ),
-        ),
+        body: Center(child: SizedBox(width: 24, height: 24,
+            child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white24))),
       );
     }
 

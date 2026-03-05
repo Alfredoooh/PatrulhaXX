@@ -10,37 +10,29 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # InAppWebView — navegador completo (NÃO webview_flutter)
   flutter_inappwebview: ^6.1.5
-
-  # SVG
   flutter_svg: ^2.0.10+1
-
-  # Armazenamento seguro criptografado (invisível para outros apps)
   flutter_secure_storage: ^9.2.2
-
-  # Caminhos de diretório privado do app
   path_provider: ^2.1.4
-
-  # HTTP requests
   http: ^1.2.2
-
-  # Download de ficheiros (vídeos/imagens apenas dentro do app)
   dio: ^5.4.3+1
-
-  # Permissões runtime
   permission_handler: ^11.3.1
-
-  # Ionicons
   ionicons: ^0.2.2
-
-  # Cache de imagens de rede (favicons)
   cached_network_image: ^3.3.1
-
-  # Extração de cor dominante do favicon
   palette_generator: ^0.3.3+3
-
   cupertino_icons: ^1.0.8
+
+  # Gallery staggered grid
+  flutter_staggered_grid_view: ^0.7.0
+
+  # XML parsing for feeds
+  xml: ^6.5.0
+
+  # Blur app in recents / FLAG_SECURE
+  flutter_windowmanager: ^0.2.0
+
+  # Video thumbnails in gallery
+  video_thumbnail: ^0.5.3
 
 dev_dependencies:
   flutter_test:
@@ -51,5 +43,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/icons/app1.png   # Ícone local PornHub
-    - assets/images/background.png  # Imagem de fundo (1080x1920px)
+    - assets/icons/app1.png
+    - assets/images/background.png
+    - assets/logo.png          # Pink devil logo — copy the launcher PNG here
