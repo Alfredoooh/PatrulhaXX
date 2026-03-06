@@ -6,11 +6,13 @@ plugins {
 
 android {
     namespace = "com.write.app"
+
+    // Flutter requer compileSdk >= 35
     compileSdk = flutter.compileSdkVersion
+
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        isCoreLibraryDesugaringEnabled = true          // ← ADICIONADO
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -21,42 +23,24 @@ android {
 
     defaultConfig {
         applicationId = "com.write.app"
-        minSdk = 21                                    // ← mínimo para background service
+
+        // Android 6.0 (Marshmallow) em diante
+        minSdk = 23
+
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        multiDexEnabled = true
-
-        ndk {
-            abiFilters.clear()
-            abiFilters += "arm64-v8a"
-        }
     }
 
     buildTypes {
         release {
+            // Mantém obfuscation e shrink do comando de build
             signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-
-            ndk {
-                debugSymbolLevel = "NONE"
-            }
-        }
-    }
-
-    packagingOptions {
-        resources {
-            excludes += setOf(
-                "META-INF/DEPENDENCIES",
-                "META-INF/LICENSE",
-                "META-INF/LICENSE.txt",
-                "META-INF/license.txt",
-                "META-INF/NOTICE",
-                "META-INF/NOTICE.txt",
-                "META-INF/notice.txt",
-                "META-INF/*.kotlin_module"
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
             )
         }
     }
@@ -64,9 +48,4 @@ android {
 
 flutter {
     source = "../.."
-}
-
-dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")   // ← ADICIONADO
-    implementation("androidx.multidex:multidex:2.0.1")
 }
