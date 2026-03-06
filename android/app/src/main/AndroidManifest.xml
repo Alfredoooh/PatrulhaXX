@@ -1,19 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
-    <!-- WiFi Direct for transfers -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
-        android:usesPermissionFlags="neverForLocation"/>
-
-    <!-- REMOVED: FOREGROUND_SERVICE, WAKE_LOCK, RECEIVE_BOOT_COMPLETED -->
-    <!-- These caused the black screen bug when returning to app -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
     <application
         android:label="patrulhaXX"
@@ -29,6 +22,8 @@
         <meta-data
             android:name="io.flutter.embedding.android.NormalTheme"
             android:resource="@style/NormalTheme"/>
+
+        <!-- IMPORTANTE: NÃO declarar flutterEmbedding v1 aqui -->
 
         <activity
             android:name=".MainActivity"
@@ -48,8 +43,6 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-
-        <!-- NO background services declared -->
 
     </application>
 </manifest>
