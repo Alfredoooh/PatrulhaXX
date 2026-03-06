@@ -6,15 +6,13 @@ plugins {
 
 android {
     namespace = "com.write.app"
-
-    // Flutter requer compileSdk >= 35
     compileSdk = flutter.compileSdkVersion
-
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -23,18 +21,15 @@ android {
 
     defaultConfig {
         applicationId = "com.write.app"
-
-        // Android 6.0 (Marshmallow) em diante
-        minSdk = 23
-
+        minSdk = 23          // Android 6.0+
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        multiDexEnabled = true
     }
 
     buildTypes {
         release {
-            // Mantém obfuscation e shrink do comando de build
             signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
@@ -44,6 +39,12 @@ android {
             )
         }
     }
+}
+
+dependencies {
+    // Necessário para desugaring (suporte a APIs modernas em Android 6+)
+    coreLibraryDesugaring("com.android.tools.desugar_jdk_libs:2.1.4")
+    implementation("androidx.multidex:multidex:2.0.1")
 }
 
 flutter {
