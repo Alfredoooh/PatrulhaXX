@@ -1,24 +1,34 @@
-// ==================== MainActivity.kt ====================
-// Localização: android/app/src/main/kotlin/com/write/app/MainActivity.kt
-
 package com.write.app
 
-import android.os.Bundle
-import android.webkit.WebView
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        
-        // Habilita depuração do WebView (apenas para desenvolvimento - remova em produção)
-        // WebView.setWebContentsDebuggingEnabled(true)
-        
-        // Melhora a qualidade de renderização do WebView
-        try {
-            WebView.enableSlowWholeDocumentDraw()
-        } catch (e: Exception) {
-            // Ignora se o método não estiver disponível (API antiga)
-        }
+
+    private val CHANNEL = "com.patrulhaxx/secure"
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+
+        // FLAG_SECURE: app aparece como preto/blur no switcher e bloqueia screenshots
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "setSecure" -> {
+                        val enable = call.argument<Boolean>("enable") ?: true
+                        if (enable) {
+                            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                        }
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 }
