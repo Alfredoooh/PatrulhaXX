@@ -12,6 +12,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // Desugaring necessário para APIs modernas em Android 6+
         isCoreLibraryDesugaringEnabled = true
     }
 
@@ -21,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId = "com.write.app"
-        minSdk = 23          // Android 6.0+
+        minSdk = 23   // Android 6.0+
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -42,8 +43,8 @@ android {
 }
 
 dependencies {
-    // Necessário para desugaring (suporte a APIs modernas em Android 6+)
-    coreLibraryDesugaring("com.android.tools.desugar_jdk_libs:2.1.4")
+    // Nome correto do artefacto — com ponto entre os segmentos
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation("androidx.multidex:multidex:2.0.1")
 }
 
