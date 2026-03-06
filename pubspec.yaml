@@ -16,13 +16,12 @@ dependencies:
   http: ^1.2.2
   dio: ^5.4.3+1
   permission_handler: ^11.3.1
-  ionicons: ^0.2.2
   cached_network_image: ^3.3.1
   palette_generator: ^0.3.3+3
   cupertino_icons: ^1.0.8
   flutter_staggered_grid_view: ^0.7.0
   xml: ^6.5.0
-  video_thumbnail: ^0.5.3
+  # video_thumbnail REMOVIDO — usa v1 embedding, quebra o build
 
 dev_dependencies:
   flutter_test:
@@ -35,7 +34,6 @@ flutter:
   assets:
     - assets/icons/app1.png
     - assets/logo.png
-    # ── Backgrounds (bg2–bg23 + background.png padrão) ──
     - assets/images/background.png
     - assets/images/bg2.jpg
     - assets/images/bg3.jpg
@@ -48,14 +46,3 @@ flutter:
     - assets/images/bg10.jpg
     - assets/images/bg11.jpg
     - assets/images/bg12.jpg
-    - assets/images/bg13.jpg
-    - assets/images/bg14.jpg
-    - assets/images/bg15.jpg
-    - assets/images/bg16.jpg
-    - assets/images/bg17.jpg
-    - assets/images/bg18.jpg
-    - assets/images/bg19.jpg
-    - assets/images/bg20.jpg
-    - assets/images/bg21.jpg
-    - assets/images/bg22.jpg
-    - assets/images/bg23.jpg
