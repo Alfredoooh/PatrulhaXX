@@ -1,9 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/site_model.dart';
 import '../widgets/site_icon_widget.dart';
 import '../services/feed_service.dart';
+import '../services/theme_service.dart';
 import 'browser_page.dart';
 import 'downloads_page.dart';
 import 'settings_page.dart';
@@ -11,7 +13,7 @@ import 'settings_page.dart';
 // ── Custom SVG icons ──────────────────────────────────────────────────────────
 const _svgDownload = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19,3h-6.528c-.154,0-.31-.036-.447-.105l-3.156-1.578c-.415-.207-.878-.316-1.341-.316h-2.528C2.243,1,0,3.243,0,6v12c0,2.757,2.243,5,5,5h1c.552,0,1-.447,1-1s-.448-1-1-1h-1c-1.654,0-3-1.346-3-3V9H22v9c0,1.654-1.346,3-3,3h-1c-.553,0-1,.447-1,1s.447,1,1,1h1c2.757,0,5-2.243,5-5V8c0-2.757-2.243-5-5-5ZM2,6c0-1.654,1.346-3,3-3h2.528c.154,0,.31,.036,.447,.105l3.156,1.578c.415,.207,.878,.316,1.341,.316h6.528c1.302,0,2.402,.839,2.816,2H2v-1Zm13.707,13.105c.391,.391,.391,1.023,0,1.414l-1.613,1.613c-.577,.577-1.335,.865-2.094,.865s-1.516-.288-2.093-.865l-1.614-1.613c-.391-.391-.391-1.023,0-1.414s1.023-.391,1.414,0l1.293,1.293v-7.398c0-.553,.448-1,1-1s1,.447,1,1v7.398l1.293-1.293c.391-.391,1.023-.391,1.414,0Z"/></svg>''';
 
-const _svgSettings = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2.5,6.936h1.896c.426,1.255,1.473,1.89,3.131,1.89s2.705-.635,3.13-1.89h10.843c.829,0,1.5-.671,1.5-1.5s-.671-1.5-1.5-1.5H10.657c-.426-1.255-1.473-1.89-3.13-1.89s-2.705,.635-3.131,1.89h-1.896c-.829,0-1.5,.671-1.5,1.5s.671,1.5,1.5,1.5Z"/><path d="M21.5,10.5h-1.896c-.426-1.255-1.473-1.89-3.131-1.89s-2.704,.635-3.13,1.89H2.5c-.829,0-1.5,.671-1.5,1.5s.671,1.5,1.5,1.5H13.343c.426,1.255,1.473,1.89,3.13,1.89s2.705-.634,3.131-1.89h1.896c.829,0,1.5-.671,1.5-1.5s-.671-1.5-1.5-1.5Z"/><path d="M21.5,17.063H10.657c-.426-1.255-1.473-1.89-3.13-1.89s-2.705,.634-3.131,1.89h-1.896c-.829,0-1.5,.672-1.5,1.5s.671,1.5,1.5,1.5h1.896c.426,1.256,1.473,1.89,3.131,1.89s2.705-.635,3.13-1.89h10.843c.829,0,1.5-.672,1.5-1.5s-.671-1.5-1.5-1.5Z"/></svg>''';
+const _svgSettings = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M1,4.75H3.736a3.728,3.728,0,0,0,7.195,0H23a1,1,0,0,0,0-2H10.931a3.728,3.728,0,0,0-7.195,0H1a1,1,0,0,0,0,2ZM7.333,2a1.75,1.75,0,1,1-1.75,1.75A1.752,1.752,0,0,1,7.333,2Z"/><path d="M23,11H20.264a3.727,3.727,0,0,0-7.194,0H1a1,1,0,0,0,0,2H13.07a3.727,3.727,0,0,0,7.194,0H23a1,1,0,0,0,0-2Zm-6.333,2.75A1.75,1.75,0,1,1,18.417,12,1.752,1.752,0,0,1,16.667,13.75Z"/><path d="M23,19.25H10.931a3.728,3.728,0,0,0-7.195,0H1a1,1,0,0,0,0,2H3.736a3.728,3.728,0,0,0,7.195,0H23a1,1,0,0,0,0-2ZM7.333,22a1.75,1.75,0,1,1,1.75-1.75A1.753,1.753,0,0,1,7.333,22Z"/></svg>';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -73,12 +75,32 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: ThemeService.instance,
+      builder: (context, _) => _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C0C),
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset('assets/images/background.png', fit: BoxFit.cover),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 600),
+            child: Image.asset(
+              ThemeService.instance.bg,
+              key: ValueKey(ThemeService.instance.bg),
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              errorBuilder: (_, __, ___) => Image.asset(
+                'assets/images/background.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
           Container(color: Colors.black.withOpacity(0.55)),
           FadeTransition(
             opacity: CurvedAnimation(parent: _fadeIn, curve: Curves.easeOut),
@@ -290,12 +312,27 @@ class _SitesGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(children: [
-        _Row(sites: sites.sublist(0, 5), onTap: onTap),
-        const SizedBox(height: 20),
-        _Row(sites: sites.sublist(5, 10), onTap: onTap),
-      ]),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.28),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                  color: Colors.white.withOpacity(0.08), width: 0.5),
+            ),
+            child: Column(children: [
+              _Row(sites: sites.sublist(0, 5), onTap: onTap),
+              const SizedBox(height: 18),
+              _Row(sites: sites.sublist(5, 10), onTap: onTap),
+            ]),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -343,7 +380,7 @@ class _CellState extends State<_Cell> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final iconSize = MediaQuery.of(context).size.width * 0.14;
+    final iconSize = MediaQuery.of(context).size.width * 0.13;
     return GestureDetector(
       onTapDown: (_) => _c.forward(),
       onTapUp: (_) { _c.reverse(); widget.onTap(); },
@@ -352,15 +389,15 @@ class _CellState extends State<_Cell> with SingleTickerProviderStateMixin {
         animation: _s,
         builder: (_, child) => Transform.scale(scale: _s.value, child: child),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          SiteIconWidget(site: widget.site, size: iconSize),
-          const SizedBox(height: 6),
+          SiteIconWidget(site: widget.site, size: iconSize, showShadow: true),
+          const SizedBox(height: 5),
           SizedBox(
-            width: iconSize + 8,
+            width: iconSize + 10,
             child: Text(widget.site.name,
               textAlign: TextAlign.center, maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: Colors.white.withOpacity(0.6),
-                  fontSize: 10.5, fontWeight: FontWeight.w500)),
+              style: TextStyle(color: Colors.white.withOpacity(0.65),
+                  fontSize: 10, fontWeight: FontWeight.w500)),
           ),
         ]),
       ),

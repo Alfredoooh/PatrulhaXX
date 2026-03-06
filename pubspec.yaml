@@ -25,9 +25,6 @@ dependencies:
   xml: ^6.5.0
   video_thumbnail: ^0.5.3
 
-  # flutter_windowmanager REMOVIDO — incompatível com AGP moderno
-  # FLAG_SECURE implementado nativamente em MainActivity.kt
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -37,6 +34,22 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/icons/app1.png
-    - assets/images/background.png
-    - assets/logo.png
+    # ── Ícones ───────────────────────────────────────────────────────────────
+    - assets/icons/app1.png          # Ícone PornHub (local)
+
+    # ── Logo ─────────────────────────────────────────────────────────────────
+    - assets/logo.png                # Pink devil — aparece no lock screen
+
+    # ── Backgrounds ──────────────────────────────────────────────────────────
+    # Adiciona aqui todos os ficheiros que colocares em assets/images/
+    # Suporta .png, .jpg, .jpeg, .webp
+    - assets/images/background.png   # Padrão (obrigatório)
+    - assets/images/bg2.png
+    - assets/images/bg3.png
+    - assets/images/bg4.png
+    - assets/images/bg5.png
+    - assets/images/bg6.jpg
+    - assets/images/bg7.jpg
+    - assets/images/bg8.jpg
+    - assets/images/bg9.jpg
+    - assets/images/bg10.jpg
