@@ -7,23 +7,29 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29"/>
 
     <application
         android:label="patrulhaXX"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:enableOnBackInvokedCallback="true"
         android:allowBackup="false"
         android:hardwareAccelerated="true"
         android:theme="@style/LaunchTheme"
         android:networkSecurityConfig="@xml/network_security_config">
 
+        <!-- OBRIGATÓRIO: declara explicitamente v2 embedding -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2"/>
+
         <meta-data
             android:name="io.flutter.embedding.android.NormalTheme"
             android:resource="@style/NormalTheme"/>
-
-        <!-- IMPORTANTE: NÃO declarar flutterEmbedding v1 aqui -->
 
         <activity
             android:name=".MainActivity"
