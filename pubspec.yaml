@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   flutter_inappwebview: ^6.1.5
   flutter_svg: ^2.0.10+1
   flutter_secure_storage: ^9.2.2
@@ -34,22 +33,29 @@ flutter:
   uses-material-design: true
 
   assets:
-    # ── Ícones ───────────────────────────────────────────────────────────────
-    - assets/icons/app1.png          # Ícone PornHub (local)
-
-    # ── Logo ─────────────────────────────────────────────────────────────────
-    - assets/logo.png                # Pink devil — aparece no lock screen
-
-    # ── Backgrounds ──────────────────────────────────────────────────────────
-    # Adiciona aqui todos os ficheiros que colocares em assets/images/
-    # Suporta .png, .jpg, .jpeg, .webp
-    - assets/images/background.png   # Padrão (obrigatório)
-    - assets/images/bg2.png
-    - assets/images/bg3.png
-    - assets/images/bg4.png
-    - assets/images/bg5.png
+    - assets/icons/app1.png
+    - assets/logo.png
+    # ── Backgrounds (bg2–bg23 + background.png padrão) ──
+    - assets/images/background.png
+    - assets/images/bg2.jpg
+    - assets/images/bg3.jpg
+    - assets/images/bg4.jpg
+    - assets/images/bg5.jpg
     - assets/images/bg6.jpg
     - assets/images/bg7.jpg
     - assets/images/bg8.jpg
     - assets/images/bg9.jpg
     - assets/images/bg10.jpg
+    - assets/images/bg11.jpg
+    - assets/images/bg12.jpg
+    - assets/images/bg13.jpg
+    - assets/images/bg14.jpg
+    - assets/images/bg15.jpg
+    - assets/images/bg16.jpg
+    - assets/images/bg17.jpg
+    - assets/images/bg18.jpg
+    - assets/images/bg19.jpg
+    - assets/images/bg20.jpg
+    - assets/images/bg21.jpg
+    - assets/images/bg22.jpg
+    - assets/images/bg23.jpg
