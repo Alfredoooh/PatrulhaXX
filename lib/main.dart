@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_windowmanager/flutter_windowmanager.dart';
 import 'pages/home_page.dart';
 import 'pages/lock_screen.dart';
 import 'services/favicon_service.dart';
 import 'services/download_service.dart';
 import 'services/lock_service.dart';
 
+// Canal nativo para FLAG_SECURE (blur no switcher de apps)
+const _secureChannel = MethodChannel('com.patrulhaxx/secure');
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Bloqueia capturas e esconde conteúdo no switcher de apps (blur/preto)
-  await FlutterWindowManager.addFlags(FlutterWindowManager.FLAG_SECURE);
+  // Activa FLAG_SECURE via MainActivity.kt — app fica preto no switcher
+  try {
+    await _secureChannel.invokeMethod('setSecure', true);
+  } catch (_) {}
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -22,7 +26,6 @@ void main() async {
 
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  // PIN padrão 0123 na primeira instalação
   await LockService.instance.init();
   await DownloadService.instance.loadSaved();
   FaviconService.instance.preloadAll();
@@ -86,11 +89,13 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
 
   Future<void> _check() async {
     final enabled = await LockService.instance.isEnabled();
-    if (mounted) setState(() {
-      _lockEnabled = enabled;
-      _unlocked = !enabled;
-      _checking = false;
-    });
+    if (mounted) {
+      setState(() {
+        _lockEnabled = enabled;
+        _unlocked = !enabled;
+        _checking = false;
+      });
+    }
   }
 
   @override

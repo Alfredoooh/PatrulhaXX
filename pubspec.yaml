@@ -21,18 +21,12 @@ dependencies:
   cached_network_image: ^3.3.1
   palette_generator: ^0.3.3+3
   cupertino_icons: ^1.0.8
-
-  # Gallery staggered grid
   flutter_staggered_grid_view: ^0.7.0
-
-  # XML parsing for feeds
   xml: ^6.5.0
-
-  # Blur app in recents / FLAG_SECURE
-  flutter_windowmanager: ^0.2.0
-
-  # Video thumbnails in gallery
   video_thumbnail: ^0.5.3
+
+  # flutter_windowmanager REMOVIDO — incompatível com AGP moderno
+  # FLAG_SECURE implementado nativamente em MainActivity.kt
 
 dev_dependencies:
   flutter_test:
@@ -45,4 +39,4 @@ flutter:
   assets:
     - assets/icons/app1.png
     - assets/images/background.png
-    - assets/logo.png          # Pink devil logo — copy the launcher PNG here
+    - assets/logo.png
