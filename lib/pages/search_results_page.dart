@@ -180,7 +180,7 @@ class _Card extends StatelessWidget {
         child: Stack(fit: StackFit.expand, children: [
           item.thumb.isNotEmpty
             ? CachedNetworkImage(imageUrl: item.thumb, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _ph())
+                errorWidget: (_, __, ___) => _ph())
             : _ph(),
           Container(
             decoration: BoxDecoration(
@@ -243,7 +243,7 @@ class _ListFeed extends StatelessWidget {
                 child: item.thumb.isNotEmpty
                   ? CachedNetworkImage(imageUrl: item.thumb,
                       width: 80, height: 56, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _phSmall())
+                      errorWidget: (_, __, ___) => _phSmall())
                   : _phSmall(),
               ),
               const SizedBox(width: 12),
