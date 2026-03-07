@@ -1,4 +1,4 @@
-package com.write.app
+package com.patrulha.xx
 
 import android.content.Intent
 import android.net.Uri

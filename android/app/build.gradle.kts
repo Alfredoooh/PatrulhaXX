@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.write.app"
+    namespace = "com.patrulha.xx"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.write.app"
+        applicationId = "com.patrulha.xx"
         minSdk = 23   // Android 6.0+
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
