@@ -1,32 +1,34 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LockService {
   static final LockService instance = LockService._();
   LockService._();
 
-  static const _storage = FlutterSecureStorage();
-  static const _keyPin = 'app_pin';
+  static const _keyPin     = 'app_pin';
   static const _keyEnabled = 'lock_enabled';
   static const String defaultPin = '0123';
 
-  /// Inicializa: define o PIN padrão se for a primeira vez
   Future<void> init() async {
-    final existing = await _storage.read(key: _keyPin);
-    if (existing == null) {
-      await _storage.write(key: _keyPin, value: defaultPin);
-      await _storage.write(key: _keyEnabled, value: 'true');
+    final p = await SharedPreferences.getInstance();
+    if (!p.containsKey(_keyPin)) {
+      await p.setString(_keyPin, defaultPin);
+      await p.setBool(_keyEnabled, true);
     }
   }
 
-  Future<String?> getPin() => _storage.read(key: _keyPin);
+  Future<String?> getPin() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getString(_keyPin);
+  }
 
   Future<bool> isEnabled() async {
-    final v = await _storage.read(key: _keyEnabled);
-    return v == 'true';
+    final p = await SharedPreferences.getInstance();
+    return p.getBool(_keyEnabled) ?? true;
   }
 
   Future<void> setEnabled(bool value) async {
-    await _storage.write(key: _keyEnabled, value: value ? 'true' : 'false');
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_keyEnabled, value);
   }
 
   Future<bool> verify(String input) async {
@@ -35,6 +37,7 @@ class LockService {
   }
 
   Future<void> setPin(String newPin) async {
-    await _storage.write(key: _keyPin, value: newPin);
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_keyPin, newPin);
   }
 }
