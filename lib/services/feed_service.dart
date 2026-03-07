@@ -10,6 +10,7 @@ class FeedItem {
   final String duration;
   final String views;
   final String source;
+  final String type; // 'video' | 'article'
 
   const FeedItem({
     required this.id,
@@ -19,6 +20,7 @@ class FeedItem {
     this.duration = '',
     this.views = '',
     required this.source,
+    this.type = 'video',
   });
 }
 
@@ -28,7 +30,6 @@ class FeedService {
 
   List<FeedItem> _items = [];
   bool _loaded = false;
-
   List<FeedItem> get items => _items;
 
   static const _ua =
@@ -42,11 +43,13 @@ class FeedService {
       _fetchRedTube(),
       _fetchEporner(),
       _fetchPornHub(),
-      _fetchXvideos(),
+      _fetchXVideos(),
+      _fetchPornDig(),
+      _fetchBlogs(),
     ]);
 
     final all = results.expand((e) => e).toList()
-      ..removeWhere((f) => f.thumb.isEmpty || f.url.isEmpty)
+      ..removeWhere((f) => f.url.isEmpty)
       ..shuffle();
 
     _items = all;
@@ -54,185 +57,252 @@ class FeedService {
     return _items;
   }
 
-  // ── RedTube JSON ──────────────────────────────────────────────────────────
+  /// Pesquisa local nos itens já carregados
+  List<FeedItem> search(String query) {
+    if (query.trim().isEmpty) return _items;
+    final q = query.toLowerCase();
+    return _items.where((i) =>
+        i.title.toLowerCase().contains(q) ||
+        i.source.toLowerCase().contains(q)).toList();
+  }
+
+  // ── RedTube JSON API (confirmado a funcionar) ─────────────────────────────
+  // Documentação: https://api.redtube.com/
   Future<List<FeedItem>> _fetchRedTube() async {
-    try {
-      final endpoints = [
-        'https://api.redtube.com/?data=redtube.Videos.searchVideos&output=json&search=&thumbsize=medium&count=40&ordering=newest',
-        'https://api.redtube.com/?data=redtube.Videos.searchVideos&output=json&search=&thumbsize=medium&count=40&ordering=mostviewed',
-      ];
-      final items = <FeedItem>[];
-      for (final url in endpoints) {
-        try {
-          final res = await http.get(Uri.parse(url),
-            headers: {'User-Agent': _ua},
-          ).timeout(const Duration(seconds: 12));
-          if (res.statusCode != 200) continue;
-          final json = jsonDecode(res.body) as Map<String, dynamic>;
-          final videos = json['videos'] as List? ?? [];
-          for (final v in videos) {
-            final video = (v as Map)['video'] as Map<String, dynamic>? ?? {};
-            final thumb = video['thumb'] as String? ?? '';
-            final vUrl  = video['url']   as String? ?? '';
-            if (thumb.isEmpty || vUrl.isEmpty) continue;
-            items.add(FeedItem(
-              id:       'rt_${video['video_id'] ?? items.length}',
-              title:    video['title']    as String? ?? 'Vídeo',
-              thumb:    thumb,
-              url:      vUrl,
-              duration: video['duration'] as String? ?? '',
-              views:    video['views']    as String? ?? '',
-              source:   'RedTube',
-            ));
-          }
-        } catch (_) {}
-      }
-      return items;
-    } catch (_) { return []; }
+    final endpoints = [
+      'https://api.redtube.com/?data=redtube.Videos.searchVideos'
+          '&output=json&search=&thumbsize=big&count=60&ordering=newest',
+      'https://api.redtube.com/?data=redtube.Videos.searchVideos'
+          '&output=json&search=&thumbsize=big&count=60&ordering=mostviewed',
+      'https://api.redtube.com/?data=redtube.Videos.searchVideos'
+          '&output=json&search=&thumbsize=big&count=60&ordering=hottest',
+    ];
+    final items = <FeedItem>[];
+    for (final url in endpoints) {
+      try {
+        final res = await http.get(Uri.parse(url),
+            headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 14));
+        if (res.statusCode != 200) continue;
+        final json = jsonDecode(res.body) as Map<String, dynamic>;
+        final videos = json['videos'] as List? ?? [];
+        for (final v in videos) {
+          final vm = (v as Map)['video'] as Map<String, dynamic>? ?? {};
+          final thumb = vm['thumb'] as String? ?? '';
+          final vUrl  = vm['url']   as String? ?? '';
+          if (thumb.isEmpty || vUrl.isEmpty) continue;
+          items.add(FeedItem(
+            id:       'rt_${vm['video_id'] ?? items.length}',
+            title:    vm['title']    as String? ?? 'Vídeo',
+            thumb:    thumb,
+            url:      vUrl,
+            duration: vm['duration'] as String? ?? '',
+            views:    vm['views']    as String? ?? '',
+            source:   'RedTube',
+          ));
+        }
+      } catch (_) {}
+    }
+    return items;
   }
 
-  // ── EPorner XML ───────────────────────────────────────────────────────────
+  // ── EPorner API v2 JSON (confirmado: https://github.com/eporner/API) ──────
+  // Endpoint real: https://www.eporner.com/api/v2/video/search/
+  // Parâmetros: per_page, page, order, format=json, thumbsize
+  // order: latest | top-weekly | top-monthly | top-alltime
   Future<List<FeedItem>> _fetchEporner() async {
-    try {
-      final endpoints = [
-        'https://www.eporner.com/api/v2/video/search/?per_page=40&page=1&order=latest&format=xml&thumbsize=medium',
-        'https://www.eporner.com/api/v2/video/search/?per_page=40&page=1&order=top-rated&format=xml&thumbsize=medium',
-      ];
-      final items = <FeedItem>[];
-      for (final url in endpoints) {
-        try {
-          final res = await http.get(Uri.parse(url),
-            headers: {'User-Agent': _ua},
-          ).timeout(const Duration(seconds: 12));
-          if (res.statusCode != 200) continue;
-
-          // Tenta parse JSON (API v2 pode retornar JSON)
-          try {
-            final json = jsonDecode(res.body) as Map<String, dynamic>;
-            final videos = json['videos'] as List? ?? [];
-            for (final v in videos) {
-              final vm = v as Map<String, dynamic>;
-              final thumb = _firstNonEmpty([
-                vm['thumbs']?[0]?['src'] as String?,
-                vm['thumb']  as String?,
-              ]);
-              final vUrl = vm['url'] as String? ?? '';
-              if (thumb.isEmpty || vUrl.isEmpty) continue;
-              items.add(FeedItem(
-                id:       'ep_${vm['id'] ?? items.length}',
-                title:    vm['title']    as String? ?? 'Vídeo',
-                thumb:    thumb,
-                url:      vUrl.startsWith('http') ? vUrl : 'https://www.eporner.com$vUrl',
-                duration: vm['length_min'] as String? ?? '',
-                views:    vm['views']      as String? ?? '',
-                source:   'EPorner',
-              ));
-            }
-            continue;
-          } catch (_) {}
-
-          // Fallback: XML antigo
-          try {
-            final doc = XmlDocument.parse(res.body);
-            for (final v in doc.findAllElements('video')) {
-              final thumb = _xmlText(v, 'thumb');
-              final vUrl  = _xmlText(v, 'url');
-              if (thumb.isEmpty || vUrl.isEmpty) continue;
-              items.add(FeedItem(
-                id:       'ep_${_xmlText(v, 'id')}',
-                title:    _xmlText(v, 'title').isEmpty ? 'Vídeo' : _xmlText(v, 'title'),
-                thumb:    thumb.startsWith('http') ? thumb : 'https:$thumb',
-                url:      vUrl.startsWith('http')  ? vUrl  : 'https://www.eporner.com$vUrl',
-                duration: _xmlText(v, 'video_duration'),
-                views:    _xmlText(v, 'views'),
-                source:   'EPorner',
-              ));
-            }
-          } catch (_) {}
-        } catch (_) {}
-      }
-      return items;
-    } catch (_) { return []; }
+    final endpoints = [
+      'https://www.eporner.com/api/v2/video/search/'
+          '?per_page=60&page=1&order=latest&format=json&thumbsize=big',
+      'https://www.eporner.com/api/v2/video/search/'
+          '?per_page=60&page=1&order=top-weekly&format=json&thumbsize=big',
+    ];
+    final items = <FeedItem>[];
+    for (final url in endpoints) {
+      try {
+        final res = await http.get(Uri.parse(url),
+            headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 14));
+        if (res.statusCode != 200) continue;
+        final json = jsonDecode(res.body) as Map<String, dynamic>;
+        final videos = json['videos'] as List? ?? [];
+        for (final v in videos) {
+          final vm = v as Map<String, dynamic>;
+          // thumbs é array de {src, size}
+          final thumbList = vm['thumbs'] as List?;
+          final thumb = thumbList != null && thumbList.isNotEmpty
+              ? (thumbList.last['src'] as String? ?? '')
+              : (vm['thumb'] as String? ?? '');
+          final vUrl = vm['url'] as String? ?? '';
+          if (thumb.isEmpty || vUrl.isEmpty) continue;
+          items.add(FeedItem(
+            id:       'ep_${vm['id'] ?? items.length}',
+            title:    vm['title']       as String? ?? 'Vídeo',
+            thumb:    thumb,
+            url:      vUrl.startsWith('http') ? vUrl : 'https://www.eporner.com$vUrl',
+            duration: vm['length_min']  as String? ?? '',
+            views:    vm['views']       as String? ?? '',
+            source:   'EPorner',
+          ));
+        }
+      } catch (_) {}
+    }
+    return items;
   }
 
-  // ── PornHub RSS ───────────────────────────────────────────────────────────
+  // ── PornHub RSS Webmasters (confirmado) ───────────────────────────────────
+  // URL: https://www.pornhub.com/video/webmasterss
   Future<List<FeedItem>> _fetchPornHub() async {
-    try {
-      const url = 'https://www.pornhub.com/video/webmasterss';
-      final res = await http.get(Uri.parse(url),
-        headers: {'User-Agent': _ua},
-      ).timeout(const Duration(seconds: 12));
-      if (res.statusCode != 200) return [];
-      final doc = XmlDocument.parse(res.body);
-      final items = <FeedItem>[];
-      for (final item in doc.findAllElements('item')) {
-        final link  = _xmlText(item, 'link');
-        final title = _xmlText(item, 'title');
-        // thumbnail vem em media:thumbnail ou enclosure
-        final mediaThumb = item
-            .findElements('media:thumbnail')
-            .firstOrNull
-            ?.getAttribute('url') ?? '';
-        final encThumb = item
-            .findElements('enclosure')
-            .firstOrNull
-            ?.getAttribute('url') ?? '';
-        final thumb = mediaThumb.isNotEmpty ? mediaThumb : encThumb;
-        if (link.isEmpty) continue;
-        items.add(FeedItem(
-          id:     'ph_${link.hashCode}',
-          title:  title.isEmpty ? 'Vídeo' : title,
-          thumb:  thumb,
-          url:    link,
-          source: 'PornHub',
-        ));
-      }
-      return items;
-    } catch (_) { return []; }
+    final endpoints = [
+      'https://www.pornhub.com/video/webmasterss',
+    ];
+    final items = <FeedItem>[];
+    for (final url in endpoints) {
+      try {
+        final res = await http.get(Uri.parse(url),
+            headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 14));
+        if (res.statusCode != 200) continue;
+        final doc = XmlDocument.parse(res.body);
+        for (final item in doc.findAllElements('item')) {
+          final link  = _xml(item, 'link');
+          final title = _xml(item, 'title');
+          final thumb = _firstOf([
+            item.findElements('media:thumbnail').firstOrNull?.getAttribute('url'),
+            item.findElements('media:content').firstOrNull?.getAttribute('url'),
+            item.findElements('enclosure').firstOrNull?.getAttribute('url'),
+          ]);
+          if (link.isEmpty) continue;
+          items.add(FeedItem(
+            id:     'ph_${link.hashCode}',
+            title:  title.isEmpty ? 'Vídeo' : title,
+            thumb:  thumb, url: link, source: 'PornHub',
+          ));
+        }
+      } catch (_) {}
+    }
+    return items;
   }
 
-  // ── xVideos RSS ───────────────────────────────────────────────────────────
-  Future<List<FeedItem>> _fetchXvideos() async {
-    try {
-      final endpoints = [
-        'https://www.xvideos.com/feeds/rss-new/0',
-        'https://www.xvideos.com/feeds/rss-most-viewed-alltime/0',
-      ];
-      final items = <FeedItem>[];
-      for (final url in endpoints) {
-        try {
-          final res = await http.get(Uri.parse(url),
-            headers: {'User-Agent': _ua},
-          ).timeout(const Duration(seconds: 12));
-          if (res.statusCode != 200) continue;
-          final doc = XmlDocument.parse(res.body);
-          for (final item in doc.findAllElements('item')) {
-            final link  = _xmlText(item, 'link');
-            final title = _xmlText(item, 'title');
-            final enc   = item.findElements('enclosure').firstOrNull;
-            final thumb = enc?.getAttribute('url') ?? '';
-            if (link.isEmpty) continue;
-            items.add(FeedItem(
-              id:     'xv_${link.hashCode}',
-              title:  title.isEmpty ? 'Vídeo' : title,
-              thumb:  thumb,
-              url:    link,
-              source: 'XVideos',
-            ));
-          }
-        } catch (_) {}
-      }
-      return items;
-    } catch (_) { return []; }
+  // ── XVideos RSS (confirmado) ──────────────────────────────────────────────
+  // URLs: https://www.xvideos.com/feeds/rss-new/0
+  //       https://www.xvideos.com/feeds/rss-most-viewed-alltime/0
+  Future<List<FeedItem>> _fetchXVideos() async {
+    final endpoints = [
+      'https://www.xvideos.com/feeds/rss-new/0',
+      'https://www.xvideos.com/feeds/rss-most-viewed-alltime/0',
+      'https://www.xvideos.com/feeds/rss-new/gay/0',
+    ];
+    final items = <FeedItem>[];
+    for (final url in endpoints) {
+      try {
+        final res = await http.get(Uri.parse(url),
+            headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 14));
+        if (res.statusCode != 200) continue;
+        final doc = XmlDocument.parse(res.body);
+        for (final item in doc.findAllElements('item')) {
+          final link  = _xml(item, 'link');
+          final title = _xml(item, 'title');
+          final thumb = item.findElements('enclosure').firstOrNull?.getAttribute('url') ?? '';
+          if (link.isEmpty) continue;
+          items.add(FeedItem(
+            id:     'xv_${link.hashCode}',
+            title:  title.isEmpty ? 'Vídeo' : title,
+            thumb:  thumb, url: link, source: 'XVideos',
+          ));
+        }
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  // ── PornDig RSS (confirmado: https://www.porndig.com/rss) ─────────────────
+  Future<List<FeedItem>> _fetchPornDig() async {
+    final endpoints = [
+      'https://www.porndig.com/rss',
+      'https://www.porndig.com/rss?category=latest',
+    ];
+    final items = <FeedItem>[];
+    for (final url in endpoints) {
+      try {
+        final res = await http.get(Uri.parse(url),
+            headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 14));
+        if (res.statusCode != 200) continue;
+        final doc = XmlDocument.parse(res.body);
+        for (final item in doc.findAllElements('item')) {
+          final link  = _xml(item, 'link');
+          final title = _xml(item, 'title');
+          final thumb = _firstOf([
+            item.findElements('media:thumbnail').firstOrNull?.getAttribute('url'),
+            item.findElements('media:content').firstOrNull?.getAttribute('url'),
+            item.findElements('enclosure').firstOrNull?.getAttribute('url'),
+          ]);
+          if (link.isEmpty) continue;
+          items.add(FeedItem(
+            id:     'pd_${link.hashCode}',
+            title:  title.isEmpty ? 'Vídeo' : title,
+            thumb:  thumb, url: link, source: 'PornDig',
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  // ── Blogs da indústria adulta (confirmados no feedspot.com) ───────────────
+  // Todos os feeds confirmados em: https://rss.feedspot.com/adult_industry_rss_feeds/
+  Future<List<FeedItem>> _fetchBlogs() async {
+    final sources = <String, String>{
+      'https://ainews.xxx/feed/':                  'AINews.xxx',
+      'https://rogreviews.com/feed':               'RogReviews',
+      'https://theporndude.com/blog/feed':         'ThePornDude',
+      'https://therealpornwikileaks.com/feed':     'TRPWL',
+      'https://lukeisback.com/feed':               'LukeIsBack',
+      'https://adultfyi.com/feed':                 'AdultFYI',
+      'https://mikesouth.com/feed':                'MikeSouth',
+      'https://ynot.com/feed':                     'YNotMasters',
+      'https://xbiz.com/rss/all.xml':              'XBIZ',
+      'https://queermenow.net/blog/feed':          'QueerMeNow',
+    };
+    final items = <FeedItem>[];
+    for (final entry in sources.entries) {
+      try {
+        final res = await http.get(Uri.parse(entry.key),
+            headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (res.statusCode != 200) continue;
+        final doc = XmlDocument.parse(res.body);
+        for (final item in doc.findAllElements('item')) {
+          final link  = _xml(item, 'link');
+          final title = _xml(item, 'title');
+          final thumb = _firstOf([
+            item.findElements('media:content').firstOrNull?.getAttribute('url'),
+            item.findElements('media:thumbnail').firstOrNull?.getAttribute('url'),
+            item.findElements('enclosure').firstOrNull?.getAttribute('url'),
+          ]);
+          if (link.isEmpty) continue;
+          items.add(FeedItem(
+            id:     '${entry.value}_${link.hashCode}',
+            title:  title.isEmpty ? 'Artigo' : title,
+            thumb:  thumb, url: link,
+            source: entry.value, type: 'article',
+          ));
+        }
+      } catch (_) {}
+    }
+    return items;
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────
-  String _firstNonEmpty(List<String?> values) {
+  String _firstOf(List<String?> values) {
     for (final v in values) { if (v != null && v.isNotEmpty) return v; }
     return '';
   }
 
-  String _xmlText(XmlElement el, String tag) {
+  String _xml(XmlElement el, String tag) {
     try { return el.findElements(tag).first.innerText.trim(); }
     catch (_) { return ''; }
   }
