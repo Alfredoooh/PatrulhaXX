@@ -50,7 +50,8 @@ class _LockScreenState extends State<LockScreen> with SingleTickerProviderStateM
           ? 'PIN incorreto. Tenta novamente.'
           : 'PINs não coincidem. Começa de novo.';
     }
-    if (widget.mode == LockMode.unlock) return 'Insere o código de acesso';
+
+    if (widget.mode == LockMode.unlock) return '';
     return _firstPin == null ? 'Define um PIN (mínimo 4 dígitos)' : 'Repete o PIN';
   }
 
@@ -102,7 +103,7 @@ class _LockScreenState extends State<LockScreen> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0C0C0C),
+      backgroundColor: const Color(0xFFf5a992),
       body: SafeArea(
         child: Column(children: [
           const SizedBox(height: 44),
