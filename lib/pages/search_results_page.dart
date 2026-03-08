@@ -1,9 +1,113 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../services/feed_service.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:http/http.dart' as http;
 import '../models/site_model.dart';
 import 'browser_page.dart';
 
+// ─── Cor primária (amarelo PornHub) ──────────────────────────────────────────
+const _kPrimary = Color(0xFFFF9000);
+const _kBg      = Color(0xFF0E0E0E);
+const _kSurface = Color(0xFF161616);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Modelo EPorner
+// ─────────────────────────────────────────────────────────────────────────────
+class _EpornerVideo {
+  final String id, title, url, thumbUrl, lengthMin, views, rate, keywords;
+  const _EpornerVideo({
+    required this.id, required this.title, required this.url,
+    required this.thumbUrl, required this.lengthMin,
+    required this.views, required this.rate, required this.keywords,
+  });
+
+  factory _EpornerVideo.fromJson(Map<String, dynamic> j) {
+    // thumbs[] array — pega o maior disponível
+    String thumb = '';
+    final thumbs = j['thumbs'] as List<dynamic>?;
+    if (thumbs != null && thumbs.isNotEmpty) {
+      final last = thumbs.last as Map<String, dynamic>?;
+      thumb = (last?['src'] as String?) ?? '';
+    }
+    if (thumb.isEmpty) {
+      final dt = j['default_thumb'] as Map<String, dynamic>?;
+      thumb = (dt?['src'] as String?) ?? '';
+    }
+
+    return _EpornerVideo(
+      id:        (j['id'] as String?) ?? '',
+      title:     (j['title'] as String?) ?? '',
+      url:       (j['url'] as String?) ?? '',
+      thumbUrl:  thumb,
+      lengthMin: (j['length_min'] as String?) ?? '',
+      views:     _fmtViews(j['views']),
+      rate:      _fmtRate(j['rate']),
+      keywords:  (j['keywords'] as String?) ?? '',
+    );
+  }
+
+  static String _fmtViews(dynamic v) {
+    final n = int.tryParse(v?.toString() ?? '') ?? 0;
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(0)}k';
+    return '$n';
+  }
+
+  static String _fmtRate(dynamic r) {
+    final f = double.tryParse(r?.toString() ?? '') ?? 0.0;
+    return f.toStringAsFixed(1);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EPorner API
+// ─────────────────────────────────────────────────────────────────────────────
+class _EpornerApi {
+  static const _base = 'https://www.eporner.com/api/v2/video/search/';
+
+  static Future<({List<_EpornerVideo> videos, int totalCount, int totalPages})>
+      search({
+    required String query,
+    int page = 1,
+    int perPage = 40,
+    String order = 'latest',
+    String thumbsize = 'big',
+  }) async {
+    final uri = Uri.parse(_base).replace(queryParameters: {
+      'query':    query.isEmpty ? 'all' : query,
+      'per_page': '$perPage',
+      'page':     '$page',
+      'thumbsize': thumbsize,
+      'order':    order,
+      'lq':       '1',
+      'format':   'json',
+    });
+
+    final resp = await http.get(uri, headers: {'Accept': 'application/json'})
+        .timeout(const Duration(seconds: 15));
+
+    if (resp.statusCode != 200) {
+      throw Exception('EPorner HTTP ${resp.statusCode}');
+    }
+
+    final data = json.decode(resp.body) as Map<String, dynamic>;
+    final rawVideos = (data['videos'] as List<dynamic>?) ?? [];
+    final videos = rawVideos
+        .map((v) => _EpornerVideo.fromJson(v as Map<String, dynamic>))
+        .toList();
+
+    return (
+      videos:     videos,
+      totalCount: (data['total_count'] as int?) ?? 0,
+      totalPages: (data['total_pages'] as int?) ?? 1,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SearchResultsPage
+// ─────────────────────────────────────────────────────────────────────────────
 class SearchResultsPage extends StatefulWidget {
   final String query;
   const SearchResultsPage({super.key, required this.query});
@@ -16,315 +120,482 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   late final TextEditingController _q;
-  List<FeedItem> _all = [];
+  late final ScrollController _scroll;
+
+  List<_EpornerVideo> _videos = [];
   bool _loading = true;
+  bool _loadingMore = false;
+  String? _error;
+  int _page = 1;
+  int _totalPages = 1;
+  int _totalCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
-    _q = TextEditingController(text: widget.query);
-    _load();
+    _tabs  = TabController(length: 2, vsync: this);
+    _q     = TextEditingController(text: widget.query);
+    _scroll = ScrollController();
+    _scroll.addListener(_onScroll);
+    _fetch(reset: true);
   }
 
   @override
   void dispose() {
     _tabs.dispose();
     _q.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    await FeedService.instance.load();
-    _applyQuery();
-    if (mounted) setState(() => _loading = false);
+  // ── Infinite scroll ─────────────────────────────────────────────────────────
+  void _onScroll() {
+    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 300 &&
+        !_loadingMore && _page < _totalPages) {
+      _fetchMore();
+    }
   }
 
-  void _applyQuery() {
-    _all = FeedService.instance.search(_q.text.trim());
+  Future<void> _fetch({bool reset = false}) async {
+    if (reset) {
+      setState(() { _loading = true; _error = null; _videos = []; _page = 1; });
+    }
+    try {
+      final result = await _EpornerApi.search(
+        query:   _q.text.trim(),
+        page:    _page,
+        perPage: 40,
+      );
+      if (mounted) {
+        setState(() {
+          _videos     = reset ? result.videos : [..._videos, ...result.videos];
+          _totalCount = result.totalCount;
+          _totalPages = result.totalPages;
+          _loading    = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  Future<void> _fetchMore() async {
+    if (_loadingMore || _page >= _totalPages) return;
+    setState(() { _loadingMore = true; _page++; });
+    try {
+      final result = await _EpornerApi.search(
+        query:   _q.text.trim(),
+        page:    _page,
+        perPage: 40,
+      );
+      if (mounted) {
+        setState(() {
+          _videos.addAll(result.videos);
+          _loadingMore = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() { _loadingMore = false; _page--; });
+    }
   }
 
   void _search() {
     FocusScope.of(context).unfocus();
-    _applyQuery();
-    setState(() {});
+    _fetch(reset: true);
   }
 
-  List<FeedItem> get _videos =>
-      _all.where((i) => i.type == 'video').toList();
-  List<FeedItem> get _articles =>
-      _all.where((i) => i.type == 'article').toList();
-  List<SiteModel> get _sites {
-    final q = _q.text.trim().toLowerCase();
-    if (q.isEmpty) return kSites;
-    return kSites
-        .where((s) =>
-            s.name.toLowerCase().contains(q) ||
-            s.baseUrl.toLowerCase().contains(q))
-        .toList();
-  }
+  void _openVideo(_EpornerVideo v) => Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (_) => BrowserPage(
+                freeNavigation: true,
+                site: SiteModel(
+                    id: 'ep',
+                    name: v.title,
+                    baseUrl: v.url,
+                    allowedDomain: '',
+                    searchUrl: v.url,
+                    primaryColor: _kPrimary),
+              )));
 
-  void _openFeed(FeedItem item) => Navigator.push(context,
-      MaterialPageRoute(builder: (_) => BrowserPage(
-        freeNavigation: true,
-        site: SiteModel(id: 'feed', name: item.title, baseUrl: item.url,
-            allowedDomain: '', searchUrl: item.url, primaryColor: const Color(0xFFf5a992)),
-      )));
-
-  void _openSite(SiteModel site) => Navigator.push(context,
-      MaterialPageRoute(builder: (_) => BrowserPage(site: site, initialQuery: _q.text.trim())));
+  // ── vídeos = todos os items com thumb
+  // ── imagens = thumb de TODOS os items (filtro visual puro)
+  List<_EpornerVideo> get _allWithThumb =>
+      _videos.where((v) => v.thumbUrl.isNotEmpty).toList();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0E0E),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF111111),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: TextField(
-          controller: _q,
-          style: const TextStyle(color: Colors.white, fontSize: 15),
-          textInputAction: TextInputAction.search,
-          onSubmitted: (_) => _search(),
-          decoration: InputDecoration(
-            hintText: 'Pesquisar...',
-            hintStyle:
-                TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 15),
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search_rounded, color: Colors.white, size: 22),
-            onPressed: _search,
+      backgroundColor: _kBg,
+      body: NestedScrollView(
+        controller: _scroll,
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          // ── SliverAppBar ──────────────────────────────────────────────
+          SliverAppBar(
+            pinned: true,
+            floating: true,
+            snap: true,
+            backgroundColor: _kSurface.withOpacity(0.92),
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            forceElevated: innerBoxIsScrolled,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded,
+                  color: Colors.white, size: 22),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: TextField(
+              controller: _q,
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _search(),
+              decoration: InputDecoration(
+                hintText: 'Pesquisar...',
+                hintStyle: TextStyle(
+                    color: Colors.white.withOpacity(0.35), fontSize: 15),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            // Sem ícone de pesquisa nas actions
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(40),
+              child: TabBar(
+                controller: _tabs,
+                // Indicador amarelo fino
+                indicator: UnderlineTabIndicator(
+                  borderSide: const BorderSide(
+                    color: _kPrimary,
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                // Linha divisória quase invisível
+                dividerColor: Colors.white.withOpacity(0.06),
+                dividerHeight: 0.5,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white38,
+                labelStyle: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w600),
+                unselectedLabelStyle: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w500),
+                tabs: [
+                  Tab(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Vídeos'),
+                        if (!_loading && _videos.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          _CountBadge(count: _totalCount),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Imagens'),
+                        if (!_loading && _allWithThumb.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          _CountBadge(count: _allWithThumb.length),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabs,
-          indicatorColor: Colors.white,
-          indicatorWeight: 2,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white38,
-          labelStyle:
-              const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          tabs: const [
-            Tab(text: 'Todos'),
-            Tab(text: 'Vídeos'),
-            Tab(text: 'Artigos'),
-            Tab(text: 'Sites'),
-          ],
-        ),
+        body: _loading
+            ? const Center(
+                child: CircularProgressIndicator(
+                    color: _kPrimary, strokeWidth: 1.5))
+            : _error != null
+                ? _ErrorState(
+                    message: _error!,
+                    onRetry: () => _fetch(reset: true))
+                : TabBarView(
+                    controller: _tabs,
+                    children: [
+                      // ── Tab Vídeos ───────────────────────────────────
+                      _VideosTab(
+                        videos: _videos,
+                        loadingMore: _loadingMore,
+                        onTap: _openVideo,
+                      ),
+                      // ── Tab Imagens ──────────────────────────────────
+                      _ImagesTab(
+                        videos: _allWithThumb,
+                        onTap: _openVideo,
+                      ),
+                    ],
+                  ),
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(
-                  color: Colors.white30, strokeWidth: 2))
-          : TabBarView(
-              controller: _tabs,
-              children: [
-                _GridFeed(items: _all, onTap: _openFeed),
-                _GridFeed(items: _videos, onTap: _openFeed),
-                _ListFeed(items: _articles, onTap: _openFeed),
-                _SitesGrid(sites: _sites, onTap: _openSite),
-              ],
-            ),
     );
   }
 }
 
-// ── helpers de placeholder ────────────────────────────────────────────────────
-Widget _ph() => Container(
-      color: Colors.white.withOpacity(0.06),
-      child: const Center(
-        child: Icon(Icons.play_circle_outline, color: Colors.white24, size: 32),
-      ),
-    );
+// ─────────────────────────────────────────────────────────────────────────────
+// Badge contagem nos tabs
+// ─────────────────────────────────────────────────────────────────────────────
+class _CountBadge extends StatelessWidget {
+  final int count;
+  const _CountBadge({required this.count});
 
-Widget _phSmall() => Container(
-      width: 80,
-      height: 56,
-      color: Colors.white.withOpacity(0.06),
-      child: const Icon(Icons.article_outlined, color: Colors.white24, size: 22),
-    );
-
-Widget _emptyState(String msg) => Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.search_off_rounded,
-            color: Colors.white.withOpacity(0.12), size: 52),
-        const SizedBox(height: 12),
-        Text(msg,
-            style: TextStyle(
-                color: Colors.white.withOpacity(0.3), fontSize: 14)),
-      ]),
-    );
-
-// ── Grid vídeos ───────────────────────────────────────────────────────────────
-class _GridFeed extends StatelessWidget {
-  final List<FeedItem> items;
-  final void Function(FeedItem) onTap;
-  const _GridFeed({required this.items, required this.onTap});
+  String _fmt() {
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(0)}k';
+    return '$count';
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return _emptyState('Sem resultados');
-    return GridView.builder(
-      padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 16 / 11,
-        crossAxisSpacing: 6,
-        mainAxisSpacing: 6,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: _kPrimary.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(4),
       ),
-      itemCount: items.length,
-      itemBuilder: (_, i) =>
-          _VideoCard(item: items[i], onTap: () => onTap(items[i])),
+      child: Text(_fmt(),
+          style: const TextStyle(
+              color: _kPrimary, fontSize: 9, fontWeight: FontWeight.w700)),
     );
   }
 }
 
-class _VideoCard extends StatelessWidget {
-  final FeedItem item;
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab Vídeos
+// ─────────────────────────────────────────────────────────────────────────────
+class _VideosTab extends StatelessWidget {
+  final List<_EpornerVideo> videos;
+  final bool loadingMore;
+  final void Function(_EpornerVideo) onTap;
+  const _VideosTab(
+      {required this.videos, required this.loadingMore, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    if (videos.isEmpty) return _emptyState('Nenhum vídeo encontrado');
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+      itemCount: videos.length + (loadingMore ? 1 : 0),
+      itemBuilder: (_, i) {
+        if (i == videos.length) {
+          return const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(
+                child: CircularProgressIndicator(
+                    color: _kPrimary, strokeWidth: 1.5)),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _VideoListCard(video: videos[i], onTap: () => onTap(videos[i])),
+        );
+      },
+    );
+  }
+}
+
+// ─── Card de vídeo na lista ───────────────────────────────────────────────────
+class _VideoListCard extends StatelessWidget {
+  final _EpornerVideo video;
   final VoidCallback onTap;
-  const _VideoCard({required this.item, required this.onTap});
+  const _VideoListCard({required this.video, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Stack(fit: StackFit.expand, children: [
-          item.thumb.isNotEmpty
-              ? CachedNetworkImage(
-                  imageUrl: item.thumb,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(
-                      color: Colors.white.withOpacity(0.06)),
-                  errorWidget: (_, __, ___) => _ph(),
-                )
-              : _ph(),
-          // gradiente em baixo
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.8),
-                ],
+      child: Container(
+        decoration: BoxDecoration(
+          color: _kSurface,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Thumbnail 16:9
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Stack(fit: StackFit.expand, children: [
+              video.thumbUrl.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: video.thumbUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) =>
+                          Container(color: const Color(0xFF222222)),
+                      errorWidget: (_, __, ___) => _thumbError(),
+                    )
+                  : _thumbError(),
+
+              // Gradiente bottom
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0.5, 1.0],
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.6)
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
+
+              // Badge duração
+              if (video.lengthMin.isNotEmpty)
+                Positioned(
+                  bottom: 8, right: 8,
+                  child: _Badge(text: video.lengthMin),
+                ),
+
+              // Badge rating
+              if (video.rate != '0.0')
+                Positioned(
+                  top: 8, left: 8,
+                  child: _Badge(
+                    text: '★ ${video.rate}',
+                    color: _kPrimary.withOpacity(0.88),
+                    textColor: Colors.black,
+                  ),
+                ),
+
+              // Badge views
+              if (video.views.isNotEmpty)
+                Positioned(
+                  top: 8, right: 8,
+                  child: _Badge(text: video.views),
+                ),
+            ]),
           ),
-          // título
-          Positioned(
-            bottom: 6, left: 8, right: 8,
-            child: Text(
-              item.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 11, height: 1.3),
-            ),
-          ),
-          // source badge
-          Positioned(
-            top: 5, right: 5,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(4)),
-              child: Text(item.source,
+
+          // Body
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+              Text(video.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      color: Colors.white60, fontSize: 8.5)),
-            ),
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      height: 1.4)),
+              if (video.keywords.isNotEmpty) ...[
+                const SizedBox(height: 5),
+                Text(
+                  video.keywords.split(',').take(5).join('  ·  '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.32),
+                      fontSize: 11),
+                ),
+              ],
+              const SizedBox(height: 8),
+              Row(children: [
+                _MetaChip(label: video.lengthMin, icon: Icons.schedule_rounded),
+                const SizedBox(width: 8),
+                _MetaChip(label: video.views, icon: Icons.visibility_outlined),
+                const SizedBox(width: 8),
+                _MetaChip(label: '★ ${video.rate}', icon: null),
+              ]),
+            ]),
           ),
-          // duration badge
-          if (item.duration.isNotEmpty)
-            Positioned(
-              bottom: 6, right: 5,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.75),
-                    borderRadius: BorderRadius.circular(3)),
-                child: Text(item.duration,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 9)),
-              ),
-            ),
         ]),
       ),
     );
   }
+
+  Widget _thumbError() => Container(
+      color: const Color(0xFF1E1E1E),
+      child: const Center(
+          child: Icon(Icons.play_circle_outline,
+              color: Colors.white12, size: 42)));
 }
 
-// ── Lista artigos ─────────────────────────────────────────────────────────────
-class _ListFeed extends StatelessWidget {
-  final List<FeedItem> items;
-  final void Function(FeedItem) onTap;
-  const _ListFeed({required this.items, required this.onTap});
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab Imagens — StaggeredGridView com TODAS as thumbnails
+// ─────────────────────────────────────────────────────────────────────────────
+class _ImagesTab extends StatelessWidget {
+  final List<_EpornerVideo> videos;
+  final void Function(_EpornerVideo) onTap;
+  const _ImagesTab({required this.videos, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return _emptyState('Sem artigos');
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: items.length,
-      separatorBuilder: (_, __) =>
-          Divider(height: 1, color: Colors.white.withOpacity(0.06)),
+    if (videos.isEmpty) return _emptyState('Nenhuma imagem encontrada');
+
+    return MasonryGridView.count(
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 24),
+      crossAxisCount: 2,
+      mainAxisSpacing: 6,
+      crossAxisSpacing: 6,
+      itemCount: videos.length,
       itemBuilder: (_, i) {
-        final item = items[i];
-        return InkWell(
-          onTap: () => onTap(item),
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: item.thumb.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: item.thumb,
-                        width: 80,
-                        height: 56,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(
-                            width: 80,
-                            height: 56,
-                            color: Colors.white.withOpacity(0.06)),
-                        errorWidget: (_, __, ___) => _phSmall(),
-                      )
-                    : _phSmall(),
+        final v = videos[i];
+        return GestureDetector(
+          onTap: () => onTap(v),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Stack(children: [
+              CachedNetworkImage(
+                imageUrl: v.thumbUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                placeholder: (_, __) => Container(
+                  height: 120,
+                  color: const Color(0xFF1E1E1E),
+                ),
+                errorWidget: (_, __, ___) => Container(
+                  height: 100,
+                  color: const Color(0xFF1E1E1E),
+                  child: const Center(
+                      child: Icon(Icons.broken_image_outlined,
+                          color: Colors.white12, size: 28)),
+                ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text(
-                    item.title,
-                    maxLines: 2,
+              // Overlay leve no hover / tap com título
+              Positioned(
+                bottom: 0, left: 0, right: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(6, 14, 6, 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.75),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: Text(
+                    v.title,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        color: Colors.white, fontSize: 13, height: 1.4),
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500),
                   ),
-                  const SizedBox(height: 4),
-                  Text(item.source,
-                      style: TextStyle(
-                          color: Colors.white.withOpacity(0.35),
-                          fontSize: 11)),
-                ]),
+                ),
               ),
+              // Badge duração
+              if (v.lengthMin.isNotEmpty)
+                Positioned(
+                  top: 5, right: 5,
+                  child: _Badge(text: v.lengthMin),
+                ),
             ]),
           ),
         );
@@ -333,67 +604,106 @@ class _ListFeed extends StatelessWidget {
   }
 }
 
-// ── Grelha de sites ───────────────────────────────────────────────────────────
-class _SitesGrid extends StatelessWidget {
-  final List<SiteModel> sites;
-  final void Function(SiteModel) onTap;
-  const _SitesGrid({required this.sites, required this.onTap});
+// ─────────────────────────────────────────────────────────────────────────────
+// Widgets auxiliares
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _Badge extends StatelessWidget {
+  final String text;
+  final Color color;
+  final Color textColor;
+  const _Badge({
+    required this.text,
+    this.color = const Color(0xCC000000),
+    this.textColor = Colors.white,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (sites.isEmpty) return _emptyState('Nenhum site encontrado');
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 1,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(5),
       ),
-      itemCount: sites.length,
-      itemBuilder: (_, i) {
-        final s = sites[i];
-        return GestureDetector(
-          onTap: () => onTap(s),
-          child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: s.primaryColor.withOpacity(0.15),
-                border: Border.all(
-                    color: Colors.white.withOpacity(0.08)),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: s.hasLocalIcon
-                    ? Image.asset(s.localIconAsset!, fit: BoxFit.cover)
-                    : Center(
-                        child: Text(
-                          s.name[0].toUpperCase(),
-                          style: TextStyle(
-                              color: s.primaryColor,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700),
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              s.name,
+      child: Text(text,
+          style: TextStyle(
+              color: textColor,
+              fontSize: 10,
+              fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  const _MetaChip({required this.label, this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      if (icon != null) ...[
+        Icon(icon, color: Colors.white24, size: 12),
+        const SizedBox(width: 3),
+      ],
+      Text(label,
+          style: TextStyle(
+              color: Colors.white.withOpacity(0.35),
+              fontSize: 11)),
+    ]);
+  }
+}
+
+Widget _emptyState(String msg) => Center(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.search_off_rounded,
+            color: Colors.white.withOpacity(0.1), size: 52),
+        const SizedBox(height: 12),
+        Text(msg,
+            style: TextStyle(
+                color: Colors.white.withOpacity(0.28), fontSize: 14)),
+      ]),
+    );
+
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorState({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.wifi_off_rounded,
+              color: Colors.white.withOpacity(0.15), size: 48),
+          const SizedBox(height: 12),
+          Text(message,
               textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  color: Colors.white70, fontSize: 11),
+              style: TextStyle(
+                  color: Colors.white.withOpacity(0.3), fontSize: 12)),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: onRetry,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: _kPrimary.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _kPrimary.withOpacity(0.35)),
+              ),
+              child: const Text('Tentar novamente',
+                  style: TextStyle(
+                      color: _kPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
             ),
-          ]),
-        );
-      },
+          ),
+        ]),
+      ),
     );
   }
 }
