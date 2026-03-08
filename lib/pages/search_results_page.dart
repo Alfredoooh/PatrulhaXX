@@ -65,36 +65,15 @@ class _SearchResultsPageState extends State<SearchResultsPage>
         .toList();
   }
 
-  void _openFeed(FeedItem item) => Navigator.push(
-        context,
-        _slide(BrowserPage(
-          freeNavigation: true,
-          site: SiteModel(
-            id: 'feed',
-            name: item.title,
-            baseUrl: item.url,
-            allowedDomain: '',
-            searchUrl: item.url,
-            primaryColor: const Color(0xFF1A1A1A),
-          ),
-        )),
-      );
+  void _openFeed(FeedItem item) => Navigator.push(context,
+      MaterialPageRoute(builder: (_) => BrowserPage(
+        freeNavigation: true,
+        site: SiteModel(id: 'feed', name: item.title, baseUrl: item.url,
+            allowedDomain: '', searchUrl: item.url, primaryColor: const Color(0xFFf5a992)),
+      )));
 
-  void _openSite(SiteModel site) => Navigator.push(
-        context,
-        _slide(BrowserPage(site: site, initialQuery: _q.text.trim())),
-      );
-
-  Route _slide(Widget page) => PageRouteBuilder(
-        pageBuilder: (_, a, __) => page,
-        transitionDuration: const Duration(milliseconds: 380),
-        reverseTransitionDuration: const Duration(milliseconds: 280),
-        transitionsBuilder: (_, a, __, child) => SlideTransition(
-          position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
-              .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
-          child: child,
-        ),
-      );
+  void _openSite(SiteModel site) => Navigator.push(context,
+      MaterialPageRoute(builder: (_) => BrowserPage(site: site, initialQuery: _q.text.trim())));
 
   @override
   Widget build(BuildContext context) {
