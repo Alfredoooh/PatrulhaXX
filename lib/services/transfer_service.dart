@@ -3,10 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:wifi_iot/wifi_iot.dart';
-import 'package:android_intent_plus/android_intent.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_p2p_connection/flutter_p2p_connection.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Modelos
@@ -41,132 +38,119 @@ class TransferProgress {
     this.error = false,
     this.errorMsg,
   });
-  double get fraction => totalBytes == 0 ? 0 : (sentBytes / totalBytes).clamp(0.0, 1.0);
+  double get fraction =>
+      totalBytes == 0 ? 0 : (sentBytes / totalBytes).clamp(0.0, 1.0);
 }
 
-// Estado do hotspot / ligação
 enum TransferState {
   idle,
   requestingPermission,
-  startingHotspot,    // recetor: a criar hotspot
-  hotspotReady,       // recetor: hotspot pronto, à espera
-  connectingToHotspot,// emissor: a ligar ao hotspot do recetor
-  connected,          // emissor: ligado, pronto a enviar
+  startingHotspot,
+  hotspotReady,
+  connectingToHotspot,
+  connected,
   transferring,
   done,
   error,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TransferService  —  arquitectura idêntica ao ShareIt
+// TransferService
 //
-// RECETOR:
-//   1. Pede permissões (location + wifi state)
-//   2. Ativa LocalOnlyHotspot via wifi_iot (Android API 26+)
-//   3. Mostra SSID + password para o emissor ligar
-//   4. Abre servidor TCP na porta 49317
-//   5. Recebe ficheiros em stream
+// Usa flutter_p2p_connection (Wi-Fi Direct nativo Android API 26+)
+// — substitui wifi_iot que está descontinuado
 //
-// EMISSOR:
-//   1. Utilizador lê QR ou insere SSID+password manualmente
-//   2. Liga-se ao hotspot do recetor via wifi_iot
-//   3. Conecta TCP ao IP do gateway do hotspot (sempre 192.168.43.1 ou similar)
-//   4. Envia ficheiros em chunks de 64 KB
+// RECETOR  (Host):
+//   1. Pede permissões P2P + storage + bluetooth
+//   2. FlutterP2pHost cria grupo Wi-Fi Direct (hotspot automático pelo SO)
+//   3. Obtém SSID + PSK do grupo e expõe via BLE advertising
+//   4. Abre servidor TCP na porta 49317, recebe ficheiros
+//
+// EMISSOR (Client):
+//   1. FlutterP2pClient descobre o host via BLE  OU  usa SSID+PSK do QR
+//   2. Liga-se ao grupo Wi-Fi Direct
+//   3. Conecta TCP ao groupOwnerAddress e envia ficheiros em chunks 64 KB
 // ─────────────────────────────────────────────────────────────────────────────
 class TransferService {
   static final TransferService instance = TransferService._();
   TransferService._();
 
   static const int _port = 49317;
-  static const int _chunkSize = 65536;
+  static const int _chunkSize = 65536; // 64 KB
 
-  // ── Estado público ─────────────────────────────────────────────────────────
-  final _stateCtrl = StreamController<TransferState>.broadcast();
+  // ── Streams públicos ────────────────────────────────────────────────────────
+  final _stateCtrl    = StreamController<TransferState>.broadcast();
   final _progressCtrl = StreamController<TransferProgress>.broadcast();
-  Stream<TransferState> get stateStream => _stateCtrl.stream;
-  Stream<TransferProgress> get progress => _progressCtrl.stream;
+  Stream<TransferState>    get stateStream => _stateCtrl.stream;
+  Stream<TransferProgress> get progress    => _progressCtrl.stream;
 
   TransferState _state = TransferState.idle;
-  String _hotspotSsid = '';
-  String _hotspotPassword = '';
+
+  // ── Instâncias P2P ──────────────────────────────────────────────────────────
+  final _host   = FlutterP2pHost();
+  final _client = FlutterP2pClient();
+
+  // ── Estado do hotspot ────────────────────────────────────────────────────────
+  String _ssid     = '';
+  String _password = '';
+  String get hotspotSsid     => _ssid;
+  String get hotspotPassword => _password;
+
   ServerSocket? _server;
   StreamSubscription? _serverSub;
 
-  String get hotspotSsid => _hotspotSsid;
-  String get hotspotPassword => _hotspotPassword;
+  void _setState(TransferState s) { _state = s; _stateCtrl.add(s); }
 
-  void _setState(TransferState s) {
-    _state = s;
-    _stateCtrl.add(s);
-  }
-
-  // ── Permissões necessárias (Android) ──────────────────────────────────────
-  static Future<bool> requestPermissions() async {
-    final statuses = await [
-      Permission.location,
-      Permission.nearbyWifiDevices,
-    ].request();
-    final ok = statuses.values.every(
-        (s) => s == PermissionStatus.granted);
-    if (!ok) {
-      // Abre as definições do sistema se negado permanentemente
-      openAppSettings();
-    }
-    return ok;
-  }
-
-  // ── Abre as definições de Wi-Fi do sistema (fallback manual) ──────────────
-  static Future<void> openWifiSettings() async {
-    const intent = AndroidIntent(
-      action: 'android.settings.WIFI_SETTINGS',
-    );
-    await intent.launch();
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // RECETOR — inicia hotspot local + servidor TCP
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
+  // RECETOR — cria grupo Wi-Fi Direct e servidor TCP
+  // ─────────────────────────────────────────────────────────────────────────────
   Future<({String ssid, String password})> startReceiver() async {
     _setState(TransferState.requestingPermission);
 
-    final ok = await requestPermissions();
-    if (!ok) {
-      _setState(TransferState.error);
-      throw Exception('Permissões negadas. Ativa a localização nas definições.');
-    }
+    // Pede todas as permissões necessárias
+    if (!await _host.checkP2pPermissions())     await _host.askP2pPermissions();
+    if (!await _host.checkStoragePermission())  await _host.askStoragePermission();
+    if (!await _host.checkBluetoothPermissions()) await _host.askBluetoothPermissions();
+
+    // Garante Wi-Fi e localização ativos
+    if (!await _host.checkWifiEnabled())       await _host.enableWifiServices();
+    if (!await _host.checkLocationEnabled())   await _host.enableLocationServices();
 
     _setState(TransferState.startingHotspot);
 
-    // Ativa LocalOnlyHotspot — Android gera SSID e password automaticamente
-    final enabled = await WiFiForIoTPlugin.setEnabled(true, shouldOpenSettings: true);
-    if (!enabled) {
-      // Fallback: abre definições manualmente
-      await openWifiSettings();
+    // Cria o grupo Wi-Fi Direct — o SO gera SSID e PSK automaticamente
+    final hotspotInfo = await _host.createGroup();
+
+    if (hotspotInfo == null) {
+      _setState(TransferState.error);
+      throw Exception(
+          'Não foi possível criar o grupo Wi-Fi Direct.\n'
+          'Verifica se o Wi-Fi está ativo e as permissões concedidas.');
     }
 
-    // startLocalOnlyHotspot via wifi_iot
-    final result = await WiFiForIoTPlugin.registerWifiNetwork('');
-    // O wifi_iot não expõe diretamente o SSID/password do LocalOnlyHotspot
-    // então usamos valores gerados deterministicamente com base no device ID
-    final deviceId = await _getDeviceId();
-    _hotspotSsid = 'pXX_${deviceId.substring(0, 6).toUpperCase()}';
-    _hotspotPassword = deviceId.substring(0, 8);
+    _ssid     = hotspotInfo.ssid;
+    _password = hotspotInfo.passphrase;
 
     // Inicia servidor TCP
     await _startServer();
 
+    // Anuncia credenciais via BLE para que o emissor descubra sem QR
+    await _host.startBleAdvertising();
+
     _setState(TransferState.hotspotReady);
-    return (ssid: _hotspotSsid, password: _hotspotPassword);
+    return (ssid: _ssid, password: _password);
   }
 
   Future<void> _startServer() async {
     await _server?.close();
-    _serverSub?.cancel();
-    _server = await ServerSocket.bind(InternetAddress.anyIPv4, _port, shared: true);
+    await _serverSub?.cancel();
+    _server    = await ServerSocket.bind(InternetAddress.anyIPv4, _port, shared: true);
     _serverSub = _server!.listen(_handleConnection);
   }
 
   Future<void> stopReceiver() async {
+    await _host.stopBleAdvertising();
+    await _host.removeGroup();
     await _server?.close();
     _server = null;
     await _serverSub?.cancel();
@@ -174,20 +158,20 @@ class TransferService {
     _setState(TransferState.idle);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // RECETOR — recebe ficheiro via socket
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
+  // RECETOR — processa ligação TCP e grava ficheiro
+  // ─────────────────────────────────────────────────────────────────────────────
   Future<void> _handleConnection(Socket socket) async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir     = await getApplicationDocumentsDirectory();
     final saveDir = Directory('${dir.path}/transfers');
     await saveDir.create(recursive: true);
 
     IOSink? sink;
-    String fileName = '';
-    int totalSize = 0;
-    int received = 0;
-    bool headerDone = false;
-    final buf = BytesBuilder(copy: true);
+    String fileName  = '';
+    int totalSize    = 0;
+    int received     = 0;
+    bool headerDone  = false;
+    final buf        = BytesBuilder(copy: true);
 
     _setState(TransferState.transferring);
 
@@ -196,31 +180,37 @@ class TransferService {
         if (!headerDone) {
           buf.add(chunk);
           final raw = buf.toBytes();
-          final nl = _indexOfNewline(raw);
+          final nl  = _indexOfNewline(raw);
           if (nl == -1) continue;
+
           final header = json.decode(utf8.decode(raw.sublist(0, nl))) as Map;
-          fileName = header['name'] as String;
+          fileName  = header['name'] as String;
           totalSize = header['size'] as int;
           headerDone = true;
+
           final safe = fileName.replaceAll(RegExp(r'[^\w.\-]'), '_');
           sink = File('${saveDir.path}/$safe').openWrite();
+
           final rest = raw.sublist(nl + 1);
           if (rest.isNotEmpty) { sink.add(rest); received += rest.length; }
         } else {
           sink?.add(chunk);
           received += chunk.length;
         }
+
         _progressCtrl.add(TransferProgress(
-          fileName: fileName,
+          fileName:   fileName,
           totalBytes: totalSize,
-          sentBytes: received,
-          done: received >= totalSize && totalSize > 0,
+          sentBytes:  received,
+          done:       received >= totalSize && totalSize > 0,
         ));
       }
+
       await sink?.flush();
       await sink?.close();
       _progressCtrl.add(TransferProgress(
-        fileName: fileName, totalBytes: totalSize, sentBytes: totalSize, done: true));
+        fileName: fileName, totalBytes: totalSize,
+        sentBytes: totalSize, done: true));
       _setState(TransferState.done);
     } catch (e) {
       await sink?.close();
@@ -238,43 +228,69 @@ class TransferService {
     return -1;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // EMISSOR — liga ao hotspot do recetor e envia ficheiros
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
+  // EMISSOR — descobre host e envia ficheiros
+  // ─────────────────────────────────────────────────────────────────────────────
 
-  /// Conecta ao hotspot do recetor.
-  /// [ssid] e [password] vêm do QR ou do input manual.
-  Future<bool> connectToReceiver({
-    required String ssid,
-    required String password,
-  }) async {
+  /// Liga ao host via BLE discovery (automático, sem QR).
+  /// O utilizador só precisa de estar perto — o plugin descobre o host via BLE.
+  Future<bool> connectViaBleScan() async {
     _setState(TransferState.requestingPermission);
-    final ok = await requestPermissions();
-    if (!ok) { _setState(TransferState.error); return false; }
+
+    if (!await _client.checkP2pPermissions())       await _client.askP2pPermissions();
+    if (!await _client.checkBluetoothPermissions()) await _client.askBluetoothPermissions();
+    if (!await _client.checkWifiEnabled())          await _client.enableWifiServices();
+    if (!await _client.checkLocationEnabled())      await _client.enableLocationServices();
 
     _setState(TransferState.connectingToHotspot);
 
     try {
-      // Liga ao Wi-Fi do recetor via wifi_iot
-      final connected = await WiFiForIoTPlugin.connect(
-        ssid,
-        password: password,
-        security: NetworkSecurity.WPA,
-        joinOnce: false,
-        withInternet: false,
+      // Inicia scan BLE — o stream emite cada host encontrado
+      await _client.startBleScan();
+
+      // Espera até 15 s pelo primeiro host
+      final hostInfo = await _client.bleDiscoveredHosts
+          .firstWhere((_) => true)
+          .timeout(const Duration(seconds: 15));
+
+      await _client.stopBleScan();
+
+      // Liga ao grupo Wi-Fi Direct do host com as credenciais recebidas via BLE
+      final ok = await _client.connectToHost(
+        ssid:       hostInfo.ssid,
+        passphrase: hostInfo.passphrase,
       );
 
-      if (!connected) {
-        // Fallback: abre definições Wi-Fi para o utilizador ligar manualmente
-        await openWifiSettings();
-        // Espera 8 s e verifica se já está ligado
-        await Future.delayed(const Duration(seconds: 8));
-        final current = await WiFiForIoTPlugin.getSSID();
-        if (current?.contains(ssid.substring(0, 4)) != true) {
-          _setState(TransferState.error);
-          return false;
-        }
-      }
+      if (!ok) { _setState(TransferState.error); return false; }
+      _setState(TransferState.connected);
+      return true;
+    } catch (e) {
+      await _client.stopBleScan();
+      _setState(TransferState.error);
+      return false;
+    }
+  }
+
+  /// Liga ao host via SSID + password (lidos do QR ou inseridos manualmente).
+  Future<bool> connectViaCredentials({
+    required String ssid,
+    required String password,
+  }) async {
+    _setState(TransferState.requestingPermission);
+
+    if (!await _client.checkP2pPermissions())  await _client.askP2pPermissions();
+    if (!await _client.checkWifiEnabled())     await _client.enableWifiServices();
+    if (!await _client.checkLocationEnabled()) await _client.enableLocationServices();
+
+    _setState(TransferState.connectingToHotspot);
+
+    try {
+      final ok = await _client.connectToHost(
+        ssid:       ssid,
+        passphrase: password,
+      );
+
+      if (!ok) { _setState(TransferState.error); return false; }
       _setState(TransferState.connected);
       return true;
     } catch (e) {
@@ -283,14 +299,14 @@ class TransferService {
     }
   }
 
-  /// Envia ficheiros para o recetor.
-  /// O IP do recetor num hotspot Android local é sempre 192.168.43.1
-  /// (gateway do hotspot) ou pode ser obtido via WiFiForIoTPlugin.getGatewayIP.
+  /// Envia ficheiros para o host depois de conectado.
+  /// O IP do owner do grupo Wi-Fi Direct é obtido via [_client.groupOwnerAddress].
   Stream<TransferProgress> sendFiles({
     required List<TransferFile> files,
-    String? targetIp, // se null, usa o gateway do hotspot
+    String? targetIp,
   }) async* {
-    String ip = targetIp ?? await _resolveGatewayIp();
+    // Resolve o IP do host (groupOwner do Wi-Fi Direct)
+    String ip = targetIp ?? await _resolveGroupOwnerIp();
 
     _setState(TransferState.transferring);
 
@@ -314,26 +330,26 @@ class TransferService {
           socket.add(chunk);
           sent += chunk.length;
           yield TransferProgress(
-            fileName: tf.name,
+            fileName:   tf.name,
             totalBytes: tf.sizeBytes,
-            sentBytes: sent,
+            sentBytes:  sent,
           );
         }
 
         await socket.flush();
         yield TransferProgress(
-          fileName: tf.name,
+          fileName:   tf.name,
           totalBytes: tf.sizeBytes,
-          sentBytes: tf.sizeBytes,
+          sentBytes:  tf.sizeBytes,
           done: true,
         );
       } catch (e) {
         yield TransferProgress(
-          fileName: tf.name,
+          fileName:   tf.name,
           totalBytes: tf.sizeBytes,
-          sentBytes: sent,
-          error: true,
-          errorMsg: e.toString(),
+          sentBytes:  sent,
+          error:      true,
+          errorMsg:   e.toString(),
         );
         _setState(TransferState.error);
         return;
@@ -342,43 +358,40 @@ class TransferService {
         socket?.destroy();
       }
     }
+
     _setState(TransferState.done);
   }
 
-  /// Resolve o IP do gateway (recetor) via WifiManager nativo (Android).
-  Future<String> _resolveGatewayIp() async {
-    const ch = MethodChannel('com.patrulhaxx/device_id');
-    final gw = await ch.invokeMethod<String>('getGatewayIp');
-    if (gw == null || gw.isEmpty || gw == '0.0.0.0') {
-      throw Exception('Gateway não disponível. Verifica a ligação Wi-Fi.');
-    }
-    return gw;
+  Future<void> disconnectClient() async {
+    await _client.disconnect();
+    _setState(TransferState.idle);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Helpers
-  // ─────────────────────────────────────────────────────────────────────────
-
-  static Future<String> _getDeviceId() async {
+  /// Resolve o IP do groupOwner — num grupo Wi-Fi Direct é o IP do recetor (host)
+  Future<String> _resolveGroupOwnerIp() async {
     try {
-      const ch = MethodChannel('com.patrulhaxx/device_id');
-      final id = await ch.invokeMethod<String>('getAndroidId');
-      if (id != null && id.length >= 8) return id;
+      final addr = await _client.groupOwnerAddress;
+      if (addr != null && addr.isNotEmpty && addr != '0.0.0.0') return addr;
     } catch (_) {}
-    return 'patrulha';
+    // Fallback: IP típico do groupOwner em Wi-Fi Direct
+    return '192.168.49.1';
   }
 
-  /// Formata bytes em unidade legível (B / KB / MB / GB)
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Helpers públicos
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /// Formata bytes em unidade legível
   static String formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024)             return '$bytes B';
+    if (bytes < 1024 * 1024)     return '${(bytes / 1024).toStringAsFixed(1)} KB';
     if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 
-  /// Payload do QR  —  formato: "pxx:SSID:PASSWORD"
+  /// Payload do QR — formato: "pxx:SSID:PASSWORD"
   static String buildQrPayload(String ssid, String password) =>
       'pxx:$ssid:$password';
 
@@ -389,8 +402,6 @@ class TransferService {
       final parts = raw.split(':');
       if (parts.length < 3) return null;
       return (ssid: parts[1], password: parts.sublist(2).join(':'));
-    } catch (_) {
-      return null;
-    }
+    } catch (_) { return null; }
   }
 }
