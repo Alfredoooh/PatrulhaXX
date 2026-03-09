@@ -1,7 +1,7 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import '../services/theme_service.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/site_model.dart';
 import '../services/favicon_service.dart';
@@ -28,8 +28,6 @@ class _BrowserPageState extends State<BrowserPage> {
   InAppWebViewController? _wvCtrl;
   double _progress = 0;
   bool _loading = true;
-  Color _barColor = ThemeService.instance.isDark ? const Color(0xFF111111) : Colors.white;
-  bool _colorResolved = false;
   bool _dialogOpen = false;
 
   late final String _startUrl;
@@ -148,12 +146,6 @@ class _BrowserPageState extends State<BrowserPage> {
   void initState() {
     super.initState();
     _startUrl = widget.site.buildUrl(query: widget.initialQuery);
-    if (!widget.freeNavigation) _resolveColor();
-  }
-
-  Future<void> _resolveColor() async {
-    final c = await FaviconService.instance.extractColor(widget.site);
-    if (mounted) setState(() { _barColor = c; _colorResolved = true; });
   }
 
   bool _isAllowed(String url) {
@@ -208,7 +200,7 @@ class _BrowserPageState extends State<BrowserPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: _AppBar(
-        color: _barColor,
+        color: const Color(0xFF111111),
         site: widget.site,
         onBack: () async {
           if (_wvCtrl != null && await _wvCtrl!.canGoBack()) {
@@ -293,6 +285,11 @@ class _BrowserPageState extends State<BrowserPage> {
 }
 
 // ── AppBar ────────────────────────────────────────────────────────────────────
+const _svgClose =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M18,6L6,18M6,6l12,12" stroke="currentColor" stroke-width="2" '
+    'stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+
 class _AppBar extends StatelessWidget implements PreferredSizeWidget {
   final Color color;
   final SiteModel site;
@@ -312,49 +309,54 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize =>
       Size.fromHeight(kToolbarHeight + (progress != null ? 3.0 : 0.0));
 
+  // Nome truncado com reticências a partir de 20 caracteres
+  String get _title {
+    final n = site.name;
+    return n.length > 20 ? '${n.substring(0, 20)}…' : n;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<Color?>(
-      tween: ColorTween(begin: ThemeService.instance.isDark ? const Color(0xFF111111) : Colors.white, end: color),
-      duration: const Duration(milliseconds: 700),
-      curve: Curves.easeInOutCubic,
-      builder: (ctx, animColor, _) {
-        final bg = animColor ?? const Color(0xFF111111);
-        final fg = bg.computeLuminance() > 0.3 ? Colors.black87 : Colors.white;
-        return Column(mainAxisSize: MainAxisSize.min, children: [
-          AppBar(
-            backgroundColor: bg,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            leadingWidth: 52,
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back_rounded, color: fg, size: 22),
-              onPressed: onBack,
-            ),
-            title: Row(mainAxisSize: MainAxisSize.min, children: [
-              SiteIconWidget(site: site, size: 28, showShadow: false),
-              const SizedBox(width: 10),
-              Text(site.name,
-                  style: TextStyle(color: fg, fontSize: 16, fontWeight: FontWeight.w600)),
-            ]),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.refresh_rounded, color: fg, size: 20),
-                onPressed: onRefresh,
-              ),
-              const SizedBox(width: 4),
-            ],
+    const bg = Color(0xFF111111);
+    const fg = Colors.white;
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      AppBar(
+        backgroundColor: bg,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leadingWidth: 52,
+        leading: IconButton(
+          icon: SvgPicture.string(
+            _svgClose,
+            width: 18, height: 18,
+            colorFilter: const ColorFilter.mode(fg, BlendMode.srcIn),
           ),
-          if (progress != null)
-            LinearProgressIndicator(
-              value: progress,
-              minHeight: 3,
-              backgroundColor: Colors.transparent,
-              valueColor: AlwaysStoppedAnimation<Color>(fg.withOpacity(0.5)),
-            ),
-        ]);
-      },
-    );
+          onPressed: onBack,
+        ),
+        title: Row(mainAxisSize: MainAxisSize.min, children: [
+          SiteIconWidget(site: site, size: 28, showShadow: false),
+          const SizedBox(width: 10),
+          Text(_title,
+              style: const TextStyle(
+                  color: fg, fontSize: 16, fontWeight: FontWeight.w600)),
+        ]),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: fg, size: 20),
+            onPressed: onRefresh,
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      if (progress != null)
+        LinearProgressIndicator(
+          value: progress,
+          minHeight: 3,
+          backgroundColor: Colors.transparent,
+          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF9000)),
+        ),
+    ]);
   }
 }
 
