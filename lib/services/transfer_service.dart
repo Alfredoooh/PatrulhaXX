@@ -345,13 +345,14 @@ class TransferService {
     _setState(TransferState.done);
   }
 
-  /// Resolve o IP do gateway (recetor) — no hotspot Android é quase sempre 192.168.43.1
+  /// Resolve o IP do gateway (recetor) via WifiManager nativo (Android).
   Future<String> _resolveGatewayIp() async {
-    try {
-      final gw = await WiFiForIoTPlugin.getGatewayIP();
-      if (gw != null && gw.isNotEmpty && gw != '0.0.0.0') return gw;
-    } catch (_) {}
-    return '192.168.43.1'; // fallback padrão hotspot Android
+    const ch = MethodChannel('com.patrulhaxx/device_id');
+    final gw = await ch.invokeMethod<String>('getGatewayIp');
+    if (gw == null || gw.isEmpty || gw == '0.0.0.0') {
+      throw Exception('Gateway não disponível. Verifica a ligação Wi-Fi.');
+    }
+    return gw;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
