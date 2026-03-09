@@ -277,8 +277,41 @@ class _AdaptiveNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final safeBottom = MediaQuery.of(context).padding.bottom;
-    // Cor sólida no fundo: se wallpaper claro → tom mais claro/neutro; se escuro → mais escuro
+    // ── Tab Shorts: nav preta sólida, SEM BackdropFilter ──────────────────
+    // BackdropFilter sobre WebView no Android faz blur em toda a tab
+    if (tab == 1) {
+      return Container(
+        decoration: const BoxDecoration(
+          color: Colors.black,
+          border: Border(top: BorderSide(color: Color(0xFF1A1A1A), width: 0.5)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: navH,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _NavItem(
+                  svgFilled: _svgHomeFilled,
+                  svgOutline: _svgHomeOutline,
+                  active: false,
+                  onTap: () => onTab(0),
+                ),
+                _NavItem(
+                  svgFilled: _svgShortsFilled,
+                  svgOutline: _svgShortsOutline,
+                  active: true,
+                  onTap: () => onTab(1),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // ── Tab Home: blur + gradiente adaptativo ao wallpaper ────────────────
     final solidColor = _isLight
         ? Color.lerp(color, Colors.white, 0.15)!.withOpacity(0.97)
         : Color.lerp(color, Colors.black, 0.55)!.withOpacity(0.97);
@@ -292,9 +325,9 @@ class _AdaptiveNav extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.transparent,                        // topo: transparente
-                solidColor.withOpacity(solidColor.opacity * 0.45), // meio
-                solidColor,                                // base: sólida adaptativa
+                Colors.transparent,
+                solidColor.withOpacity(solidColor.opacity * 0.45),
+                solidColor,
               ],
               stops: const [0.0, 0.35, 1.0],
             ),
@@ -309,16 +342,16 @@ class _AdaptiveNav extends StatelessWidget {
                   _NavItem(
                     svgFilled: _svgHomeFilled,
                     svgOutline: _svgHomeOutline,
-                    active: tab == 0,
+                    active: true,
                     onTap: () => onTab(0),
-                    isLightBg: _isLight && tab == 0,
+                    isLightBg: _isLight,
                   ),
                   _NavItem(
                     svgFilled: _svgShortsFilled,
                     svgOutline: _svgShortsOutline,
-                    active: tab == 1,
+                    active: false,
                     onTap: () => onTab(1),
-                    isLightBg: _isLight && tab == 0,
+                    isLightBg: _isLight,
                   ),
                 ],
               ),
