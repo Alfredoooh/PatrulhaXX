@@ -12,7 +12,6 @@ dependencies:
   flutter_inappwebview: 6.1.5
   wifi_iot: ^0.3.19
   android_intent_plus: ^4.0.0
-  permission_handler: ^11.3.0
   flutter_svg: ^2.0.10+1
   shared_preferences: ^2.3.2      # substitui flutter_secure_storage — sem Tink, sem R8 crash
   path_provider: ^2.1.4
