@@ -375,6 +375,12 @@ class TransferService {
     _setState(TransferState.done);
   }
 
+  /// Alias de [connectViaCredentials] — mantém compatibilidade com downloads_page.
+  Future<bool> connectToReceiver({
+    required String ssid,
+    required String password,
+  }) => connectViaCredentials(ssid: ssid, password: password);
+
   Future<void> disconnectClient() async {
     await _client.disconnect();
     _setState(TransferState.idle);
