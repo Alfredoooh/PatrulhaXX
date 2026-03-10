@@ -14,6 +14,7 @@ class ThemeService extends ChangeNotifier {
   bool   _privacyRecent = true;
   bool   _noScreenshot  = true;
   int    _maxVolume     = 100;
+  Color? _wallpaperColor;
 
   String get bg            => _bg;
   bool   get isDark        => _dark;
@@ -22,6 +23,7 @@ class ThemeService extends ChangeNotifier {
   bool   get privacyRecent => _privacyRecent;
   bool   get noScreenshot  => _noScreenshot;
   int    get maxVolume     => _maxVolume;
+  Color? get wallpaperColor => _wallpaperColor;
 
   static const List<String> wallpapers = [
     'assets/images/background.png',
@@ -54,6 +56,8 @@ class ThemeService extends ChangeNotifier {
     _privacyRecent = _p.getBool('priv_recent')  ?? true;
     _noScreenshot  = _p.getBool('no_ss')        ?? true;
     _maxVolume     = _p.getInt('max_vol')       ?? 100;
+    final savedColor = _p.getInt('wallpaper_color');
+    if (savedColor != null) _wallpaperColor = Color(savedColor);
     notifyListeners();
   }
 
@@ -64,6 +68,12 @@ class ThemeService extends ChangeNotifier {
   Future<void> setPrivacyRecent(bool v) async { _privacyRecent = v; await _p.setBool('priv_recent', v);   notifyListeners(); }
   Future<void> setNoScreenshot(bool v)  async { _noScreenshot = v;  await _p.setBool('no_ss', v);         notifyListeners(); }
   Future<void> setMaxVolume(int v)      async { _maxVolume = v.clamp(10,100); await _p.setInt('max_vol', _maxVolume); notifyListeners(); }
+
+  Future<void> setWallpaperColor(Color c) async {
+    _wallpaperColor = c;
+    await _p.setInt('wallpaper_color', c.value);
+    notifyListeners();
+  }
 
   String searchUrl(String q) {
     final e = Uri.encodeComponent(q);
