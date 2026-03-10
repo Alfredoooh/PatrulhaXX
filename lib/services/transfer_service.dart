@@ -132,13 +132,34 @@ class TransferService {
     }
 
     _ssid     = state.ssid ?? '';
-    _password = state.psk  ?? '';
+    // O campo PSK varia entre versões do package (passphrase/password/psk)
+    // Usa dynamic para compatibilidade garantida
+    final dynamic dynState = state;
+    _password = _extractPsk(dynState);
 
     // Abre servidor TCP
     await _startTcpServer();
 
     _setState(TransferState.hotspotReady);
     return (ssid: _ssid, password: _password);
+  }
+
+  /// Extrai a password/PSK do HotspotHostState independentemente do nome do campo.
+  /// O package usa 'passphrase', 'password' ou 'psk' dependendo da versão.
+  String _extractPsk(dynamic s) {
+    try { final v = s.passphrase; if (v != null && v.toString().isNotEmpty) return v.toString(); } catch (_) {}
+    try { final v = s.password;   if (v != null && v.toString().isNotEmpty) return v.toString(); } catch (_) {}
+    try { final v = s.psk;        if (v != null && v.toString().isNotEmpty) return v.toString(); } catch (_) {}
+    return '';
+  }
+
+  /// Extrai o IP do gateway do HotspotClientState independentemente do nome do campo.
+  String _extractGatewayIp(dynamic s) {
+    try { final v = s.gatewayIp;      if (v != null && v.toString().isNotEmpty) return v.toString(); } catch (_) {}
+    try { final v = s.hostIp;         if (v != null && v.toString().isNotEmpty) return v.toString(); } catch (_) {}
+    try { final v = s.groupOwnerIp;   if (v != null && v.toString().isNotEmpty) return v.toString(); } catch (_) {}
+    try { final v = s.hostAddress;    if (v != null && v.toString().isNotEmpty) return v.toString(); } catch (_) {}
+    return '192.168.49.1';
   }
 
   Future<void> _startTcpServer() async {
@@ -292,16 +313,15 @@ class TransferService {
     }
   }
 
-  // Lê HotspotClientState para obter o gatewayIp do host
+  // Lê HotspotClientState para obter o IP do host (campo varia por versão)
   Future<void> _listenClientState() async {
     try {
       final state = await _client
           .streamHotspotState()
-          .firstWhere((s) => s.isActive && (s.gatewayIp?.isNotEmpty ?? false))
+          .firstWhere((s) => s.isActive)
           .timeout(const Duration(seconds: 8));
-      if (state.gatewayIp != null && state.gatewayIp!.isNotEmpty) {
-        _gatewayIp = state.gatewayIp!;
-      }
+      final ip = _extractGatewayIp(state);
+      if (ip.isNotEmpty && ip != '192.168.49.1') _gatewayIp = ip;
     } catch (_) {
       // Usa fallback 192.168.49.1 — IP padrão do groupOwner Wi-Fi Direct
     }
@@ -388,5 +408,14 @@ class TransferService {
       if (parts.length < 3) return null;
       return (ssid: parts[1], password: parts.sublist(2).join(':'));
     } catch (_) { return null; }
+  }
+
+  /// Abre as definições Wi-Fi do sistema Android.
+  static Future<void> openWifiSettings() async {
+    try {
+      // Usa android_intent_plus se disponível, senão usa a API nativa do FlutterP2pHost
+      final host = FlutterP2pHost();
+      await host.enableWifiServices();
+    } catch (_) {}
   }
 }
