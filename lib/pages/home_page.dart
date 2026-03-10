@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -9,6 +8,7 @@ import 'browser_page.dart';
 import 'downloads_page.dart';
 import 'settings_page.dart';
 import 'search_results_page.dart';
+import '../services/theme_service.dart';
 
 const kPrimaryColor = Color(0xFFFF9000);
 
@@ -158,7 +158,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin, WidgetsBindingObserver {
   int _tab = 0;
   final _searchCtrl = TextEditingController();
   bool get _hasQuery => _searchCtrl.text.trim().isNotEmpty;
@@ -171,13 +171,30 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _fadeIn = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 600))
       ..forward();
+    // Carrega a cor do wallpaper guardada no ThemeService
+    final savedWp = ThemeService.instance.wallpaperColor;
+    if (savedWp != null) _wallpaperColor = savedWp;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Quando o app volta ao foreground (resume), re-lança a animação
+    // e força rebuild para evitar ecrã preto
+    if (state == AppLifecycleState.resumed && mounted) {
+      if (!_fadeIn.isAnimating && _fadeIn.value < 1.0) {
+        _fadeIn.forward();
+      }
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _fadeIn.dispose();
     _searchCtrl.dispose();
     super.dispose();
@@ -196,7 +213,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   // Chamado pelo WallpaperColorExtractor quando deteta a cor dominante
   void _onColorExtracted(Color c) {
-    if (mounted) setState(() => _wallpaperColor = c);
+    if (mounted) {
+      setState(() => _wallpaperColor = c);
+      ThemeService.instance.setWallpaperColor(c);
+    }
   }
 
   @override
@@ -311,51 +331,50 @@ class _AdaptiveNav extends StatelessWidget {
       );
     }
 
-    // ── Tab Home: blur + gradiente adaptativo ao wallpaper ────────────────
+    // ── Tab Home: gradiente adaptativo SEM BackdropFilter ────────────────
+    // IMPORTANTE: BackdropFilter + InAppWebView no Android causa blur em
+    // toda a tela (bug flutter_inappwebview >= 6.0.0-beta.6). Solução:
+    // nunca usar BackdropFilter quando há WebView na árvore (IndexedStack
+    // mantém o tab Shorts montado em background mesmo quando invisível).
     final solidColor = _isLight
-        ? Color.lerp(color, Colors.white, 0.15)!.withOpacity(0.97)
-        : Color.lerp(color, Colors.black, 0.55)!.withOpacity(0.97);
+        ? Color.lerp(color, Colors.white, 0.15)!.withOpacity(0.96)
+        : Color.lerp(color, Colors.black, 0.60)!.withOpacity(0.96);
 
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                solidColor.withOpacity(solidColor.opacity * 0.45),
-                solidColor,
-              ],
-              stops: const [0.0, 0.35, 1.0],
-            ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: SizedBox(
-              height: navH,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _NavItem(
-                    svgFilled: _svgHomeFilled,
-                    svgOutline: _svgHomeOutline,
-                    active: true,
-                    onTap: () => onTab(0),
-                    isLightBg: _isLight,
-                  ),
-                  _NavItem(
-                    svgFilled: _svgShortsFilled,
-                    svgOutline: _svgShortsOutline,
-                    active: false,
-                    onTap: () => onTab(1),
-                    isLightBg: _isLight,
-                  ),
-                ],
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            solidColor.withOpacity(0.0),
+            solidColor.withOpacity(0.55),
+            solidColor,
+          ],
+          stops: const [0.0, 0.4, 1.0],
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: navH,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _NavItem(
+                svgFilled: _svgHomeFilled,
+                svgOutline: _svgHomeOutline,
+                active: true,
+                onTap: () => onTab(0),
+                isLightBg: _isLight,
               ),
-            ),
+              _NavItem(
+                svgFilled: _svgShortsFilled,
+                svgOutline: _svgShortsOutline,
+                active: false,
+                onTap: () => onTab(1),
+                isLightBg: _isLight,
+              ),
+            ],
           ),
         ),
       ),
@@ -512,8 +531,7 @@ class _HomeTab extends StatelessWidget {
   final VoidCallback onSearch, onSearchChanged, onDownloads, onSettings;
   final void Function(Color) onColorExtracted;
 
-  // URL do wallpaper (ajusta ao teu ThemeService / SettingsService)
-  static const _wallpaperUrl = ''; // preenche com o URL real do wallpaper activo
+  // URL do wallpaper vem do ThemeService (definido nas Settings)
 
   const _HomeTab({
     required this.fadeIn,
@@ -539,14 +557,17 @@ class _HomeTab extends StatelessWidget {
       Container(color: const Color(0xFF0C0C0C)),
 
       // ── WebView invisível para extrair cor do wallpaper ───────────────────
-      if (_wallpaperUrl.isNotEmpty)
-        Positioned(
+      Builder(builder: (ctx) {
+        final wpUrl = ThemeService.instance.bg;
+        if (wpUrl.isEmpty) return const SizedBox.shrink();
+        return Positioned(
           left: -1, top: -1, width: 1, height: 1,
           child: _WallpaperColorExtractor(
-            imageUrl: _wallpaperUrl,
+            imageUrl: wpUrl,
             onColor: onColorExtracted,
           ),
-        ),
+        );
+      }),
 
       // ── Conteúdo ──────────────────────────────────────────────────────────
       FadeTransition(
@@ -640,6 +661,9 @@ class _SearchBar extends StatelessWidget {
             onSubmitted: (_) => onSearch(),
             decoration: InputDecoration(
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              filled: false,
               hintText: 'Pesquisar vídeos, sites...',
               hintStyle: TextStyle(
                   color: Colors.white.withOpacity(0.32), fontSize: 15),
@@ -890,27 +914,21 @@ class _SitesGrid extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 4),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.28),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                  color: Colors.white.withOpacity(0.08), width: 0.5),
-            ),
-            child: Column(children: [
-              _SiteRow(sites: row1, onTap: onTap),
-              if (row2.isNotEmpty) ...[
-                const SizedBox(height: 18),
-                _SiteRow(sites: row2, onTap: onTap),
-              ],
-            ]),
-          ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 4),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.35),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+              color: Colors.white.withOpacity(0.08), width: 0.5),
         ),
+        child: Column(children: [
+          _SiteRow(sites: row1, onTap: onTap),
+          if (row2.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _SiteRow(sites: row2, onTap: onTap),
+          ],
+        ]),
       ),
     );
   }

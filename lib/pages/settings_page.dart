@@ -14,6 +14,13 @@ const _kPrimary = Color(0xFFFF9000);
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 
 // Fundo de ecrã
+const _iDark =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M21.752,15.002A9,9,0,1,1,8.998,2.248,7,7,0,0,0,21.752,15.002Z"'
+    ' fill="none" stroke="currentColor" stroke-width="1.8"'
+    ' stroke-linecap="round" stroke-linejoin="round"/>'
+    '</svg>';
+
 const _iWallpaper =
     '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
     '<g transform="matrix(1.3333333,0,0,-1.3333333,0,32)">'
@@ -131,12 +138,19 @@ const _iReload =
 
 const _secureChannel = MethodChannel('com.patrulhaxx/secure');
 
-// ─── Ícone de voltar ──────────────────────────────────────────────────────────
-const _iChevron =
+// ─── Ícone de voltar (AppBar) ─────────────────────────────────────────────────
+const _iBack =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23'
     'a1,1,0,0,0,1-1h0a1,1,0,0,0-1-1H2.55L6.17,7.38A1,1,0,0,0,6.17,6h0A1,1,0,0,0,'
     '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/>'
+    '</svg>';
+
+// ─── Chevron direita (trailing nas rows) ──────────────────────────────────────
+const _iChevron =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M9,18l6-6-6-6" fill="none" stroke="currentColor" stroke-width="2" '
+    'stroke-linecap="round" stroke-linejoin="round"/>'
     '</svg>';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -356,9 +370,9 @@ class _SettingsPageState extends State<SettingsPage> {
           elevation: 0,
           surfaceTintColor: Colors.transparent,
           leading: IconButton(
-            // Chevron elegante em vez do arrow_back do Material
+            // Seta de voltar
             icon: SvgPicture.string(
-              _iChevron,
+              _iBack,
               width: 22, height: 22,
               colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
             ),
@@ -371,13 +385,22 @@ class _SettingsPageState extends State<SettingsPage> {
           padding: const EdgeInsets.only(top: 8, bottom: 32),
           children: [
 
-            // ── Aparência — só wallpaper, sem switch de tema ──────────
+            // ── Aparência ────────────────────────────────────────────
             _label('Aparência'),
             _section([
+              _SwitchRow(
+                svg: _iDark,
+                label: 'Tema escuro',
+                sub: _ts.isDark ? 'Ativo' : 'Desativado',
+                value: _ts.isDark,
+                textColor: _text, subColor: _sub,
+                onChanged: (v) { _ts.setDark(v); setState(() {}); },
+              ),
+              _divider(),
               _TapRow(
                 svg: _iWallpaper,
                 label: 'Fundo de ecrã',
-                sub: _ts.bg.split('/').last,
+                sub: _ts.bg.isEmpty ? 'Padrão' : _ts.bg.split('/').last,
                 textColor: _text, subColor: _sub,
                 onTap: _pickWallpaper,
               ),

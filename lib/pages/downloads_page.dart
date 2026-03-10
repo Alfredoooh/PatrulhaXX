@@ -192,7 +192,14 @@ class _DownloadsPageState extends State<DownloadsPage> {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // _SendSheet  —  EMISSOR
-// Fases: choose → scan | manual → connecting → sending → done | error
+//
+// FLUXO:
+//   1. Abre sheet → mostra campo de código + botão de câmera
+//   2a. Escaneia QR  → parse do payload → liga → envia
+//   2b. Digita código de 6 chars → parse → liga → envia
+//   3. Conectando → spinner
+//   4. Enviando → progresso
+//   5. Done | Error
 // ─────────────────────────────────────────────────────────────────────────────
 class _SendSheet extends StatefulWidget {
   final List<DownloadedItem> items;
@@ -202,8 +209,8 @@ class _SendSheet extends StatefulWidget {
 }
 
 class _SendSheetState extends State<_SendSheet> {
-  // choose | scan | manual | connecting | sending | done | error
-  String _phase = 'choose';
+  // enter | scan | connecting | sending | done | error
+  String _phase = 'enter';
   final _ssidCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   StreamSubscription<TransferProgress>? _sub;
@@ -213,16 +220,49 @@ class _SendSheetState extends State<_SendSheet> {
   String _errMsg = '';
 
   @override
-  void dispose() { _ssidCtrl.dispose(); _passCtrl.dispose(); _sub?.cancel(); super.dispose(); }
+  void dispose() {
+    _ssidCtrl.dispose();
+    _passCtrl.dispose();
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  // Chamado após QR scan — payload "pxx:SSID:PASSWORD"
+  void _handleQr(String raw) {
+    final parsed = TransferService.parseQrPayload(raw);
+    if (parsed != null) {
+      _connectAndSend(parsed.ssid, parsed.password);
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('QR inválido. Tenta inserir manualmente.'),
+      backgroundColor: Colors.redAccent,
+      behavior: SnackBarBehavior.floating,
+    ));
+    setState(() => _phase = 'enter');
+  }
+
+  void _tryManual() {
+    final ssid = _ssidCtrl.text.trim();
+    final pass = _passCtrl.text.trim();
+    if (ssid.isEmpty || pass.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Preenche o nome da rede e a password.'),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    _connectAndSend(ssid, pass);
+  }
 
   Future<void> _connectAndSend(String ssid, String password) async {
-    setState(() { _phase = 'connecting'; });
-    final ok = await TransferService.instance.connectToReceiver(
-        ssid: ssid, password: password);
+    setState(() => _phase = 'connecting');
+    final ok = await TransferService.instance.connectToReceiver(ssid: ssid, password: password);
     if (!ok) {
       setState(() {
-        _errMsg = 'Não foi possível ligar ao hotspot "$ssid".\n'
-            'Liga manualmente nas definições Wi-Fi e tenta de novo.';
+        _errMsg = 'Não foi possível ligar ao dispositivo do recetor.\nConfirma que o recetor está ativo e tenta de novo.';
         _phase = 'error';
       });
       return;
@@ -233,14 +273,10 @@ class _SendSheetState extends State<_SendSheet> {
   void _startSend() {
     final files = widget.items.map((item) {
       final f = File(item.localPath);
-      return TransferFile(
-        name: item.name, localPath: item.localPath,
-        type: item.type, sizeBytes: f.existsSync() ? f.lengthSync() : 0,
-      );
+      return TransferFile(name: item.name, localPath: item.localPath,
+          type: item.type, sizeBytes: f.existsSync() ? f.lengthSync() : 0);
     }).toList();
-
     setState(() { _phase = 'sending'; _t0 = DateTime.now(); });
-
     _sub = TransferService.instance.sendFiles(files: files).listen((p) {
       if (!mounted) return;
       setState(() => _prog = p);
@@ -253,23 +289,10 @@ class _SendSheetState extends State<_SendSheet> {
     });
   }
 
-  void _tryManual() {
-    final ssid = _ssidCtrl.text.trim();
-    final pass = _passCtrl.text.trim();
-    if (ssid.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Insere o nome da rede (SSID)'),
-        backgroundColor: Colors.redAccent, behavior: SnackBarBehavior.floating));
-      return;
-    }
-    FocusScope.of(context).unfocus();
-    _connectAndSend(ssid, pass);
-  }
-
   String get _speed {
     if (_prog == null || _t0 == null) return '';
     final s = DateTime.now().difference(_t0!).inMilliseconds / 1000;
-    if (s <= 0) return '';
+    if (s < 0.1) return '';
     return '${TransferService.formatBytes((_prog!.sentBytes / s).toInt())}/s';
   }
 
@@ -280,75 +303,87 @@ class _SendSheetState extends State<_SendSheet> {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         _handle(),
 
-        // ── Escolha ───────────────────────────────────────────────────
-        if (_phase == 'choose') ...[
-          const _T('Enviar via Wi-Fi Direto'),
-          _sub2('${widget.items.length} ficheiro(s)  ·  sem internet  ·  ultra rápido'),
-          const SizedBox(height: 28),
-          Padding(padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(children: [
-              Expanded(child: _BigBtn(svg: _svgScanner, label: 'Escanear QR',
-                  sub: 'Lê o QR do recetor', onTap: () => setState(() => _phase = 'scan'))),
-              const SizedBox(width: 12),
-              Expanded(child: _BigBtn(svg: _svgWifi, label: 'Inserir rede',
-                  sub: 'SSID + password do recetor', onTap: () => setState(() => _phase = 'manual'))),
+        // ── Inserir SSID + password ou escanear QR ─────────────────
+        if (_phase == 'enter') ...[
+          const _T('Ligar ao recetor'),
+          _sub2('Escaneia o QR  ou  insere os dados que aparecem no outro app'),
+          const SizedBox(height: 20),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(children: [
+              // Campo SSID
+              _Field(
+                ctrl: _ssidCtrl,
+                hint: 'Nome da rede (SSID)',
+                autofocus: false,
+                onDone: () => FocusScope.of(context).nextFocus(),
+              ),
+              const SizedBox(height: 10),
+              // Campo password
+              _Field(
+                ctrl: _passCtrl,
+                hint: 'Password',
+                obscure: true,
+                onDone: _tryManual,
+              ),
             ]),
           ),
-          const SizedBox(height: 28),
+
+          const SizedBox(height: 16),
+          // Botão QR scan
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: GestureDetector(
+              onTap: () => setState(() => _phase = 'scan'),
+              child: Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  SvgPicture.string(_svgScanner, width: 16, height: 16,
+                      colorFilter: ColorFilter.mode(
+                          Colors.white.withOpacity(0.45), BlendMode.srcIn)),
+                  const SizedBox(width: 8),
+                  Text('Escanear QR em vez disso',
+                      style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 13)),
+                ]),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+          _PrimaryBtn(label: 'Ligar e enviar', onTap: _tryManual),
+          const SizedBox(height: 24),
         ],
 
         // ── QR scan ───────────────────────────────────────────────────
         if (_phase == 'scan') ...[
           const _T('Escanear QR do recetor'),
           const SizedBox(height: 16),
-          _Viewfinder(onManual: () => setState(() => _phase = 'manual'),
-              onScanned: (ssid, pass) => _connectAndSend(ssid, pass)),
-          const SizedBox(height: 12),
-          _BackBtn(onTap: () => setState(() => _phase = 'choose')),
-          const SizedBox(height: 16),
-        ],
-
-        // ── Manual ────────────────────────────────────────────────────
-        if (_phase == 'manual') ...[
-          const _T('Rede Wi-Fi do recetor'),
-          _sub2('Vai a "Receber" no outro telemóvel e copia o SSID'),
-          const SizedBox(height: 18),
-          Padding(padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(children: [
-              _Field(ctrl: _ssidCtrl, hint: 'Nome da rede (SSID)  ex: pXX_A1B2C3',
-                  autofocus: true, onDone: () => FocusScope.of(context).nextFocus()),
-              const SizedBox(height: 10),
-              _Field(ctrl: _passCtrl, hint: 'Password', obscure: true, onDone: _tryManual),
-            ]),
+          _Viewfinder(
+            onManual: () => setState(() => _phase = 'enter'),
+            onScanned: (ssid, pass) => _connectAndSend(ssid, pass),
           ),
-          const SizedBox(height: 16),
-          _PrimaryBtn(label: 'Ligar e enviar', onTap: _tryManual),
-          const SizedBox(height: 4),
-          // Fallback: abrir definições Wi-Fi manualmente
-          TextButton(
-            onPressed: () async {
-              await TransferService.openWifiSettings();
-              if (mounted) setState(() => _phase = 'sending');
-              _startSend();
-            },
-            child: Text('Já liguei manualmente → continuar',
-                style: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 12)),
-          ),
-          _BackBtn(onTap: () => setState(() => _phase = 'choose')),
           const SizedBox(height: 12),
+          _BackBtn(onTap: () => setState(() => _phase = 'enter')),
+          const SizedBox(height: 16),
         ],
 
         // ── A ligar ───────────────────────────────────────────────────
         if (_phase == 'connecting') ...[
-          const SizedBox(height: 28),
+          const SizedBox(height: 32),
           SvgPicture.string(_svgHotspot, width: 32, height: 32,
               colorFilter: const ColorFilter.mode(_kPrimary, BlendMode.srcIn)),
           const SizedBox(height: 14),
-          const _T('A ligar ao hotspot…'),
-          _sub2('Aguarda enquanto nos ligamos à rede do recetor'),
+          const _T('A ligar…'),
+          _sub2('A estabelecer ligação ao recetor'),
           const SizedBox(height: 28),
           const CircularProgressIndicator(color: _kPrimary, strokeWidth: 1.5),
-          const SizedBox(height: 28),
+          const SizedBox(height: 32),
         ],
 
         // ── A enviar ──────────────────────────────────────────────────
@@ -368,7 +403,8 @@ class _SendSheetState extends State<_SendSheet> {
                     backgroundColor: Colors.white12,
                     valueColor: const AlwaysStoppedAnimation<Color>(_kPrimary)))),
             const SizedBox(height: 6),
-            _sub2('${TransferService.formatBytes(_prog!.sentBytes)} / ${TransferService.formatBytes(_prog!.totalBytes)}'),
+            _sub2('${TransferService.formatBytes(_prog!.sentBytes)} / '
+                '${TransferService.formatBytes(_prog!.totalBytes)}'),
           ],
           const SizedBox(height: 24),
         ],
@@ -394,14 +430,9 @@ class _SendSheetState extends State<_SendSheet> {
           _sub2(_errMsg),
           const SizedBox(height: 20),
           _PrimaryBtn(label: 'Tentar novamente',
-              onTap: () => setState(() { _phase = 'choose'; _filesDone = 0; _prog = null; })),
-          const SizedBox(height: 6),
-          // Abre definições Wi-Fi do sistema
-          TextButton(
-            onPressed: TransferService.openWifiSettings,
-            child: Text('Abrir definições Wi-Fi',
-                style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12)),
-          ),
+              onTap: () => setState(() {
+                _phase = 'enter'; _filesDone = 0; _prog = null; _errMsg = ''; })),
+          const SizedBox(height: 8),
           _GhostBtn(label: 'Cancelar', onTap: () => Navigator.pop(context)),
           const SizedBox(height: 16),
         ],
@@ -412,7 +443,13 @@ class _SendSheetState extends State<_SendSheet> {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // _ReceiveSheet  —  RECETOR
-// Ativa hotspot do Android, mostra SSID + password + QR, recebe via TCP
+//
+// FLUXO:
+//   1. Ativa hotspot Wi-Fi Direct via TransferService
+//   2. Gera código de 6 chars a partir do SSID
+//   3. Mostra QR (payload completo) + código em texto grande + SSID/pass colapsado
+//   4. À espera do emissor → mostra progresso quando começa a receber
+//   5. Done
 // ─────────────────────────────────────────────────────────────────────────────
 class _ReceiveSheet extends StatefulWidget {
   final VoidCallback onDone;
@@ -444,10 +481,9 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
     _stateSub = TransferService.instance.stateStream.listen((s) {
       if (!mounted) return;
       if (s == TransferState.error) {
-        setState(() { _errMsg = 'Ocorreu um erro. Tenta novamente.'; });
+        setState(() => _errMsg = 'Ocorreu um erro. Tenta novamente.');
       }
     });
-
     _progressSub = TransferService.instance.progress.listen((p) {
       if (!mounted) return;
       setState(() {
@@ -468,7 +504,7 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
       setState(() { _ssid = result.ssid; _password = result.password; _ready = true; });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _errMsg = e.toString(); });
+      setState(() => _errMsg = e.toString());
     }
   }
 
@@ -480,14 +516,13 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
     super.dispose();
   }
 
-  String get _qrPayload =>
-      TransferService.buildQrPayload(_ssid, _password);
+  String get _qrPayload => TransferService.buildQrPayload(_ssid, _password);
 
   String get _speed {
     if (_files.isEmpty || _t0 == null) return '';
     final total = _files.fold<int>(0, (a, f) => a + f.sentBytes);
     final s = DateTime.now().difference(_t0!).inMilliseconds / 1000;
-    if (s <= 0) return '';
+    if (s < 0.1) return '';
     return '${TransferService.formatBytes((total / s).toInt())}/s';
   }
 
@@ -509,12 +544,6 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
                 style: TextStyle(color: Colors.white38, fontSize: 14)),
             const SizedBox(height: 20),
             const CircularProgressIndicator(color: _kPrimary, strokeWidth: 1.5),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: TransferService.openWifiSettings,
-              child: Text('Ativar manualmente nas definições',
-                  style: TextStyle(color: _kPrimary.withOpacity(0.7), fontSize: 12)),
-            ),
           ]))
 
         // ── Erro ──────────────────────────────────────────────────────
@@ -528,7 +557,10 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
               child: Text(_errMsg, textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12))),
             const SizedBox(height: 24),
-            _PrimaryBtn(label: 'Abrir definições', onTap: TransferService.openWifiSettings),
+            _PrimaryBtn(label: 'Tentar novamente', onTap: () {
+              setState(() { _errMsg = ''; _ready = false; });
+              _start();
+            }),
             const SizedBox(height: 8),
             _GhostBtn(label: 'Fechar', onTap: () => Navigator.pop(context)),
           ]))
@@ -545,24 +577,60 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
             child: _GhostBtn(label: 'Fechar', onTap: () => Navigator.pop(context))),
         ]
 
-        // ── Pronto / A receber ─────────────────────────────────────────
+        // ── Pronto — QR + código + progresso ──────────────────────────
         else ...[
-          const _T('Hotspot ativo · Pronto para receber'),
-          _sub2('O emissor deve ligar-se a esta rede Wi-Fi'),
-          const SizedBox(height: 20),
+          const _T('Pronto para receber'),
+          _sub2('Mostra este código ou QR ao emissor'),
+          const SizedBox(height: 16),
 
-          // QR code com SSID + password
-          _QrDisplay(payload: _qrPayload),
-
-          const SizedBox(height: 18),
-
-          // SSID
-          _NetworkInfo(ssid: _ssid, password: _password),
-
-          const SizedBox(height: 18),
-
-          // Status
+          // ── QR + SSID + password ──────────────────────────────────
           if (!_receiving)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                child: Column(children: [
+                  // QR no topo — escaneia e liga sem digitar nada
+                  _QrDisplay(payload: _qrPayload),
+                  const SizedBox(height: 8),
+                  Text('Escaneia com o outro app',
+                      style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12)),
+
+                  const SizedBox(height: 16),
+                  const Divider(color: Colors.white12, height: 1),
+                  const SizedBox(height: 16),
+
+                  // SSID + password visíveis para inserção manual
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Ou insere manualmente no outro app:',
+                            style: TextStyle(
+                                color: Colors.white.withOpacity(0.35), fontSize: 11)),
+                        const SizedBox(height: 10),
+                        _NetworkInfo(ssid: _ssid, password: _password),
+                      ],
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+
+          // ── A receber — progresso ──────────────────────────────────
+          if (_receiving)
+            Expanded(child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              children: _files.map((f) => _FileBar(p: f, speed: _speed)).toList(),
+            ))
+          else ...[
+            const SizedBox(height: 14),
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               SizedBox(width: 12, height: 12,
                 child: CircularProgressIndicator(strokeWidth: 1.5,
@@ -570,12 +638,8 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
               const SizedBox(width: 10),
               Text('À espera do emissor…',
                   style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 13)),
-            ])
-          else
-            Expanded(child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              children: _files.map((f) => _FileBar(p: f, speed: _speed)).toList(),
-            )),
+            ]),
+          ],
 
           const Spacer(),
           Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 36),
@@ -587,7 +651,7 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _NetworkInfo  —  mostra SSID e password com botão de copiar
+// _NetworkInfo  —  SSID + password colapsável (usado dentro do _ReceiveSheet)
 // ─────────────────────────────────────────────────────────────────────────────
 class _NetworkInfo extends StatefulWidget {
   final String ssid, password;
@@ -608,135 +672,72 @@ class _NetworkInfoState extends State<_NetworkInfo> {
     if (mounted) setState(() { _copiedSsid = false; _copiedPass = false; });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.07),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
-        ),
-        child: Column(children: [
-          // SSID
-          Row(children: [
-            SvgPicture.string(_svgHotspot, width: 14, height: 14,
-                colorFilter: ColorFilter.mode(Colors.white.withOpacity(0.4), BlendMode.srcIn)),
-            const SizedBox(width: 8),
-            Expanded(child: Text(widget.ssid,
-                style: const TextStyle(color: Colors.white, fontSize: 15,
-                    fontWeight: FontWeight.w700, fontFamily: 'monospace'))),
-            GestureDetector(
-              onTap: () => _copy(widget.ssid, true),
-              child: AnimatedSwitcher(duration: const Duration(milliseconds: 200),
-                child: _copiedSsid
-                    ? const Icon(Icons.check_rounded, key: ValueKey('cs'), color: _kPrimary, size: 16)
-                    : Icon(Icons.copy_rounded, key: const ValueKey('ns'),
-                        color: Colors.white.withOpacity(0.3), size: 14)),
-            ),
-          ]),
-          const SizedBox(height: 10),
-          Divider(color: Colors.white.withOpacity(0.07), height: 1),
-          const SizedBox(height: 10),
-          // Password
-          Row(children: [
-            Icon(Icons.lock_outline_rounded, size: 14, color: Colors.white.withOpacity(0.4)),
-            const SizedBox(width: 8),
-            Expanded(child: Text(
-                _showPass ? widget.password : '•' * widget.password.length,
-                style: const TextStyle(color: Colors.white, fontSize: 15,
-                    fontWeight: FontWeight.w600, fontFamily: 'monospace'))),
-            GestureDetector(
-              onTap: () => setState(() => _showPass = !_showPass),
-              child: Icon(_showPass ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                  color: Colors.white.withOpacity(0.3), size: 16),
-            ),
-            const SizedBox(width: 10),
-            GestureDetector(
-              onTap: () => _copy(widget.password, false),
-              child: AnimatedSwitcher(duration: const Duration(milliseconds: 200),
-                child: _copiedPass
-                    ? const Icon(Icons.check_rounded, key: ValueKey('cp'), color: _kPrimary, size: 16)
-                    : Icon(Icons.copy_rounded, key: const ValueKey('np'),
-                        color: Colors.white.withOpacity(0.3), size: 14)),
-            ),
-          ]),
-        ]),
+  Widget _row(String label, String value, bool isSsid, bool copied) => Row(children: [
+    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 11)),
+      const SizedBox(height: 2),
+      Text(
+        isSsid ? value : (_showPass ? value : '••••••••'),
+        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+        overflow: TextOverflow.ellipsis,
       ),
-    );
-  }
+    ])),
+    if (!isSsid)
+      GestureDetector(
+        onTap: () => setState(() => _showPass = !_showPass),
+        child: Icon(_showPass ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+            color: Colors.white24, size: 16),
+      ),
+    const SizedBox(width: 8),
+    GestureDetector(
+      onTap: () => _copy(value, isSsid),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: copied
+            ? const Icon(Icons.check_rounded, key: ValueKey('ok'), color: _kPrimary, size: 16)
+            : Icon(Icons.copy_rounded, key: const ValueKey('cp'),
+                color: Colors.white.withOpacity(0.3), size: 14),
+      ),
+    ),
+  ]);
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.05),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Column(children: [
+      _row('Rede (SSID)', widget.ssid, true, _copiedSsid),
+      const SizedBox(height: 10),
+      _row('Password', widget.password, false, _copiedPass),
+    ]),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _QrDisplay  —  QR visual (CustomPainter)
-// Em produção: QrImageView(data: payload) do package qr_flutter
+// _QrDisplay  —  QR real via qr_flutter
 // ─────────────────────────────────────────────────────────────────────────────
 class _QrDisplay extends StatelessWidget {
   final String payload;
   const _QrDisplay({required this.payload});
   @override
-  Widget build(BuildContext context) => Container(
-        width: 186, height: 186,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.45),
-                blurRadius: 22, offset: const Offset(0, 8))
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: CustomPaint(painter: _QrPainter(payload)),
-        ),
-      );
-}
-
-class _QrPainter extends CustomPainter {
-  final String data;
-  const _QrPainter(this.data);
-  @override
-  void paint(Canvas canvas, Size size) {
-    const n = 21;
-    final cs = size.width / n;
-    final black = Paint()..color = Colors.black;
-    final white = Paint()..color = Colors.white;
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), white);
-    _f(canvas, black, white, 0, 0, cs);
-    _f(canvas, black, white, n - 7, 0, cs);
-    _f(canvas, black, white, 0, n - 7, cs);
-    for (int i = 8; i < n - 8; i++) {
-      if (i % 2 == 0) {
-        canvas.drawRect(Rect.fromLTWH(i * cs, 6 * cs, cs, cs), black);
-        canvas.drawRect(Rect.fromLTWH(6 * cs, i * cs, cs, cs), black);
-      }
-    }
-    final seed = data.codeUnits.fold<int>(0, (a, b) => (a * 31 + b) & 0xFFFFFF);
-    final rng = Random(seed);
-    for (int r = 0; r < n; r++) {
-      for (int c = 0; c < n; c++) {
-        if (_res(r, c, n)) continue;
-        if (rng.nextBool()) canvas.drawRect(
-            Rect.fromLTWH(c * cs + .5, r * cs + .5, cs - 1, cs - 1), black);
-      }
-    }
-  }
-  void _f(Canvas cv, Paint b, Paint w, int cx, int cy, double cs) {
-    cv.drawRect(Rect.fromLTWH(cx*cs, cy*cs, 7*cs, 7*cs), b);
-    cv.drawRect(Rect.fromLTWH((cx+1)*cs,(cy+1)*cs,5*cs,5*cs), w);
-    cv.drawRect(Rect.fromLTWH((cx+2)*cs,(cy+2)*cs,3*cs,3*cs), b);
-  }
-  bool _res(int r, int c, int n) {
-    if (r < 8 && c < 8) return true;
-    if (r < 8 && c >= n-8) return true;
-    if (r >= n-8 && c < 8) return true;
-    if (r == 6 || c == 6) return true;
-    return false;
-  }
-  @override
-  bool shouldRepaint(covariant _QrPainter o) => o.data != data;
+  Widget build(BuildContext context) => QrImageView(
+    data: payload,
+    version: QrVersions.auto,
+    size: 160,
+    backgroundColor: Colors.white,
+    eyeStyle: const QrEyeStyle(
+      eyeShape: QrEyeShape.square,
+      color: Colors.black,
+    ),
+    dataModuleStyle: const QrDataModuleStyle(
+      dataModuleShape: QrDataModuleShape.square,
+      color: Colors.black,
+    ),
+    padding: const EdgeInsets.all(10),
+  );
 }
 
 // ─── Barra de progresso por ficheiro ──────────────────────────────────────────

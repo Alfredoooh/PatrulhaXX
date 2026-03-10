@@ -132,10 +132,9 @@ class TransferService {
     }
 
     _ssid     = state.ssid ?? '';
-    // O campo PSK varia entre versões do package (passphrase/password/psk)
-    // Usa dynamic para compatibilidade garantida
     final dynamic dynState = state;
     _password = _extractPsk(dynState);
+    _lastQrPayload = buildQrPayload(_ssid, _password);
 
     // Abre servidor TCP
     await _startTcpServer();
