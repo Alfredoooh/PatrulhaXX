@@ -134,8 +134,6 @@ class TransferService {
     _ssid     = state.ssid ?? '';
     final dynamic dynState = state;
     _password = _extractPsk(dynState);
-    _lastQrPayload = buildQrPayload(_ssid, _password);
-
     // Abre servidor TCP
     await _startTcpServer();
 

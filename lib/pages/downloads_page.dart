@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../services/download_service.dart';
 import '../services/transfer_service.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 const _kPrimary = Color(0xFFFF9000);
 const _kBg      = Color(0xFF111111);
@@ -723,20 +724,16 @@ class _QrDisplay extends StatelessWidget {
   final String payload;
   const _QrDisplay({required this.payload});
   @override
-  Widget build(BuildContext context) => QrImageView(
-    data: payload,
-    version: QrVersions.auto,
-    size: 160,
-    backgroundColor: Colors.white,
-    eyeStyle: const QrEyeStyle(
-      eyeShape: QrEyeShape.square,
-      color: Colors.black,
+  Widget build(BuildContext context) => Container(
+    width: 160,
+    height: 160,
+    color: Colors.white,
+    padding: const EdgeInsets.all(8),
+    child: QrImageView(
+      data: payload,
+      version: QrVersions.auto,
+      size: 144,
     ),
-    dataModuleStyle: const QrDataModuleStyle(
-      dataModuleShape: QrDataModuleShape.square,
-      color: Colors.black,
-    ),
-    padding: const EdgeInsets.all(10),
   );
 }
 
