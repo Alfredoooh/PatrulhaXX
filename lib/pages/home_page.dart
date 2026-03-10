@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../models/site_model.dart';
 import '../widgets/site_icon_widget.dart';
@@ -20,26 +21,6 @@ const _svgBack =
     '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/></svg>';
 
 // ─── SVGs bottom nav ─────────────────────────────────────────────────────────
-const _svgHomeFilled =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="m1.5,19c.828,0,1.5.672,1.5,1.5s-.672,1.5-1.5,1.5S0,21.328,0,20.5s.672-1.5,1.5-1.5Z'
-    'M8,21c0-3.86-3.14-7-7-7-.552,0-1,.448-1,1s.448,1,1,1c2.757,0,5,2.243,5,5,0,.552.448,1,1,1s1-.448,1-1Z'
-    'm5,0c0-6.617-5.362-12-11.953-12-.552,0-1,.448-1,1s.448,1,1,1c5.488,0,9.953,4.486,9.953,10,0,.552.448,1,1,1s1-.448,1-1Z'
-    'm11-4V7c0-2.757-2.243-5-5.001-5l-14.129.018C2.598,2.018.609,3.551.033,5.746c-.079.3.01.619.199.865'
-    '.189.246.505.389.815.389,7.685,0,13.936,6.28,13.936,14,0,.552.465,1,1.017,1h3c2.757,0,5-2.243,5-5Z"/>'
-    '</svg>';
-
-const _svgHomeOutline =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="m24,7v10c0,2.757-2.243,5-5,5h-3c-.552,0-1-.448-1-1s.448-1,1-1h3c1.654,0,3-1.346,3-3V7'
-    'c0-1.654-1.346-3-3-3H5c-1.363,0-2.557.919-2.902,2.236-.14.534-.684.855-1.221.713-.534-.14-.854-.687-.713-1.221'
-    '.576-2.195,2.564-3.728,4.836-3.728h14c2.757,0,5,2.243,5,5Z'
-    'M1.5,19c-.828,0-1.5.672-1.5,1.5s.672,1.5,1.5,1.5,1.5-.672,1.5-1.5-.672-1.5-1.5-1.5Z'
-    'm-.5-5c-.552,0-1,.448-1,1s.448,1,1,1c2.757,0,5,2.243,5,5,0,.552.448,1,1,1s1-.448,1-1c0-3.86-3.14-7-7-7Z'
-    'm.047-5c-.552,0-1,.448-1,1s.448,1,1,1c5.488,0,9.953,4.486,9.953,10,0,.552.448,1,1,1s1-.448,1-1'
-    'c0-6.617-5.362-12-11.953-12Z"/>'
-    '</svg>';
-
 const _svgShortsFilled =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="m16.914,1h2.086c.621,0,1.215.114,1.764.322l-5.678,5.678h-4.172l6-6Z'
@@ -82,6 +63,24 @@ const _svgSettings =
     '<path d="M23,19.25H10.931a3.728,3.728,0,0,0-7.195,0H1a1,1,0,0,0,0,2H3.736a3.728,3.728,0,0,0,7.195,0H23a1,1,0,0,0,0-2Z'
     'M7.333,22a1.75,1.75,0,1,1,1.75-1.75A1.753,1.752,0,0,1,7.333,22Z"/></svg>';
 
+// SVG navegar (globo / compass)
+const _svgBrowseFilled =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M12,0C5.383,0,0,5.383,0,12s5.383,12,12,12,12-5.383,12-12S18.617,0,12,0Z'
+    'M10.5,20.925c-3.765-.733-6.672-3.64-7.405-7.405l4.905,4.905v1.5Z'
+    'm6-1.117V18.5a1.5,1.5,0,0,0-1.5-1.5h-3v-3a1.5,1.5,0,0,0-1.5-1.5H7V9h3a1.5,1.5,0,0,0,1.5-1.5v-1.5h1.5'
+    'A10.435,10.435,0,0,1,22,12,10.4,10.4,0,0,1,16.5,19.808Z"/>'
+    '</svg>';
+
+const _svgBrowseOutline =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M12,0C5.383,0,0,5.383,0,12s5.383,12,12,12,12-5.383,12-12S18.617,0,12,0Z'
+    'M2,12A10,10,0,0,1,9.5,2.337V3.5A1.5,1.5,0,0,0,11,5h1v1.5A1.5,1.5,0,0,1,10.5,8H7v4.5'
+    'A1.5,1.5,0,0,0,8.5,14H10v3a1.5,1.5,0,0,0,1.5,1.5h.968A10.011,10.011,0,0,1,2,12Z'
+    'm10.5,9.768V8H12.5A3.5,3.5,0,0,0,16,4.5V3.185A9.99,9.99,0,0,1,22,12a9.887,9.887,0,0,1-5.024,8.57'
+    'A1.473,1.473,0,0,0,16,19.5V18a1.5,1.5,0,0,0-1.5-1.5H13V14.5A1.5,1.5,0,0,0,11.5,13H9V9.768Z"/>'
+    '</svg>';
+
 // ─── Shorts JS ────────────────────────────────────────────────────────────────
 const _shortsJsCookies = r"""
 (function() {
@@ -115,6 +114,18 @@ const _shortsJs = r"""
     document.documentElement.style.overflow = '';
     document.body.style.background = '#000';
     document.documentElement.style.background = '#000';
+
+    // Remove text-decoration riscado de TODOS os elementos
+    var style = document.getElementById('__px_style');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = '__px_style';
+      style.textContent =
+        '* { text-decoration: none !important; }' +
+        'a { text-decoration: none !important; }';
+      document.head.appendChild(style);
+    }
+
     ['header','footer','.header','.footer','nav#top','#header'].forEach(function(s) {
       var el = document.querySelector(s);
       if (el) el.style.display = 'none';
@@ -160,15 +171,15 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with TickerProviderStateMixin, WidgetsBindingObserver {
+class _HomePageState extends State<HomePage>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   int _tab = 0;
   final _searchCtrl = TextEditingController();
   bool get _hasQuery => _searchCtrl.text.trim().isNotEmpty;
   late final AnimationController _fadeIn;
 
-  // Cor extraída do wallpaper via WebView HTML
   Color _wallpaperColor = Colors.black;
-  static const _kNavH = 60.0;
+  static const _kNavH = 64.0;
 
   @override
   void initState() {
@@ -177,19 +188,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
     _fadeIn = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 600))
       ..forward();
-    // Carrega a cor do wallpaper guardada no ThemeService
     final savedWp = ThemeService.instance.wallpaperColor;
     if (savedWp != null) _wallpaperColor = savedWp;
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Quando o app volta ao foreground (resume), re-lança a animação
-    // e força rebuild para evitar ecrã preto
     if (state == AppLifecycleState.resumed && mounted) {
-      if (!_fadeIn.isAnimating && _fadeIn.value < 1.0) {
-        _fadeIn.forward();
-      }
+      if (!_fadeIn.isAnimating && _fadeIn.value < 1.0) _fadeIn.forward();
       setState(() {});
     }
   }
@@ -213,7 +219,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
   void _openSite(SiteModel site) => Navigator.push(
       context, MaterialPageRoute(builder: (_) => BrowserPage(site: site)));
 
-  // Chamado pelo WallpaperColorExtractor quando deteta a cor dominante
   void _onColorExtracted(Color c) {
     if (mounted) {
       setState(() => _wallpaperColor = c);
@@ -224,10 +229,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
   @override
   Widget build(BuildContext context) {
     final safeBottom = MediaQuery.of(context).padding.bottom;
-    final navTotal = _kNavH + safeBottom;
+    final navTotal = _kNavH + safeBottom + 16;
 
-    // A cor da nav: no tab Shorts é sempre preto; no tab Home vem do wallpaper
-    final navColor = _tab == 1 ? Colors.black : _wallpaperColor;
+    // Tab Shorts/Navegar = sempre preto; tab Home = cor do wallpaper
+    final navColor = _tab != 0 ? Colors.black : _wallpaperColor;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -239,29 +244,36 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
         backgroundColor: Colors.black,
         body: Stack(children: [
 
-          // ── Conteúdo (tabs) ───────────────────────────────────────────────
+          // ── Conteúdo (tabs) ──────────────────────────────────────────────
           IndexedStack(index: _tab, children: [
-            _HomeTab(
-              fadeIn: _fadeIn,
-              searchCtrl: _searchCtrl,
-              hasQuery: _hasQuery,
-              navBottom: navTotal,
-              onOpen: _openSite,
-              onSearch: _onSearch,
-              onSearchChanged: () => setState(() {}),
-              onDownloads: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const DownloadsPage())),
-              onSettings: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const SettingsPage())),
-              onColorExtracted: _onColorExtracted,
+            // Tab 0 — Início
+            AnimatedBuilder(
+              animation: ThemeService.instance,
+              builder: (_, __) => _HomeTab(
+                fadeIn: _fadeIn,
+                searchCtrl: _searchCtrl,
+                hasQuery: _hasQuery,
+                navBottom: navTotal,
+                onOpen: _openSite,
+                onSearch: _onSearch,
+                onSearchChanged: () => setState(() {}),
+                onDownloads: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const DownloadsPage())),
+                onSettings: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const SettingsPage())),
+                onColorExtracted: _onColorExtracted,
+              ),
             ),
+            // Tab 1 — Shorts
             _ShortsTab(navBottom: navTotal),
+            // Tab 2 — Navegar
+            _BrowseTab(navBottom: navTotal),
           ]),
 
-          // ── Bottom Nav com gradiente adaptativo ───────────────────────────
+          // ── Floating Bottom Nav ──────────────────────────────────────────
           Positioned(
-            left: 0, right: 0, bottom: 0,
-            child: _AdaptiveNav(
+            left: 20, right: 20, bottom: safeBottom + 12,
+            child: _FloatingNav(
               color: navColor,
               navH: _kNavH,
               tab: _tab,
@@ -275,152 +287,149 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _AdaptiveNav  —  bottom nav com gradiente transparente no topo
-// A cor base adapta-se ao wallpaper (tab Início) ou fica preta (tab Shorts)
+// _FloatingNav  —  pill flutuante com 3 tabs
 // ─────────────────────────────────────────────────────────────────────────────
-class _AdaptiveNav extends StatelessWidget {
+class _FloatingNav extends StatelessWidget {
   final Color color;
   final double navH;
   final int tab;
   final void Function(int) onTab;
 
-  const _AdaptiveNav({
+  const _FloatingNav({
     required this.color,
     required this.navH,
     required this.tab,
     required this.onTab,
   });
 
-  // Determina se a cor base é clara ou escura, para ajustar o tom sólido em baixo
-  bool get _isLight {
+  // Cor de fundo da nav baseada na cor do wallpaper
+  Color get _navBg {
+    if (tab != 0) return const Color(0xFF111111);
     final lum = color.computeLuminance();
-    return lum > 0.35;
+    if (lum > 0.35) {
+      return Color.lerp(color, Colors.white, 0.2)!.withOpacity(0.92);
+    }
+    return Color.lerp(color, Colors.black, 0.45)!.withOpacity(0.92);
   }
+
+  bool get _isLight => color.computeLuminance() > 0.35 && tab == 0;
 
   @override
   Widget build(BuildContext context) {
-    // ── Tab Shorts: nav preta sólida, SEM BackdropFilter ──────────────────
-    // BackdropFilter sobre WebView no Android faz blur em toda a tab
-    if (tab == 1) {
-      return Container(
-        decoration: const BoxDecoration(
-          color: Colors.black,
-          border: Border(top: BorderSide(color: Color(0xFF1A1A1A), width: 0.5)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: navH,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _NavItem(
-                  svgFilled: _svgHomeFilled,
-                  svgOutline: _svgHomeOutline,
-                  active: false,
-                  onTap: () => onTab(0),
-                ),
-                _NavItem(
-                  svgFilled: _svgShortsFilled,
-                  svgOutline: _svgShortsOutline,
-                  active: true,
-                  onTap: () => onTab(1),
-                ),
-              ],
+    return Container(
+      height: navH,
+      decoration: BoxDecoration(
+        color: _navBg,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // Tab 0 — Início (Material Icon)
+          _FloatItem(
+            label: 'Início',
+            active: tab == 0,
+            isLightBg: _isLight,
+            onTap: () => onTab(0),
+            child: Icon(
+              tab == 0 ? Symbols.home_rounded : Symbols.home,
+              size: 24,
             ),
           ),
-        ),
-      );
-    }
-
-    // ── Tab Home: gradiente adaptativo SEM BackdropFilter ────────────────
-    // IMPORTANTE: BackdropFilter + InAppWebView no Android causa blur em
-    // toda a tela (bug flutter_inappwebview >= 6.0.0-beta.6). Solução:
-    // nunca usar BackdropFilter quando há WebView na árvore (IndexedStack
-    // mantém o tab Shorts montado em background mesmo quando invisível).
-    final solidColor = _isLight
-        ? Color.lerp(color, Colors.white, 0.15)!.withOpacity(0.96)
-        : Color.lerp(color, Colors.black, 0.60)!.withOpacity(0.96);
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            solidColor.withOpacity(0.0),
-            solidColor.withOpacity(0.55),
-            solidColor,
-          ],
-          stops: const [0.0, 0.4, 1.0],
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: navH,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _NavItem(
-                svgFilled: _svgHomeFilled,
-                svgOutline: _svgHomeOutline,
-                active: true,
-                onTap: () => onTab(0),
-                isLightBg: _isLight,
-              ),
-              _NavItem(
-                svgFilled: _svgShortsFilled,
-                svgOutline: _svgShortsOutline,
-                active: false,
-                onTap: () => onTab(1),
-                isLightBg: _isLight,
-              ),
-            ],
+          // Tab 1 — Shorts (SVG)
+          _FloatItem(
+            label: 'Shorts',
+            active: tab == 1,
+            isLightBg: _isLight,
+            onTap: () => onTab(1),
+            child: SvgPicture.string(
+              tab == 1 ? _svgShortsFilled : _svgShortsOutline,
+              width: 22, height: 22,
+            ),
           ),
-        ),
+          // Tab 2 — Navegar (SVG)
+          _FloatItem(
+            label: 'Navegar',
+            active: tab == 2,
+            isLightBg: _isLight,
+            onTap: () => onTab(2),
+            child: SvgPicture.string(
+              tab == 2 ? _svgBrowseFilled : _svgBrowseOutline,
+              width: 22, height: 22,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _NavItem
-// ─────────────────────────────────────────────────────────────────────────────
-class _NavItem extends StatelessWidget {
-  final String svgFilled, svgOutline;
-  final bool active, isLightBg;
+// ─── Item individual da floating nav ─────────────────────────────────────────
+class _FloatItem extends StatelessWidget {
+  final String label;
+  final bool active;
+  final bool isLightBg;
   final VoidCallback onTap;
+  final Widget child; // ícone (Icon ou SvgPicture)
 
-  const _NavItem({
-    required this.svgFilled,
-    required this.svgOutline,
+  const _FloatItem({
+    required this.label,
     required this.active,
     required this.onTap,
+    required this.child,
     this.isLightBg = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Em fundo claro, o ícone inativo fica mais escuro para contrastar
+    final activeColor   = Colors.white;
     final inactiveColor = isLightBg
-        ? Colors.black.withOpacity(0.45)
-        : Colors.white.withOpacity(0.38);
+        ? Colors.black.withOpacity(0.4)
+        : Colors.white.withOpacity(0.35);
 
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 80, height: 60,
-        child: Center(
-          child: SvgPicture.string(
-            active ? svgFilled : svgOutline,
-            width: 24, height: 24,
-            colorFilter: ColorFilter.mode(
-              active ? kPrimaryColor : inactiveColor,
-              BlendMode.srcIn,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeInOut,
+        padding: active
+            ? const EdgeInsets.symmetric(horizontal: 18, vertical: 10)
+            : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? Colors.white.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Colore o ícone (funciona para Icon e SvgPicture via ColorFiltered)
+            ColorFiltered(
+              colorFilter: ColorFilter.mode(
+                active ? activeColor : inactiveColor,
+                BlendMode.srcIn,
+              ),
+              child: child,
             ),
-          ),
+            if (active) ...[
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: TextStyle(
+                  color: activeColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -429,30 +438,20 @@ class _NavItem extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WallpaperColorExtractor
-// Usa uma WebView invisível com HTML/Canvas para extrair a cor dominante
-// do wallpaper sem depender de nenhum package Flutter de processamento de imagem
 // ─────────────────────────────────────────────────────────────────────────────
 class _WallpaperColorExtractor extends StatefulWidget {
   final String imageUrl;
   final void Function(Color) onColor;
-  const _WallpaperColorExtractor({
-    required this.imageUrl,
-    required this.onColor,
-  });
+  const _WallpaperColorExtractor({required this.imageUrl, required this.onColor});
   @override
-  State<_WallpaperColorExtractor> createState() =>
-      _WallpaperColorExtractorState();
+  State<_WallpaperColorExtractor> createState() => _WallpaperColorExtractorState();
 }
 
-class _WallpaperColorExtractorState
-    extends State<_WallpaperColorExtractor> {
-  InAppWebViewController? _ctrl;
+class _WallpaperColorExtractorState extends State<_WallpaperColorExtractor> {
   bool _done = false;
 
   String get _html => '''
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
+<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;background:#000">
 <canvas id="c" width="64" height="64" style="display:none"></canvas>
 <script>
@@ -464,25 +463,19 @@ class _WallpaperColorExtractorState
     var ctx = c.getContext("2d");
     ctx.drawImage(img, 0, 0, 64, 64);
     var data = ctx.getImageData(0, 0, 64, 64).data;
-    // Calcula a cor média (ignora pixels muito escuros)
     var r=0, g=0, b=0, n=0;
     for (var i = 0; i < data.length; i += 4) {
       var pr = data[i], pg = data[i+1], pb = data[i+2];
-      var brightness = (pr + pg + pb) / 3;
-      if (brightness > 20) { r+=pr; g+=pg; b+=pb; n++; }
+      if ((pr + pg + pb) / 3 > 20) { r+=pr; g+=pg; b+=pb; n++; }
     }
-    if (n === 0) { window.flutter_inappwebview.callHandler("color", "0,0,0"); return; }
-    r = Math.round(r/n); g = Math.round(g/n); b = Math.round(b/n);
+    if (n === 0) { window.flutter_inappwebview.callHandler("color","0,0,0"); return; }
+    r=Math.round(r/n); g=Math.round(g/n); b=Math.round(b/n);
     window.flutter_inappwebview.callHandler("color", r+","+g+","+b);
   };
-  img.onerror = function() {
-    window.flutter_inappwebview.callHandler("color", "0,0,0");
-  };
+  img.onerror = function() { window.flutter_inappwebview.callHandler("color","0,0,0"); };
   img.src = "${widget.imageUrl}";
 })();
-</script>
-</body>
-</html>
+</script></body></html>
 ''';
 
   @override
@@ -497,7 +490,6 @@ class _WallpaperColorExtractorState
           transparentBackground: true,
         ),
         onWebViewCreated: (ctrl) {
-          _ctrl = ctrl;
           ctrl.addJavaScriptHandler(
             handlerName: 'color',
             callback: (args) {
@@ -505,10 +497,8 @@ class _WallpaperColorExtractorState
               _done = true;
               try {
                 final parts = (args[0] as String).split(',');
-                final r = int.parse(parts[0]);
-                final g = int.parse(parts[1]);
-                final b = int.parse(parts[2]);
-                widget.onColor(Color.fromARGB(255, r, g, b));
+                widget.onColor(Color.fromARGB(255,
+                    int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2])));
               } catch (_) {
                 widget.onColor(Colors.black);
               }
@@ -521,8 +511,7 @@ class _WallpaperColorExtractorState
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _HomeTab  —  tab de início: sem feed, espaço vazio abaixo dos sites
-// SearchBar em cima, botões Downloads/Settings abaixo na mesma linha
+// _HomeTab
 // ─────────────────────────────────────────────────────────────────────────────
 class _HomeTab extends StatelessWidget {
   final AnimationController fadeIn;
@@ -533,7 +522,8 @@ class _HomeTab extends StatelessWidget {
   final VoidCallback onSearch, onSearchChanged, onDownloads, onSettings;
   final void Function(Color) onColorExtracted;
 
-  // URL do wallpaper vem do ThemeService (definido nas Settings)
+  static const _kRadius    = 14.0;
+  static const _kBtnHeight = 46.0;
 
   const _HomeTab({
     required this.fadeIn,
@@ -548,40 +538,35 @@ class _HomeTab extends StatelessWidget {
     required this.onColorExtracted,
   });
 
-  // Raio idêntico ao search bar (pill)
-  static const _kRadius = 14.0;
-  static const _kBtnHeight = 46.0;
-
   @override
   Widget build(BuildContext context) {
+    final ts = ThemeService.instance;
     return Stack(fit: StackFit.expand, children: [
-      // ── Fundo ─────────────────────────────────────────────────────────────
+      // Fundo escuro base
       Container(color: const Color(0xFF0C0C0C)),
-      // Imagem de wallpaper (só quando useWallpaper está ativo)
-      if (ThemeService.instance.useWallpaper && ThemeService.instance.bg.isNotEmpty)
+
+      // Imagem de wallpaper — muda instantaneamente via AnimatedBuilder no pai
+      if (ts.useWallpaper && ts.bg.isNotEmpty)
         Positioned.fill(
           child: Image.asset(
-            ThemeService.instance.bg,
+            ts.bg,
             fit: BoxFit.cover,
+            key: ValueKey(ts.bg), // força rebuild imediato ao mudar bg
             errorBuilder: (_, __, ___) => const SizedBox.shrink(),
           ),
         ),
 
-      // ── WebView invisível para extrair cor do wallpaper (só com useWallpaper) ──
-      Builder(builder: (ctx) {
-        if (!ThemeService.instance.useWallpaper) return const SizedBox.shrink();
-        final wpUrl = ThemeService.instance.bg;
-        if (wpUrl.isEmpty) return const SizedBox.shrink();
-        return Positioned(
+      // Extrator de cor (invisível)
+      if (ts.useWallpaper && ts.bg.isNotEmpty)
+        Positioned(
           left: -1, top: -1, width: 1, height: 1,
           child: _WallpaperColorExtractor(
-            imageUrl: wpUrl,
+            imageUrl: ts.bg,
             onColor: onColorExtracted,
           ),
-        );
-      }),
+        ),
 
-      // ── Conteúdo ──────────────────────────────────────────────────────────
+      // Conteúdo
       FadeTransition(
         opacity: CurvedAnimation(parent: fadeIn, curve: Curves.easeOut),
         child: CustomScrollView(slivers: [
@@ -593,7 +578,6 @@ class _HomeTab extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ── Search bar ───────────────────────────────────────────
                     _SearchBar(
                       ctrl: searchCtrl,
                       hasQuery: hasQuery,
@@ -601,30 +585,22 @@ class _HomeTab extends StatelessWidget {
                       onChanged: onSearchChanged,
                       radius: _kRadius,
                     ),
-
                     const SizedBox(height: 10),
-
-                    // ── Botões Downloads + Settings  (mesma linha, mesmo estilo) ─
                     _ActionRow(
                       onDownloads: onDownloads,
                       onSettings: onSettings,
                       height: _kBtnHeight,
                       radius: _kRadius,
                     ),
-
                     const SizedBox(height: 28),
                   ],
                 ),
               ),
             ),
           ),
-
-          // ── Sites grid ────────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: _SitesGrid(sites: kSites, onTap: onOpen),
           ),
-
-          // ── Espaço vazio (sem feed) ───────────────────────────────────────
           SliverToBoxAdapter(child: SizedBox(height: navBottom + 16)),
         ]),
       ),
@@ -638,16 +614,12 @@ class _HomeTab extends StatelessWidget {
 class _SearchBar extends StatelessWidget {
   final TextEditingController ctrl;
   final bool hasQuery;
-  final VoidCallback onSearch;
-  final VoidCallback onChanged;
+  final VoidCallback onSearch, onChanged;
   final double radius;
 
   const _SearchBar({
-    required this.ctrl,
-    required this.hasQuery,
-    required this.onSearch,
-    required this.onChanged,
-    required this.radius,
+    required this.ctrl, required this.hasQuery,
+    required this.onSearch, required this.onChanged, required this.radius,
   });
 
   @override
@@ -661,8 +633,7 @@ class _SearchBar extends StatelessWidget {
       ),
       child: Row(children: [
         const SizedBox(width: 14),
-        Icon(Icons.search_rounded,
-            color: Colors.white.withOpacity(0.45), size: 20),
+        Icon(Icons.search_rounded, color: Colors.white.withOpacity(0.45), size: 20),
         const SizedBox(width: 10),
         Expanded(
           child: TextField(
@@ -696,8 +667,7 @@ class _SearchBar extends StatelessWidget {
               ),
               child: const Text('Ir',
                   style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 13,
+                      color: Colors.black, fontSize: 13,
                       fontWeight: FontWeight.w700)),
             ),
           )
@@ -709,41 +679,25 @@ class _SearchBar extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _ActionRow  —  Downloads + Settings na mesma linha, estilo idêntico ao search bar
+// _ActionRow
 // ─────────────────────────────────────────────────────────────────────────────
 class _ActionRow extends StatelessWidget {
   final VoidCallback onDownloads, onSettings;
   final double height, radius;
 
   const _ActionRow({
-    required this.onDownloads,
-    required this.onSettings,
-    required this.height,
-    required this.radius,
+    required this.onDownloads, required this.onSettings,
+    required this.height, required this.radius,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(children: [
-      Expanded(
-        child: _ActionBtn(
-          svg: _svgDownload,
-          label: 'Downloads',
-          onTap: onDownloads,
-          height: height,
-          radius: radius,
-        ),
-      ),
+      Expanded(child: _ActionBtn(svg: _svgDownload, label: 'Downloads',
+          onTap: onDownloads, height: height, radius: radius)),
       const SizedBox(width: 10),
-      Expanded(
-        child: _ActionBtn(
-          svg: _svgSettings,
-          label: 'Definições',
-          onTap: onSettings,
-          height: height,
-          radius: radius,
-        ),
-      ),
+      Expanded(child: _ActionBtn(svg: _svgSettings, label: 'Definições',
+          onTap: onSettings, height: height, radius: radius)),
     ]);
   }
 }
@@ -754,11 +708,8 @@ class _ActionBtn extends StatelessWidget {
   final double height, radius;
 
   const _ActionBtn({
-    required this.svg,
-    required this.label,
-    required this.onTap,
-    required this.height,
-    required this.radius,
+    required this.svg, required this.label,
+    required this.onTap, required this.height, required this.radius,
   });
 
   @override
@@ -780,8 +731,7 @@ class _ActionBtn extends StatelessWidget {
           Text(label,
               style: TextStyle(
                   color: Colors.white.withOpacity(0.75),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500)),
+                  fontSize: 13, fontWeight: FontWeight.w500)),
         ]),
       ),
     );
@@ -811,22 +761,14 @@ class _ShortsTabState extends State<_ShortsTab>
     final uri = WebUri('https://www.pornhub.com');
     final exp = DateTime.now().add(const Duration(days: 365));
     for (final e in {
-      'age_verified': '1',
-      'accessAgeDisclaimerPH': '1',
-      'accessPH': '1',
-      'hasVisited': '1',
-      'platform': 'pc',
-      '_tc': '1',
-      'cookieConsent': '1',
+      'age_verified': '1', 'accessAgeDisclaimerPH': '1',
+      'accessPH': '1', 'hasVisited': '1',
+      'platform': 'pc', '_tc': '1', 'cookieConsent': '1',
     }.entries) {
       await mgr.setCookie(
-          url: uri,
-          name: e.key,
-          value: e.value,
-          domain: '.pornhub.com',
-          path: '/',
-          expiresDate: exp.millisecondsSinceEpoch,
-          isSecure: true);
+          url: uri, name: e.key, value: e.value,
+          domain: '.pornhub.com', path: '/',
+          expiresDate: exp.millisecondsSinceEpoch, isSecure: true);
     }
   }
 
@@ -838,9 +780,8 @@ class _ShortsTabState extends State<_ShortsTab>
       future: _setCookies(),
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
-          return const Center(
-              child: CircularProgressIndicator(
-                  color: kPrimaryColor, strokeWidth: 1.5));
+          return const Center(child: CircularProgressIndicator(
+              color: kPrimaryColor, strokeWidth: 1.5));
         }
         return Padding(
           padding: EdgeInsets.only(top: topPad, bottom: widget.navBottom),
@@ -849,8 +790,7 @@ class _ShortsTabState extends State<_ShortsTab>
               url: WebUri('https://www.pornhub.com/shorties'),
               headers: {
                 'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-                'Cookie':
-                    'age_verified=1; accessAgeDisclaimerPH=1; accessPH=1; hasVisited=1; platform=pc; _tc=1',
+                'Cookie': 'age_verified=1; accessAgeDisclaimerPH=1; accessPH=1; hasVisited=1; platform=pc; _tc=1',
               },
             ),
             initialSettings: InAppWebViewSettings(
@@ -874,12 +814,10 @@ class _ShortsTabState extends State<_ShortsTab>
               final u = url?.toString() ?? '';
               if (!u.contains('shorties')) {
                 await Future.delayed(const Duration(milliseconds: 400));
-                await ctrl.loadUrl(
-                    urlRequest: URLRequest(
+                await ctrl.loadUrl(urlRequest: URLRequest(
                   url: WebUri('https://www.pornhub.com/shorties'),
                   headers: {
-                    'Cookie':
-                        'age_verified=1; accessAgeDisclaimerPH=1; accessPH=1; hasVisited=1; platform=pc; _tc=1',
+                    'Cookie': 'age_verified=1; accessAgeDisclaimerPH=1; accessPH=1; hasVisited=1; platform=pc; _tc=1',
                   },
                 ));
                 return;
@@ -887,14 +825,10 @@ class _ShortsTabState extends State<_ShortsTab>
               await ctrl.evaluateJavascript(source: _shortsJs);
             },
             shouldOverrideUrlLoading: (_, action) async {
-              final url =
-                  action.request.url?.toString().toLowerCase() ?? '';
-              if (url.startsWith('about:') ||
-                  url.startsWith('blob:') ||
-                  url.startsWith('data:') ||
-                  url.contains('pornhub.com') ||
-                  url.contains('phncdn.com') ||
-                  url.contains('aylo.com')) {
+              final url = action.request.url?.toString().toLowerCase() ?? '';
+              if (url.startsWith('about:') || url.startsWith('blob:') ||
+                  url.startsWith('data:') || url.contains('pornhub.com') ||
+                  url.contains('phncdn.com') || url.contains('aylo.com')) {
                 return NavigationActionPolicy.ALLOW;
               }
               return NavigationActionPolicy.CANCEL;
@@ -910,7 +844,65 @@ class _ShortsTabState extends State<_ShortsTab>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _SitesGrid  —  grelha de sites com glassmorphism
+// _BrowseTab  —  WebView livre de navegação
+// ─────────────────────────────────────────────────────────────────────────────
+class _BrowseTab extends StatefulWidget {
+  final double navBottom;
+  const _BrowseTab({required this.navBottom});
+  @override
+  State<_BrowseTab> createState() => _BrowseTabState();
+}
+
+class _BrowseTabState extends State<_BrowseTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  InAppWebViewController? _ctrl;
+  bool _canGoBack = false;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final topPad = MediaQuery.of(context).padding.top;
+    return Stack(children: [
+      Padding(
+        padding: EdgeInsets.only(top: topPad, bottom: widget.navBottom),
+        child: InAppWebView(
+          initialUrlRequest: URLRequest(
+            url: WebUri('https://www.google.com'),
+          ),
+          initialSettings: InAppWebViewSettings(
+            javaScriptEnabled: true,
+            domStorageEnabled: true,
+            databaseEnabled: true,
+            mediaPlaybackRequiresUserGesture: false,
+            allowsInlineMediaPlayback: true,
+            useShouldOverrideUrlLoading: true,
+            supportZoom: true,
+            cacheEnabled: true,
+            userAgent:
+                'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
+                '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+          ),
+          onWebViewCreated: (ctrl) => _ctrl = ctrl,
+          onLoadStop: (ctrl, _) async {
+            final canBack = await ctrl.canGoBack();
+            if (mounted) setState(() => _canGoBack = canBack);
+          },
+          shouldOverrideUrlLoading: (_, action) async =>
+              NavigationActionPolicy.ALLOW,
+          onPermissionRequest: (_, req) async => PermissionResponse(
+              resources: req.resources,
+              action: PermissionResponseAction.GRANT),
+        ),
+      ),
+    ]);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _SitesGrid
 // ─────────────────────────────────────────────────────────────────────────────
 class _SitesGrid extends StatelessWidget {
   final List<SiteModel> sites;
@@ -931,8 +923,7 @@ class _SitesGrid extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.35),
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-              color: Colors.white.withOpacity(0.08), width: 0.5),
+          border: Border.all(color: Colors.white.withOpacity(0.08), width: 0.5),
         ),
         child: Column(children: [
           _SiteRow(sites: row1, onTap: onTap),
@@ -954,8 +945,7 @@ class _SiteRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children:
-            sites.map((s) => _SiteCell(site: s, onTap: () => onTap(s))).toList(),
+        children: sites.map((s) => _SiteCell(site: s, onTap: () => onTap(s))).toList(),
       );
 }
 
@@ -967,8 +957,7 @@ class _SiteCell extends StatefulWidget {
   State<_SiteCell> createState() => _SiteCellState();
 }
 
-class _SiteCellState extends State<_SiteCell>
-    with SingleTickerProviderStateMixin {
+class _SiteCellState extends State<_SiteCell> with SingleTickerProviderStateMixin {
   late final AnimationController _c;
   late final Animation<double> _s;
 
@@ -979,8 +968,7 @@ class _SiteCellState extends State<_SiteCell>
         vsync: this,
         duration: const Duration(milliseconds: 90),
         reverseDuration: const Duration(milliseconds: 200),
-        lowerBound: 0,
-        upperBound: 1);
+        lowerBound: 0, upperBound: 1);
     _s = Tween<double>(begin: 1.0, end: 0.86)
         .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
   }
@@ -997,11 +985,9 @@ class _SiteCellState extends State<_SiteCell>
       onTapCancel: () => _c.reverse(),
       child: AnimatedBuilder(
         animation: _s,
-        builder: (_, child) =>
-            Transform.scale(scale: _s.value, child: child),
+        builder: (_, child) => Transform.scale(scale: _s.value, child: child),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          SiteIconWidget(
-              site: widget.site, size: iconSize, showShadow: true),
+          SiteIconWidget(site: widget.site, size: iconSize, showShadow: true),
           const SizedBox(height: 5),
           SizedBox(
             width: iconSize + 10,
@@ -1011,8 +997,7 @@ class _SiteCellState extends State<_SiteCell>
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                     color: Colors.white.withOpacity(0.65),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500)),
+                    fontSize: 10, fontWeight: FontWeight.w500)),
           ),
         ]),
       ),
@@ -1021,7 +1006,7 @@ class _SiteCellState extends State<_SiteCell>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FreeBrowserPage  —  helper para abrir qualquer URL no BrowserPage
+// FreeBrowserPage
 // ─────────────────────────────────────────────────────────────────────────────
 class FreeBrowserPage extends StatelessWidget {
   final String url, title;
@@ -1031,12 +1016,8 @@ class FreeBrowserPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BrowserPage(
       site: SiteModel(
-          id: 'free',
-          name: title,
-          baseUrl: url,
-          allowedDomain: '',
-          searchUrl: url,
-          primaryColor: kPrimaryColor),
+          id: 'free', name: title, baseUrl: url,
+          allowedDomain: '', searchUrl: url, primaryColor: kPrimaryColor),
       freeNavigation: true,
     );
   }
