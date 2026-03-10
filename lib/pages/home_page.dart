@@ -113,6 +113,8 @@ const _shortsJs = r"""
     ).forEach(function(el) { el.remove(); });
     document.body.style.overflow = '';
     document.documentElement.style.overflow = '';
+    document.body.style.background = '#000';
+    document.documentElement.style.background = '#000';
     ['header','footer','.header','.footer','nav#top','#header'].forEach(function(s) {
       var el = document.querySelector(s);
       if (el) el.style.display = 'none';
@@ -555,9 +557,19 @@ class _HomeTab extends StatelessWidget {
     return Stack(fit: StackFit.expand, children: [
       // ── Fundo ─────────────────────────────────────────────────────────────
       Container(color: const Color(0xFF0C0C0C)),
+      // Imagem de wallpaper (só quando useWallpaper está ativo)
+      if (ThemeService.instance.useWallpaper && ThemeService.instance.bg.isNotEmpty)
+        Positioned.fill(
+          child: Image.asset(
+            ThemeService.instance.bg,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          ),
+        ),
 
-      // ── WebView invisível para extrair cor do wallpaper ───────────────────
+      // ── WebView invisível para extrair cor do wallpaper (só com useWallpaper) ──
       Builder(builder: (ctx) {
+        if (!ThemeService.instance.useWallpaper) return const SizedBox.shrink();
         final wpUrl = ThemeService.instance.bg;
         if (wpUrl.isEmpty) return const SizedBox.shrink();
         return Positioned(

@@ -293,6 +293,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  // ── Picker de wallpaper: switch "Usar imagem" + grelha de imagens ────────
   void _pickWallpaper() {
     showModalBottomSheet(
       context: context,
@@ -300,45 +301,86 @@ class _SettingsPageState extends State<SettingsPage> {
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: true,
-      builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
-        const SizedBox(height: 8),
-        Center(child: Container(width: 36, height: 4,
-            decoration: BoxDecoration(color: _div,
-                borderRadius: BorderRadius.circular(2)))),
-        const SizedBox(height: 12),
-        Text('Fundo de ecrã', style: TextStyle(color: _text,
-            fontSize: 16, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 12),
-        SizedBox(height: 160, child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: ThemeService.wallpapers.length,
-          itemBuilder: (_, i) {
-            final wp = ThemeService.wallpapers[i];
-            final sel = wp == _ts.bg;
-            return GestureDetector(
-              onTap: () { _ts.setBg(wp); setState(() {}); Navigator.pop(context); },
-              child: Container(
-                width: 90, height: 160, margin: const EdgeInsets.only(right: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: sel ? _kPrimary : Colors.transparent,
-                    width: 2,
-                  ),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(wp, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                          color: Colors.white.withOpacity(0.05))),
-                ),
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setLocal) => Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 8),
+          Center(child: Container(width: 36, height: 4,
+              decoration: BoxDecoration(color: _div,
+                  borderRadius: BorderRadius.circular(2)))),
+          const SizedBox(height: 12),
+          Text('Fundo de ecrã', style: TextStyle(color: _text,
+              fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+
+          // ── Switch: Usar imagem como fundo ────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(children: [
+              SvgPicture.string(_iWallpaper, width: 20, height: 20,
+                  colorFilter: ColorFilter.mode(_sub, BlendMode.srcIn)),
+              const SizedBox(width: 14),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Usar imagem como fundo',
+                      style: TextStyle(color: _text, fontSize: 14,
+                          fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 2),
+                  Text(_ts.useWallpaper ? 'Imagem ativa' : 'Fundo escuro sólido',
+                      style: TextStyle(color: _sub, fontSize: 12)),
+                ],
+              )),
+              _MiniSwitch(
+                value: _ts.useWallpaper,
+                onChanged: (v) async {
+                  await _ts.setUseWallpaper(v);
+                  setLocal(() {});
+                  setState(() {});
+                },
               ),
-            );
-          },
-        )),
-        const SizedBox(height: 20),
-      ]),
+            ]),
+          ),
+
+          // ── Grelha de imagens (só visível quando switch ativo) ────────────
+          if (_ts.useWallpaper) ...[
+            const SizedBox(height: 12),
+            SizedBox(height: 160, child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: ThemeService.wallpapers.length,
+              itemBuilder: (_, i) {
+                final wp = ThemeService.wallpapers[i];
+                final sel = wp == _ts.bg;
+                return GestureDetector(
+                  onTap: () {
+                    _ts.setBg(wp);
+                    setLocal(() {});
+                    setState(() {});
+                    Navigator.pop(context);
+                  },
+                  child: Container(
+                    width: 90, height: 160, margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: sel ? _kPrimary : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(wp, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                              color: Colors.white.withOpacity(0.05))),
+                    ),
+                  ),
+                );
+              },
+            )),
+          ],
+          const SizedBox(height: 20),
+        ]),
+      ),
     );
   }
 
@@ -370,7 +412,6 @@ class _SettingsPageState extends State<SettingsPage> {
           elevation: 0,
           surfaceTintColor: Colors.transparent,
           leading: IconButton(
-            // Seta de voltar
             icon: SvgPicture.string(
               _iBack,
               width: 22, height: 22,
@@ -388,19 +429,13 @@ class _SettingsPageState extends State<SettingsPage> {
             // ── Aparência ────────────────────────────────────────────
             _label('Aparência'),
             _section([
-              _SwitchRow(
-                svg: _iDark,
-                label: 'Tema escuro',
-                sub: _ts.isDark ? 'Ativo' : 'Desativado',
-                value: _ts.isDark,
-                textColor: _text, subColor: _sub,
-                onChanged: (v) { _ts.setDark(v); setState(() {}); },
-              ),
-              _divider(),
+              // "Fundo de ecrã" — abre o picker (que inclui switch + grelha)
               _TapRow(
                 svg: _iWallpaper,
                 label: 'Fundo de ecrã',
-                sub: _ts.bg.isEmpty ? 'Padrão' : _ts.bg.split('/').last,
+                sub: _ts.useWallpaper
+                    ? _ts.bg.split('/').last
+                    : 'Fundo escuro',
                 textColor: _text, subColor: _sub,
                 onTap: _pickWallpaper,
               ),
@@ -641,7 +676,6 @@ class _TapRow extends StatelessWidget {
             const SizedBox(height: 2),
             Text(sub, style: TextStyle(color: subColor, fontSize: 12)),
           ])),
-          // Chevron SVG elegante
           SvgPicture.string(_iChevron, width: 16, height: 16,
               colorFilter: ColorFilter.mode(
                   Colors.white.withOpacity(0.25), BlendMode.srcIn)),
@@ -652,7 +686,7 @@ class _TapRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _SwitchRow — com switch custom minimalista
+// _SwitchRow
 // ─────────────────────────────────────────────────────────────────────────────
 class _SwitchRow extends StatelessWidget {
   final String svg, label, sub;
@@ -688,14 +722,13 @@ class _SwitchRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _MiniSwitch — switch custom compacto, sem usar o Switch do Flutter
+// _MiniSwitch
 // ─────────────────────────────────────────────────────────────────────────────
 class _MiniSwitch extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
   const _MiniSwitch({required this.value, required this.onChanged});
 
-  // dimensões
   static const double _w = 40;
   static const double _h = 23;
   static const double _thumb = 17;
