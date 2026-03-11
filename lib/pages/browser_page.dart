@@ -8,6 +8,17 @@ import '../services/favicon_service.dart';
 import '../services/download_service.dart';
 import '../widgets/site_icon_widget.dart';
 
+// SVG X — o que foi fornecido
+const _svgClose =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512.021 512.021">'
+    '<path d="M301.258,256.01L502.645,54.645c12.501-12.501,12.501-32.769,0-45.269'
+    'c-12.501-12.501-32.769-12.501-45.269,0L256.01,210.762L54.645,9.376'
+    'c-12.501-12.501-32.769-12.501-45.269,0s-12.501,32.769,0,45.269L210.762,256.01'
+    'L9.376,457.376c-12.501,12.501-12.501,32.769,0,45.269s32.769,12.501,45.269,0'
+    'L256.01,301.258l201.365,201.387c12.501,12.501,32.769,12.501,45.269,0'
+    'c12.501-12.501,12.501-32.769,0-45.269L301.258,256.01z"/>'
+    '</svg>';
+
 class BrowserPage extends StatefulWidget {
   final SiteModel site;
   final String? initialQuery;
@@ -29,6 +40,7 @@ class _BrowserPageState extends State<BrowserPage> {
   double _progress = 0;
   bool _loading = true;
   bool _dialogOpen = false;
+  String _pageTitle = '';
 
   late final String _startUrl;
 
@@ -57,7 +69,6 @@ class _BrowserPageState extends State<BrowserPage> {
         if (ss[i].src) { src = ss[i].src; break; }
       }
     }
-    // Try data-src or similar
     if (!src) src = v.getAttribute('data-src') || v.getAttribute('data-url') || '';
     return src;
   }
@@ -77,11 +88,9 @@ class _BrowserPageState extends State<BrowserPage> {
     }, { passive: true });
     v.addEventListener('touchend', function() { if(timer) clearTimeout(timer); }, { passive:true });
     v.addEventListener('touchcancel', function() { if(timer) clearTimeout(timer); }, { passive:true });
-    // Also on play - if user taps play
     v.addEventListener('play', function() {
       var src = getVideoSrc(v);
       if (src && src.startsWith('http')) {
-        // Store last played src for download
         window.__lastVideoSrc = { src: src, thumb: v.poster || '' };
       }
     });
@@ -126,7 +135,6 @@ class _BrowserPageState extends State<BrowserPage> {
 
   obs.observe(document.documentElement, { childList: true, subtree: true });
 
-  // Context menu fallback
   document.addEventListener('contextmenu', function(e) {
     var t = e.target;
     if (!t) return;
@@ -146,6 +154,7 @@ class _BrowserPageState extends State<BrowserPage> {
   void initState() {
     super.initState();
     _startUrl = widget.site.buildUrl(query: widget.initialQuery);
+    _pageTitle = widget.site.name;
   }
 
   bool _isAllowed(String url) {
@@ -195,168 +204,206 @@ class _BrowserPageState extends State<BrowserPage> {
     ).whenComplete(() => setState(() => _dialogOpen = false));
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: _AppBar(
-        color: const Color(0xFF111111),
-        site: widget.site,
-        onBack: () async {
-          if (_wvCtrl != null && await _wvCtrl!.canGoBack()) {
-            _wvCtrl!.goBack();
-          } else {
-            Navigator.of(context).pop();
-          }
-        },
-        onRefresh: () => _wvCtrl?.reload(),
-        progress: _loading ? _progress : null,
-      ),
-      body: InAppWebView(
-        initialUrlRequest: URLRequest(url: WebUri(_startUrl)),
-        initialSettings: InAppWebViewSettings(
-          javaScriptEnabled: true,
-          javaScriptCanOpenWindowsAutomatically: true,
-          domStorageEnabled: true,
-          databaseEnabled: true,
-          mediaPlaybackRequiresUserGesture: false,
-          allowsInlineMediaPlayback: true,
-          useOnDownloadStart: true,
-          useShouldOverrideUrlLoading: true,
-          supportZoom: true,
-          builtInZoomControls: false,
-          displayZoomControls: false,
-          cacheEnabled: true,
-          allowFileAccessFromFileURLs: true,
-          allowUniversalAccessFromFileURLs: true,
-          userAgent:
-              'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-        ),
-        onWebViewCreated: (ctrl) {
-          _wvCtrl = ctrl;
-          ctrl.addJavaScriptHandler(
-            handlerName: 'DownloadChannel',
-            callback: _handleMediaArgs,
-          );
-        },
-        onLoadStart: (_, url) => setState(() { _loading = true; _progress = 0; }),
-        onLoadStop: (ctrl, _) async {
-          setState(() => _loading = false);
-          await ctrl.evaluateJavascript(source: _mediaJs);
-        },
-        onProgressChanged: (_, p) => setState(() => _progress = p / 100),
-        shouldOverrideUrlLoading: (ctrl, action) async {
-          final url = action.request.url?.toString() ?? '';
-          // Check if it looks like a direct video/image file
-          final lower = url.toLowerCase();
-          final isMedia = lower.contains('.mp4') || lower.contains('.webm') ||
-              lower.contains('.m4v') || lower.contains('.mov') ||
-              lower.contains('.m3u8') || lower.contains('.ts?');
-          if (isMedia && !_dialogOpen) {
-            _showDownload(src: url, type: 'video', thumb: '');
-            return NavigationActionPolicy.CANCEL;
-          }
-          if (!_isAllowed(url)) return NavigationActionPolicy.CANCEL;
-          return NavigationActionPolicy.ALLOW;
-        },
-        onDownloadStartRequest: (_, req) {
-          if (!_dialogOpen) {
-            _showDownload(
-              src: req.url.toString(),
-              type: _guessType(req.url.toString()),
-              thumb: '',
-            );
-          }
-        },
-        onPermissionRequest: (_, req) async => PermissionResponse(
-          resources: req.resources,
-          action: PermissionResponseAction.GRANT,
-        ),
-      ),
-    );
-  }
-
   String _guessType(String url) {
     final l = url.toLowerCase();
     if (l.contains('.mp4') || l.contains('.webm') || l.contains('.m4v') ||
         l.contains('.mov') || l.contains('video') || l.contains('.m3u8')) return 'video';
     return 'image';
   }
-}
 
-// ── AppBar ────────────────────────────────────────────────────────────────────
-const _svgClose =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M18,6L6,18M6,6l12,12" stroke="currentColor" stroke-width="2" '
-    'stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+  // Cor do AppBar = cor primária do site, levemente escurecida
+  Color get _appBarColor {
+    final hsl = HSLColor.fromColor(widget.site.primaryColor);
+    return hsl.withLightness((hsl.lightness * 0.50).clamp(0.05, 0.40)).toColor();
+  }
 
-class _AppBar extends StatelessWidget implements PreferredSizeWidget {
-  final Color color;
-  final SiteModel site;
-  final VoidCallback onBack;
-  final VoidCallback onRefresh;
-  final double? progress;
+  bool get _appBarIsLight => _appBarColor.computeLuminance() > 0.35;
+  Color get _fg => _appBarIsLight ? Colors.black : Colors.white;
 
-  const _AppBar({
-    required this.color,
-    required this.site,
-    required this.onBack,
-    required this.onRefresh,
-    this.progress,
-  });
-
-  @override
-  Size get preferredSize =>
-      Size.fromHeight(kToolbarHeight + (progress != null ? 3.0 : 0.0));
-
-  // Nome truncado com reticências a partir de 20 caracteres
-  String get _title {
-    final n = site.name;
-    return n.length > 20 ? '${n.substring(0, 20)}…' : n;
+  // Label: máximo 16 chars para caber bem por baixo do ícone
+  String get _shortLabel {
+    final t = _pageTitle.isNotEmpty ? _pageTitle : widget.site.name;
+    // Remove domínio e caracteres desnecessários
+    final clean = t
+        .replaceAll(RegExp(r'\s*[|\-–—]\s*.*'), '') // remove " | Subtitle"
+        .trim();
+    return clean.length > 16 ? '${clean.substring(0, 16)}…' : clean;
   }
 
   @override
   Widget build(BuildContext context) {
-    const bg = Color(0xFF111111);
-    const fg = Colors.white;
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      AppBar(
-        backgroundColor: bg,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        leadingWidth: 52,
-        leading: IconButton(
-          icon: SvgPicture.string(
-            _svgClose,
-            width: 18, height: 18,
-            colorFilter: const ColorFilter.mode(fg, BlendMode.srcIn),
-          ),
-          onPressed: onBack,
+    final topPad = MediaQuery.of(context).padding.top;
+
+    return PopScope(
+      // Botão back do Android → navega no WebView, NUNCA fecha
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (_wvCtrl != null && await _wvCtrl!.canGoBack()) {
+          _wvCtrl!.goBack();
+        }
+        // Sem Navigator.pop — só o X fecha
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness:
+              _appBarIsLight ? Brightness.dark : Brightness.light,
         ),
-        title: Row(mainAxisSize: MainAxisSize.min, children: [
-          SiteIconWidget(site: site, size: 28, showShadow: false),
-          const SizedBox(width: 10),
-          Text(_title,
-              style: const TextStyle(
-                  color: fg, fontSize: 16, fontWeight: FontWeight.w600)),
-        ]),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: fg, size: 20),
-            onPressed: onRefresh,
-          ),
-          const SizedBox(width: 4),
-        ],
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: Column(children: [
+
+            // ── AppBar: cor do site, favicon centrado + label em baixo ──
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 280),
+              color: _appBarColor,
+              padding: EdgeInsets.only(top: topPad),
+              child: SizedBox(
+                height: 62,
+                child: Stack(alignment: Alignment.center, children: [
+
+                  // Centro: favicon + label em baixo
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SiteIconWidget(
+                        site: widget.site,
+                        size: 24,
+                        showShadow: false,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _shortLabel,
+                        style: TextStyle(
+                          color: _fg.withOpacity(0.88),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+
+                  // Esquerda: botão X — fecha o WebView
+                  Positioned(
+                    left: 4,
+                    child: IconButton(
+                      icon: SvgPicture.string(
+                        _svgClose,
+                        width: 15, height: 15,
+                        colorFilter: ColorFilter.mode(
+                            _fg.withOpacity(0.82), BlendMode.srcIn),
+                      ),
+                      onPressed: () => Navigator.of(context).pop(),
+                      splashRadius: 22,
+                    ),
+                  ),
+
+                  // Direita: refresh
+                  Positioned(
+                    right: 4,
+                    child: IconButton(
+                      icon: Icon(Icons.refresh_rounded,
+                          color: _fg.withOpacity(0.75), size: 20),
+                      onPressed: () => _wvCtrl?.reload(),
+                      splashRadius: 22,
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+
+            // ── Barra de progresso ──────────────────────────────────────
+            if (_loading)
+              LinearProgressIndicator(
+                value: _progress,
+                minHeight: 2.5,
+                backgroundColor: Colors.transparent,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                    widget.site.primaryColor.withOpacity(0.9)),
+              )
+            else
+              const SizedBox(height: 2.5),
+
+            // ── WebView ─────────────────────────────────────────────────
+            Expanded(
+              child: InAppWebView(
+                initialUrlRequest: URLRequest(url: WebUri(_startUrl)),
+                initialSettings: InAppWebViewSettings(
+                  javaScriptEnabled: true,
+                  javaScriptCanOpenWindowsAutomatically: true,
+                  domStorageEnabled: true,
+                  databaseEnabled: true,
+                  mediaPlaybackRequiresUserGesture: false,
+                  allowsInlineMediaPlayback: true,
+                  useOnDownloadStart: true,
+                  useShouldOverrideUrlLoading: true,
+                  supportZoom: true,
+                  builtInZoomControls: false,
+                  displayZoomControls: false,
+                  cacheEnabled: true,
+                  allowFileAccessFromFileURLs: true,
+                  allowUniversalAccessFromFileURLs: true,
+                  userAgent:
+                      'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
+                      '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                ),
+                onWebViewCreated: (ctrl) {
+                  _wvCtrl = ctrl;
+                  ctrl.addJavaScriptHandler(
+                    handlerName: 'DownloadChannel',
+                    callback: _handleMediaArgs,
+                  );
+                },
+                onTitleChanged: (_, title) {
+                  if (mounted && title != null && title.isNotEmpty) {
+                    setState(() => _pageTitle = title);
+                  }
+                },
+                onLoadStart: (_, url) =>
+                    setState(() { _loading = true; _progress = 0; }),
+                onLoadStop: (ctrl, _) async {
+                  setState(() => _loading = false);
+                  await ctrl.evaluateJavascript(source: _mediaJs);
+                },
+                onProgressChanged: (_, p) =>
+                    setState(() => _progress = p / 100),
+                shouldOverrideUrlLoading: (ctrl, action) async {
+                  final url = action.request.url?.toString() ?? '';
+                  final lower = url.toLowerCase();
+                  final isMedia = lower.contains('.mp4') ||
+                      lower.contains('.webm') || lower.contains('.m4v') ||
+                      lower.contains('.mov') || lower.contains('.m3u8') ||
+                      lower.contains('.ts?');
+                  if (isMedia && !_dialogOpen) {
+                    _showDownload(src: url, type: 'video', thumb: '');
+                    return NavigationActionPolicy.CANCEL;
+                  }
+                  if (!_isAllowed(url)) return NavigationActionPolicy.CANCEL;
+                  return NavigationActionPolicy.ALLOW;
+                },
+                onDownloadStartRequest: (_, req) {
+                  if (!_dialogOpen) {
+                    _showDownload(
+                      src: req.url.toString(),
+                      type: _guessType(req.url.toString()),
+                      thumb: '',
+                    );
+                  }
+                },
+                onPermissionRequest: (_, req) async => PermissionResponse(
+                  resources: req.resources,
+                  action: PermissionResponseAction.GRANT,
+                ),
+              ),
+            ),
+          ]),
+        ),
       ),
-      if (progress != null)
-        LinearProgressIndicator(
-          value: progress,
-          minHeight: 3,
-          backgroundColor: Colors.transparent,
-          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF9000)),
-        ),
-    ]);
+    );
   }
 }
 
@@ -414,7 +461,7 @@ class _DownloadSheetState extends State<_DownloadSheet> {
                   borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 16),
 
-          // Preview thumbnail or icon
+          // Preview
           if (hasThumb)
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
@@ -443,7 +490,6 @@ class _DownloadSheetState extends State<_DownloadSheet> {
 
           const SizedBox(height: 16),
 
-          // Title
           Row(children: [
             Icon(isVideo ? Icons.videocam_outlined : Icons.image_outlined,
                 color: Colors.white54, size: 18),
@@ -501,7 +547,7 @@ class _DownloadSheetState extends State<_DownloadSheet> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(24)),
                     child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(Icons.download_rounded, color: Colors.black87, size: 20),
+                      const Icon(Icons.download_rounded, color: Colors.black87, size: 20),
                       const SizedBox(width: 8),
                       Text('Baixar ${isVideo ? 'vídeo' : 'imagem'}',
                           style: const TextStyle(color: Colors.black87,
