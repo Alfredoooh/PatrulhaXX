@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui';
+import 'package:lottie/lottie.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -59,7 +61,6 @@ Future<_BetaStatus> _checkBeta() async {
       daysLeft: remaining.inDays,
     );
   } catch (_) {
-    // Sem rede — deixa entrar (não bloqueia por falta de conexão)
     return _BetaStatus(expired: false, expiresAt: null, daysLeft: null);
   }
 }
@@ -78,6 +79,145 @@ class _BetaStatus {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Toast de topo partilhado — blur branco, bordas 100% redondas, estilo Samsung
+// ─────────────────────────────────────────────────────────────────────────────
+class AppTopToast extends StatefulWidget {
+  final bool success;
+  final String message;
+  final String? subtitle;
+  final VoidCallback onDone;
+
+  const AppTopToast({
+    super.key,
+    required this.success,
+    required this.message,
+    this.subtitle,
+    required this.onDone,
+  });
+
+  @override
+  State<AppTopToast> createState() => _AppTopToastState();
+}
+
+class _AppTopToastState extends State<AppTopToast>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<Offset> _slide;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 440));
+    _slide = Tween<Offset>(
+            begin: const Offset(0, -1.6), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
+    _fade = CurvedAnimation(parent: _c, curve: Curves.easeOut);
+    _c.forward();
+    Future.delayed(const Duration(milliseconds: 3200), _dismiss);
+  }
+
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  void _dismiss() async {
+    if (!mounted) return;
+    await _c.reverse();
+    if (mounted) widget.onDone();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    final isOk = widget.success;
+
+    return Positioned(
+      top: topPad + 10,
+      left: 16, right: 16,
+      child: SlideTransition(
+        position: _slide,
+        child: FadeTransition(
+          opacity: _fade,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(100),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.74),
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(
+                      color: Colors.white.withOpacity(0.55), width: 0.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.16),
+                      blurRadius: 28,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Row(children: [
+                  // Ícone Lottie em container branco/cinza
+                  Container(
+                    width: 38, height: 38,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0F0F0),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Lottie.asset(
+                      isOk
+                          ? 'assets/lottie/success.json'
+                          : 'assets/lottie/error.json',
+                      repeat: false,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.message,
+                          style: TextStyle(
+                            color: Colors.black.withOpacity(0.82),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.1,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (widget.subtitle != null) ...[
+                          const SizedBox(height: 1),
+                          Text(
+                            widget.subtitle!,
+                            style: TextStyle(
+                              color: Colors.black.withOpacity(0.45),
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 class PatrulhaXXApp extends StatelessWidget {
   const PatrulhaXXApp({super.key});
 
@@ -91,10 +231,13 @@ class PatrulhaXXApp extends StatelessWidget {
         theme: ThemeData(
           brightness: ThemeService.instance.isDark ? Brightness.dark : Brightness.light,
           scaffoldBackgroundColor: ThemeService.instance.isDark
-              ? const Color(0xFF0C0C0C) : const Color(0xFFF2F2F7),
+              ? const Color(0xFF0C0C0C)
+              : const Color(0xFFF2F2F7),
           colorScheme: ThemeService.instance.isDark
-              ? const ColorScheme.dark(surface: Color(0xFF1C1C1E), primary: Colors.white)
-              : const ColorScheme.light(surface: Color(0xFFFFFFFF), primary: Colors.black),
+              ? const ColorScheme.dark(
+                  surface: Color(0xFF1C1C1E), primary: Colors.white)
+              : const ColorScheme.light(
+                  surface: Color(0xFFFFFFFF), primary: Colors.black),
           useMaterial3: true,
         ),
         home: const _AppGate(),
@@ -104,7 +247,7 @@ class PatrulhaXXApp extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _AppGate — verifica beta antes de mostrar qualquer coisa
+// _AppGate
 // ─────────────────────────────────────────────────────────────────────────────
 class _AppGate extends StatefulWidget {
   const _AppGate();
@@ -113,12 +256,15 @@ class _AppGate extends StatefulWidget {
 }
 
 class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
-  bool _unlocked   = false;
+  bool _unlocked    = false;
   bool _lockEnabled = false;
-  bool _checking   = true;
+  bool _checking    = true;
   bool _betaChecked = false;
   _BetaStatus? _beta;
-  bool _bannerDismissed = false;
+
+  // Toast de topo beta
+  bool _showBetaToast = false;
+  bool _betaToastDismissed = false;
 
   DateTime? _pausedAt;
   Timer? _lockTimer;
@@ -163,7 +309,6 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
   }
 
   Future<void> _init() async {
-    // Verifica beta e lock em paralelo
     final results = await Future.wait([
       _checkBeta(),
       LockService.instance.isEnabled(),
@@ -178,20 +323,32 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
         _unlocked = !lockEnabled;
         _checking = false;
       });
+      // Mostra toast beta logo que o app abre (se válido e com tempo restante)
+      if (!beta.expired && beta.expiresAt != null && !_betaToastDismissed) {
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted) setState(() => _showBetaToast = true);
+        });
+      }
     }
   }
+
+  String _formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
   @override
   Widget build(BuildContext context) {
     if (_checking) {
       return const Scaffold(
         backgroundColor: Color(0xFF0C0C0C),
-        body: Center(child: SizedBox(width: 24, height: 24,
-            child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white24))),
+        body: Center(
+            child: SizedBox(
+                width: 24, height: 24,
+                child: CircularProgressIndicator(
+                    strokeWidth: 1.5, color: Colors.white24))),
       );
     }
 
-    // Beta expirado — tela bloqueada permanentemente
+    // Beta expirado
     if (_betaChecked && (_beta?.expired ?? false)) {
       return const _ExpiredScreen();
     }
@@ -200,125 +357,34 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
     if (!_unlocked) {
       return LockScreen(
         mode: LockMode.unlock,
-        onUnlocked: () => setState(() { _unlocked = true; _lockEnabled = true; }),
+        onUnlocked: () => setState(() {
+          _unlocked = true;
+          _lockEnabled = true;
+        }),
       );
     }
 
-    // App normal com banner beta se ainda há tempo
+    // App com toast beta sobreposto
     return Stack(children: [
       const HomePage(),
-      if (_betaChecked && !(_beta?.expired ?? true) &&
-          _beta?.expiresAt != null && !_bannerDismissed)
-        _BetaBanner(
-          beta: _beta!,
-          onDismiss: () => setState(() => _bannerDismissed = true),
+      if (_showBetaToast && !_betaToastDismissed && _beta?.expiresAt != null)
+        AppTopToast(
+          success: false, // usa ícone laranja via override abaixo
+          message: () {
+            final days = _beta!.daysLeft ?? 0;
+            return days > 0
+                ? '$days ${days == 1 ? "dia restante" : "dias restantes"} de beta'
+                : 'Último dia de beta';
+          }(),
+          subtitle: _beta?.expiresAt != null
+              ? 'Acesso termina em ${_formatDate(_beta!.expiresAt!)}'
+              : null,
+          onDone: () => setState(() {
+            _showBetaToast = false;
+            _betaToastDismissed = true;
+          }),
         ),
     ]);
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _BetaBanner — aviso de tempo restante, dispensável com X
-// ─────────────────────────────────────────────────────────────────────────────
-class _BetaBanner extends StatelessWidget {
-  final _BetaStatus beta;
-  final VoidCallback onDismiss;
-  const _BetaBanner({required this.beta, required this.onDismiss});
-
-  String _formatDate(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-
-  @override
-  Widget build(BuildContext context) {
-    final days = beta.daysLeft ?? 0;
-    final dateStr = beta.expiresAt != null ? _formatDate(beta.expiresAt!) : '';
-
-    return Positioned(
-      top: MediaQuery.of(context).padding.top + 8,
-      left: 16, right: 16,
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF2E2E2E)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.6),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // Ícone
-            Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF9000).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Center(
-                child: Text('β',
-                  style: TextStyle(
-                    color: Color(0xFFFF9000),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  )),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Texto
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(
-                  days > 0
-                      ? '$days ${days == 1 ? "dia restante" : "dias restantes"} de beta'
-                      : 'Último dia de beta',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'Acesso termina em $dateStr',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.45),
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(children: [
-                  const Icon(Icons.signal_wifi_off_rounded,
-                      size: 11, color: Color(0xFFFF9000)),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Evite usar VPN para uma melhor experiência',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.35),
-                      fontSize: 10,
-                    ),
-                  ),
-                ]),
-              ]),
-            ),
-            // Botão X
-            GestureDetector(
-              onTap: onDismiss,
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(Icons.close_rounded,
-                    size: 18, color: Colors.white.withOpacity(0.3)),
-              ),
-            ),
-          ]),
-        ),
-      ),
-    );
   }
 }
 
@@ -344,7 +410,6 @@ class _ExpiredScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Ícone
                   Container(
                     width: 72, height: 72,
                     decoration: BoxDecoration(
@@ -353,11 +418,11 @@ class _ExpiredScreen extends StatelessWidget {
                     ),
                     child: const Center(
                       child: Text('β',
-                        style: TextStyle(
-                          color: Color(0xFF999999),
-                          fontSize: 36,
-                          fontWeight: FontWeight.w700,
-                        )),
+                          style: TextStyle(
+                            color: Color(0xFF999999),
+                            fontSize: 36,
+                            fontWeight: FontWeight.w700,
+                          )),
                     ),
                   ),
                   const SizedBox(height: 28),
