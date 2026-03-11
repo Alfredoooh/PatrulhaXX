@@ -195,8 +195,7 @@ class _HomePageState extends State<HomePage>
   // Cor extraída via HTML do wallpaper
   Color _wallpaperColor = Colors.black;
 
-  static const _kNavH   = 62.0;
-  static const _kRadius = 32.0; // raio do floating nav = raio dos pills internos
+  static const _kNavH = 62.0;
 
   @override
   void initState() {
@@ -234,22 +233,10 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  // Cor adaptativa do nav baseada no wallpaper (via HTML extractor)
-  Color get _navBaseColor {
-    if (_tab != 0) return const Color(0xFF0E0E0E);
-    final lum = _wallpaperColor.computeLuminance();
-    if (lum > 0.35) {
-      return Color.lerp(_wallpaperColor, Colors.white, 0.25)!;
-    }
-    return Color.lerp(_wallpaperColor, Colors.black, 0.5)!;
-  }
-
-  bool get _navIsLight => _tab == 0 && _wallpaperColor.computeLuminance() > 0.35;
-
   @override
   Widget build(BuildContext context) {
     final safeBottom = MediaQuery.of(context).padding.bottom;
-    final navTotal   = _kNavH + safeBottom + 16;
+    final navTotal   = _kNavH + safeBottom;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -257,56 +244,51 @@ class _HomePageState extends State<HomePage>
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        extendBody: true,
+        extendBody: false,
         backgroundColor: Colors.black,
-        body: Stack(children: [
-
-          // ── Tabs ────────────────────────────────────────────────────────
-          AnimatedBuilder(
-            animation: ThemeService.instance,
-            builder: (_, __) => PageTransitionSwitcher(
-              duration: const Duration(milliseconds: 340),
-              transitionBuilder: (child, anim, secondAnim) =>
-                  FadeThroughTransition(
-                    animation: anim,
-                    secondaryAnimation: secondAnim,
-                    fillColor: Colors.black,
-                    child: child,
-                  ),
-              child: KeyedSubtree(
-                key: ValueKey(_tab),
-                child: _tab == 0
-                    ? _HomeTab(
-                        fadeIn: _fadeIn,
-                        navBottom: navTotal,
-                        onOpen: _openSite,
-                        onDownloads: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const DownloadsPage())),
-                        onSettings: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const SettingsPage())),
-                        onColorExtracted: _onColorExtracted,
-                        navColor: _navBaseColor,
-                        navIsLight: _navIsLight,
-                      )
-                    : _tab == 1
-                        ? _ShortsTab(navBottom: navTotal)
-                        : _BrowseTab(navBottom: navTotal),
+        body: Column(children: [
+          // ── Tabs ──────────────────────────────────────────────────────
+          Expanded(
+            child: AnimatedBuilder(
+              animation: ThemeService.instance,
+              builder: (_, __) => PageTransitionSwitcher(
+                duration: const Duration(milliseconds: 340),
+                transitionBuilder: (child, anim, secondAnim) =>
+                    FadeThroughTransition(
+                      animation: anim,
+                      secondaryAnimation: secondAnim,
+                      fillColor: Colors.black,
+                      child: child,
+                    ),
+                child: KeyedSubtree(
+                  key: ValueKey(_tab),
+                  child: _tab == 0
+                      ? _HomeTab(
+                          fadeIn: _fadeIn,
+                          navBottom: 0,
+                          onOpen: _openSite,
+                          onDownloads: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const DownloadsPage())),
+                          onSettings: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const SettingsPage())),
+                          onColorExtracted: _onColorExtracted,
+                          navColor: const Color(0xFF111111),
+                          navIsLight: false,
+                        )
+                      : _tab == 1
+                          ? _ShortsTab(navBottom: 0)
+                          : _BrowseTab(navBottom: 0),
+                ),
               ),
             ),
           ),
 
-          // ── Floating Bottom Nav ──────────────────────────────────────────
-          Positioned(
-            left: 20, right: 20,
-            bottom: safeBottom + 12,
-            child: _FloatingNav(
-              baseColor: _navBaseColor,
-              isLight: _navIsLight,
-              navH: _kNavH,
-              radius: _kRadius,
-              tab: _tab,
-              onTab: (i) => setState(() => _tab = i),
-            ),
+          // ── Bottom Nav fixo ────────────────────────────────────────────
+          _BottomNav(
+            tab: _tab,
+            onTab: (i) => setState(() => _tab = i),
+            navH: _kNavH,
+            safeBottom: safeBottom,
           ),
         ]),
       ),
@@ -315,90 +297,57 @@ class _HomePageState extends State<HomePage>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _FloatingNav  —  pill flutuante com transição liquid suave
-// Raio do container = raio dos pills internos = _kRadius (100% consistente)
+// _BottomNav — barra fixa, sem floating, sem adaptação de cor
+// Pills com raio 100% curvos, fundo escuro sólido
 // ─────────────────────────────────────────────────────────────────────────────
-class _FloatingNav extends StatelessWidget {
-  final Color baseColor;
-  final bool isLight;
-  final double navH, radius;
+class _BottomNav extends StatelessWidget {
   final int tab;
   final void Function(int) onTab;
+  final double navH, safeBottom;
+  static const _kRadius = 100.0;
+  static const _kBg = Color(0xFF111111);
 
-  const _FloatingNav({
-    required this.baseColor, required this.isLight,
-    required this.navH, required this.radius,
+  const _BottomNav({
     required this.tab, required this.onTab,
+    required this.navH, required this.safeBottom,
   });
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 380),
-      curve: Curves.easeInOutCubic,
-      height: navH,
-      decoration: BoxDecoration(
-        // Cor adaptativa ao wallpaper com opacidade
-        color: baseColor.withOpacity(0.88),
-        borderRadius: BorderRadius.circular(radius),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.45),
-            blurRadius: 32,
-            spreadRadius: -4,
-            offset: const Offset(0, 10),
+    return Container(
+      color: _kBg,
+      padding: EdgeInsets.only(bottom: safeBottom),
+      height: navH + safeBottom,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _NavPill(
+            label: 'Navegar',
+            svgFilled: _svgBrowseFilled,
+            svgOutline: _svgBrowseOutline,
+            active: tab == 0,
+            radius: _kRadius,
+            onTap: () => onTab(0),
           ),
-          BoxShadow(
-            color: baseColor.withOpacity(0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
+          _NavPill(
+            label: 'Shorts',
+            svgFilled: _svgShortsActive,
+            svgOutline: _svgShortsInactive,
+            active: tab == 1,
+            radius: _kRadius,
+            onTap: () => onTab(1),
+            shortsStyle: true,
+          ),
+          _NavPill(
+            label: 'Exibição',
+            svgFilled: _svgBrowseFilled,
+            svgOutline: _svgBrowseOutline,
+            active: tab == 2,
+            radius: _kRadius,
+            onTap: () => onTab(2),
+            exibicaoStyle: true,
           ),
         ],
-        border: Border.all(
-          color: isLight
-              ? Colors.black.withOpacity(0.08)
-              : Colors.white.withOpacity(0.08),
-          width: 0.5,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _NavPill(
-                label: 'Navegar',
-                icon: tab == 0 ? Symbols.home_rounded : Symbols.home,
-                isMaterialIcon: true,
-                active: tab == 0,
-                isLight: isLight,
-                radius: radius, // mesmo raio do container
-                onTap: () => onTab(0),
-              ),
-              _NavPill(
-                label: 'Shorts',
-                svgFilled: _svgShortsActive,
-                svgOutline: _svgShortsInactive,
-                active: tab == 1,
-                isLight: isLight,
-                radius: radius,
-                onTap: () => onTab(1),
-                shortsStyle: true,
-              ),
-              _NavPill(
-                label: 'Navegar',
-                svgFilled: _svgBrowseFilled,
-                svgOutline: _svgBrowseOutline,
-                active: tab == 2,
-                isLight: isLight,
-                radius: radius,
-                onTap: () => onTab(2),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -407,59 +356,39 @@ class _FloatingNav extends StatelessWidget {
 // ─── Pill individual ──────────────────────────────────────────────────────────
 class _NavPill extends StatelessWidget {
   final String label;
-  final bool active, isLight;
-  final bool shortsStyle; // Shorts: ativo=vermelho s/ colorFilter, inativo=cinza
+  final bool active;
+  final bool shortsStyle;
+  final bool exibicaoStyle;
   final double radius;
   final VoidCallback onTap;
-
-  // Ícone Material Symbols (tab Navegar/home)
-  final IconData? icon;
-  final bool isMaterialIcon;
-
-  // SVG (outros tabs)
   final String? svgFilled, svgOutline;
 
   const _NavPill({
     required this.label,
     required this.active,
-    required this.isLight,
     required this.radius,
     required this.onTap,
-    this.icon,
-    this.isMaterialIcon = false,
     this.svgFilled,
     this.svgOutline,
     this.shortsStyle = false,
+    this.exibicaoStyle = false,
   });
-
-  Color get _iconColor => active
-      ? (isLight ? Colors.black : Colors.white)
-      : (isLight ? Colors.black.withOpacity(0.38) : Colors.white.withOpacity(0.35));
 
   @override
   Widget build(BuildContext context) {
     Widget iconWidget;
-    if (isMaterialIcon && icon != null) {
-      iconWidget = Icon(icon, size: 22, color: _iconColor);
+    if (shortsStyle && active) {
+      // Shorts ativo = cores originais (vermelho)
+      iconWidget = SvgPicture.string(svgFilled!, width: 22, height: 22);
     } else if (svgFilled != null) {
-      if (shortsStyle && active) {
-        // Ativo = ícone TikTok com cores originais (sem ColorFilter)
-        iconWidget = SvgPicture.string(svgFilled!, width: 22, height: 22);
-      } else if (shortsStyle && !active) {
-        // Inativo = mesmo ícone mas com ColorFilter cinza
-        iconWidget = ColorFiltered(
-          colorFilter: ColorFilter.mode(_iconColor, BlendMode.srcIn),
-          child: SvgPicture.string(svgOutline!, width: 22, height: 22),
-        );
-      } else {
-        iconWidget = ColorFiltered(
-          colorFilter: ColorFilter.mode(_iconColor, BlendMode.srcIn),
-          child: SvgPicture.string(
-            active ? svgFilled! : svgOutline!,
-            width: 20, height: 20,
-          ),
-        );
-      }
+      final color = active ? Colors.white : Colors.white.withOpacity(0.35);
+      iconWidget = ColorFiltered(
+        colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+        child: SvgPicture.string(
+          active ? svgFilled! : svgOutline!,
+          width: 21, height: 21,
+        ),
+      );
     } else {
       iconWidget = const SizedBox.shrink();
     }
@@ -468,16 +397,14 @@ class _NavPill extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 280),
         curve: Curves.easeInOutCubic,
         padding: active
-            ? const EdgeInsets.symmetric(horizontal: 20, vertical: 12)
-            : const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ? const EdgeInsets.symmetric(horizontal: 18, vertical: 10)
+            : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: active
-              ? (isLight
-                  ? Colors.black.withOpacity(0.12)
-                  : Colors.white.withOpacity(0.14))
+              ? Colors.white.withOpacity(0.13)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(radius),
         ),
@@ -486,14 +413,14 @@ class _NavPill extends StatelessWidget {
           children: [
             iconWidget,
             AnimatedSize(
-              duration: const Duration(milliseconds: 280),
+              duration: const Duration(milliseconds: 260),
               curve: Curves.easeInOutCubic,
               child: active
                   ? Row(children: [
                       const SizedBox(width: 7),
                       Text(label,
-                          style: TextStyle(
-                            color: isLight ? Colors.black : Colors.white,
+                          style: const TextStyle(
+                            color: Colors.white,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             letterSpacing: -0.2,
@@ -923,11 +850,11 @@ class _ActionBtn extends StatelessWidget {
       // PNG asset guardado localmente — nunca depende de rede
       iconWidget = Image.asset(
         'assets/icons/downloads_folder.png',
-        width: 22, height: 22,
+        width: 38, height: 38,
       );
     } else if (isSettings) {
       // SVG com gradientes próprios — SEM ColorFilter para preservar as cores
-      iconWidget = SvgPicture.string(svg!, width: 22, height: 22);
+      iconWidget = SvgPicture.string(svg!, width: 38, height: 38);
     } else {
       iconWidget = SvgPicture.string(svg!, width: 17, height: 17,
           colorFilter: ColorFilter.mode(contentColor, BlendMode.srcIn));

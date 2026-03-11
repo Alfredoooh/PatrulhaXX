@@ -169,8 +169,8 @@ class _AppTopToastState extends State<AppTopToast>
                     ),
                     child: Lottie.asset(
                       isOk
-                          ? 'assets/lottie/success.json'
-                          : 'assets/lottie/error.json',
+                          ? 'assets/lottie/tick_mark.json'
+                          : 'assets/lottie/wrong_feedback.json',
                       repeat: false,
                       fit: BoxFit.contain,
                     ),
@@ -323,11 +323,9 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
         _unlocked = !lockEnabled;
         _checking = false;
       });
-      // Mostra toast beta logo que o app abre (se válido e com tempo restante)
+      // Mostra toast beta logo que o app abre
       if (!beta.expired && beta.expiresAt != null && !_betaToastDismissed) {
-        Future.delayed(const Duration(milliseconds: 600), () {
-          if (mounted) setState(() => _showBetaToast = true);
-        });
+        if (mounted) setState(() => _showBetaToast = true);
       }
     }
   }

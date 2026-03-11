@@ -211,14 +211,10 @@ class _BrowserPageState extends State<BrowserPage> {
     return 'image';
   }
 
-  // Cor do AppBar = cor primária do site, levemente escurecida
-  Color get _appBarColor {
-    final hsl = HSLColor.fromColor(widget.site.primaryColor);
-    return hsl.withLightness((hsl.lightness * 0.50).clamp(0.05, 0.40)).toColor();
-  }
-
-  bool get _appBarIsLight => _appBarColor.computeLuminance() > 0.35;
-  Color get _fg => _appBarIsLight ? Colors.black : Colors.white;
+  // AppBar sempre escuro — Android style
+  Color get _appBarColor => const Color(0xFF111111);
+  bool get _appBarIsLight => false;
+  Color get _fg => Colors.white;
 
   // Label: máximo 16 chars para caber bem por baixo do ícone
   String get _shortLabel {

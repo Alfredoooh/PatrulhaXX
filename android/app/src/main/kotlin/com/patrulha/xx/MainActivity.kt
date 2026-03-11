@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.net.wifi.WifiManager
+import android.os.Build
+import android.os.Bundle
 import android.provider.Settings
 import android.view.WindowManager
 import androidx.core.content.FileProvider
@@ -14,10 +16,14 @@ import java.io.File
 
 class MainActivity : FlutterActivity() {
 
+    // FLAG_SECURE aplicado em onCreate — seguro em todas as versões Android
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-
-        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
 
         // Canal: screenshots / FLAG_SECURE
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.patrulhaxx/secure")
@@ -42,7 +48,10 @@ class MainActivity : FlutterActivity() {
                             val path = call.argument<String>("path") ?: ""
                             val mime = call.argument<String>("type") ?: "*/*"
                             val file = File(path)
-                            if (!file.exists()) { result.error("NOT_FOUND", "File not found", null); return@setMethodCallHandler }
+                            if (!file.exists()) {
+                                result.error("NOT_FOUND", "File not found", null)
+                                return@setMethodCallHandler
+                            }
                             val uri: Uri = FileProvider.getUriForFile(
                                 this,
                                 "${applicationContext.packageName}.fileprovider",
@@ -63,30 +72,21 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-        // Canal: device ID + gateway IP (usado pelo TransferService)
+        // Canal: device ID + gateway IP
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.patrulhaxx/device_id")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getAndroidId" -> {
-                        val id = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                        val id = Settings.Secure.getString(
+                            contentResolver, Settings.Secure.ANDROID_ID
+                        )
                         result.success(id ?: "patrulha")
                     }
                     "getGatewayIp" -> {
                         try {
-                            val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-                            val ip = wm.dhcpInfo.gateway
-                            if (ip == 0) {
-                                result.error("NO_GATEWAY", "Gateway não disponível", null)
-                            } else {
-                                val gw = String.format(
-                                    "%d.%d.%d.%d",
-                                    ip and 0xff,
-                                    ip shr 8 and 0xff,
-                                    ip shr 16 and 0xff,
-                                    ip shr 24 and 0xff
-                                )
-                                result.success(gw)
-                            }
+                            val gw = getGatewayIp()
+                            if (gw != null) result.success(gw)
+                            else result.error("NO_GATEWAY", "Gateway não disponível", null)
                         } catch (e: Exception) {
                             result.error("GATEWAY_ERROR", e.message, null)
                         }
@@ -94,5 +94,24 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    // Gateway compatível com Android 11- e 12+
+    @Suppress("DEPRECATION")
+    private fun getGatewayIp(): String? {
+        return try {
+            val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val ip = wm.dhcpInfo?.gateway ?: 0
+            if (ip == 0) null
+            else String.format(
+                "%d.%d.%d.%d",
+                ip and 0xff,
+                ip shr 8 and 0xff,
+                ip shr 16 and 0xff,
+                ip shr 24 and 0xff
+            )
+        } catch (e: Exception) {
+            null
+        }
     }
 }
