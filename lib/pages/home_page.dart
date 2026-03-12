@@ -1,4 +1,6 @@
 import 'dart:ui';
+import 'dart:math';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -13,6 +15,7 @@ import 'browser_page.dart';
 import 'downloads_page.dart';
 import 'settings_page.dart';
 import 'search_results_page.dart';
+import 'package:http/http.dart' as http;
 import '../services/theme_service.dart';
 
 const kPrimaryColor = Color(0xFFFF9000);
@@ -192,6 +195,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   int _tab = 1; // Feed é o tab principal
+  String? _selectedEmbedUrl; // embed seleccionado no Feed
   late final AnimationController _fadeIn;
 
   // Cor extraída via HTML do wallpaper
@@ -278,8 +282,16 @@ class _HomePageState extends State<HomePage>
                           navIsLight: false,
                         )
                       : _tab == 1
-                          ? _ShortsTab(navBottom: 0)
-                          : _BrowseTab(navBottom: 0),
+                          ? _ShortsTab(
+                              navBottom: 0,
+                              onVideoTap: (_FeedVideo video) {
+                                setState(() {
+                                  _selectedEmbedUrl = video.embedUrl;
+                                  _tab = 2;
+                                });
+                              },
+                            )
+                          : _BrowseTab(navBottom: 0, embedUrl: _selectedEmbedUrl),
                 ),
               ),
             ),
@@ -288,7 +300,13 @@ class _HomePageState extends State<HomePage>
           // ── Bottom Nav fixo ────────────────────────────────────────────
           _BottomNav(
             tab: _tab,
-            onTab: (i) => setState(() => _tab = i),
+            onTab: (i) {
+              setState(() {
+                // Se navega para Exibição manualmente (sem vir do feed) limpa o embed
+                if (i == 2 && i != _tab) _selectedEmbedUrl = null;
+                _tab = i;
+              });
+            },
             navH: _kNavH,
             safeBottom: safeBottom,
           ),
@@ -904,30 +922,452 @@ class _ActionBtn extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _ShortsTab (Feed) — em desenvolvimento
+// Modelo unificado de vídeo — 4 fontes: Eporner, Pornhub, RedTube, YouPorn
 // ─────────────────────────────────────────────────────────────────────────────
-class _ShortsTab extends StatelessWidget {
+enum _VideoSource { eporner, pornhub, redtube, youporn }
+
+class _FeedVideo {
+  final String title;
+  final String thumb;
+  final String embedUrl;
+  final String duration;
+  final String views;
+  final _VideoSource source;
+
+  const _FeedVideo({
+    required this.title, required this.thumb, required this.embedUrl,
+    required this.duration, required this.views, required this.source,
+  });
+
+  String get sourceLabel {
+    switch (source) {
+      case _VideoSource.eporner:  return 'Eporner';
+      case _VideoSource.pornhub:  return 'Pornhub';
+      case _VideoSource.redtube:  return 'RedTube';
+      case _VideoSource.youporn:  return 'YouPorn';
+    }
+  }
+
+  String get sourceInitial {
+    switch (source) {
+      case _VideoSource.eporner:  return 'E';
+      case _VideoSource.pornhub:  return 'P';
+      case _VideoSource.redtube:  return 'R';
+      case _VideoSource.youporn:  return 'Y';
+    }
+  }
+
+  Color get sourceColor => const Color(0xFF222222);
+
+  // ── Eporner ────────────────────────────────────────────────────────────────
+  static _FeedVideo? fromEporner(Map<String, dynamic> j) {
+    final id = j['id'] as String? ?? '';
+    if (id.isEmpty) return null;
+    final thumb = (j['thumbs'] as List?)?.isNotEmpty == true
+        ? ((j['thumbs'] as List).first['src'] as String? ?? '') : '';
+    if (thumb.isEmpty) return null;
+    return _FeedVideo(
+      title: j['title'] as String? ?? '',
+      thumb: thumb,
+      embedUrl: 'https://www.eporner.com/embed/$id/',
+      duration: j['duration'] as String? ?? '',
+      views: _fmtViews(j['views']),
+      source: _VideoSource.eporner,
+    );
+  }
+
+  // ── Pornhub (HubTraffic) ───────────────────────────────────────────────────
+  static _FeedVideo? fromPornhub(Map<String, dynamic> j) {
+    final viewkey = j['video_id'] as String? ?? j['viewkey'] as String? ?? '';
+    if (viewkey.isEmpty) return null;
+    // Thumbnail: PH devolve lista 'thumbs' ou campo 'default_thumb'
+    String thumb = '';
+    final thumbs = j['thumbs'] as List?;
+    if (thumbs != null && thumbs.isNotEmpty) {
+      thumb = (thumbs.first['src'] ?? thumbs.first['url'] ?? '') as String;
+    }
+    if (thumb.isEmpty) thumb = j['default_thumb'] as String? ?? '';
+    if (thumb.isEmpty) return null;
+    return _FeedVideo(
+      title: j['title'] as String? ?? '',
+      thumb: thumb,
+      embedUrl: 'https://www.pornhub.com/embed/$viewkey',
+      duration: j['duration'] as String? ?? '',
+      views: _fmtViews(j['views']),
+      source: _VideoSource.pornhub,
+    );
+  }
+
+  // ── RedTube ────────────────────────────────────────────────────────────────
+  static _FeedVideo? fromRedtube(Map<String, dynamic> j) {
+    final vid = j['video_id'] as String? ?? '';
+    if (vid.isEmpty) return null;
+    final thumb = j['thumb'] as String? ?? j['default_thumb'] as String? ?? '';
+    if (thumb.isEmpty) return null;
+    return _FeedVideo(
+      title: j['title'] as String? ?? '',
+      thumb: thumb,
+      embedUrl: 'https://embed.redtube.com/?id=$vid',
+      duration: j['duration'] as String? ?? '',
+      views: _fmtViews(j['views']),
+      source: _VideoSource.redtube,
+    );
+  }
+
+  // ── YouPorn ────────────────────────────────────────────────────────────────
+  static _FeedVideo? fromYouporn(Map<String, dynamic> j) {
+    final id = (j['id'] ?? j['video_id'] ?? '').toString();
+    if (id.isEmpty || id == '0') return null;
+    final thumb = j['thumb'] as String? ?? j['default_thumb'] as String? ?? '';
+    if (thumb.isEmpty) return null;
+    return _FeedVideo(
+      title: j['title'] as String? ?? '',
+      thumb: thumb,
+      embedUrl: 'https://www.youporn.com/embed/$id/',
+      duration: j['duration'] as String? ?? '',
+      views: _fmtViews(j['views']),
+      source: _VideoSource.youporn,
+    );
+  }
+
+  static String _fmtViews(dynamic v) {
+    if (v == null) return '';
+    final n = int.tryParse(v.toString()) ?? 0;
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000)    return '${(n / 1000).toStringAsFixed(0)}K';
+    return n > 0 ? n.toString() : '';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _FeedFetcher — lógica de fetch das 4 fontes
+// ─────────────────────────────────────────────────────────────────────────────
+class _FeedFetcher {
+  static const _ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36';
+  static const _epOrders = ['top-weekly', 'top-monthly', 'latest', 'most-viewed'];
+  static const _phOrders = ['newest', 'mostviewed', 'rating'];
+  static const _rtOrders = ['new', 'rating', 'views'];
+
+  static Future<List<_FeedVideo>> fetchEporner(int page) async {
+    try {
+      final order = _epOrders[Random().nextInt(_epOrders.length)];
+      final r = await http.get(
+        Uri.parse('https://www.eporner.com/api/v2/video/search/'
+            '?query=&per_page=20&page=$page&thumbsize=big&order=$order&format=json'),
+        headers: {'User-Agent': _ua},
+      ).timeout(const Duration(seconds: 12));
+      if (r.statusCode != 200) return [];
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      return (data['videos'] as List? ?? [])
+          .map((v) => _FeedVideo.fromEporner(v as Map<String, dynamic>))
+          .whereType<_FeedVideo>()
+          .toList();
+    } catch (_) { return []; }
+  }
+
+  static Future<List<_FeedVideo>> fetchPornhub(int page) async {
+    try {
+      final order = _phOrders[Random().nextInt(_phOrders.length)];
+      final r = await http.get(
+        Uri.parse('https://www.pornhub.com/webmasters/search'
+            '?search=&ordering=$order&page=$page&thumbsize=medium&format=json'),
+        headers: {'User-Agent': _ua},
+      ).timeout(const Duration(seconds: 14));
+      if (r.statusCode != 200) return [];
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      final videos = data['videos'] as List? ?? data['video'] as List? ?? [];
+      return videos
+          .map((v) => _FeedVideo.fromPornhub(v as Map<String, dynamic>))
+          .whereType<_FeedVideo>()
+          .toList();
+    } catch (_) { return []; }
+  }
+
+  static Future<List<_FeedVideo>> fetchRedtube(int page) async {
+    try {
+      final order = _rtOrders[Random().nextInt(_rtOrders.length)];
+      final r = await http.get(
+        Uri.parse('https://api.redtube.com/'
+            '?data=redtube.Videos.searchVideos&output=json'
+            '&search=&ordering=$order&page=$page&thumbsize=big'),
+        headers: {'User-Agent': _ua},
+      ).timeout(const Duration(seconds: 12));
+      if (r.statusCode != 200) return [];
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      final videos = (data['videos'] as List? ?? []);
+      return videos
+          .map((v) {
+            final inner = v['video'] as Map<String, dynamic>? ?? v as Map<String, dynamic>;
+            return _FeedVideo.fromRedtube(inner);
+          })
+          .whereType<_FeedVideo>()
+          .toList();
+    } catch (_) { return []; }
+  }
+
+  static Future<List<_FeedVideo>> fetchYouporn(int page) async {
+    try {
+      final r = await http.get(
+        Uri.parse('https://www.youporn.com/api/video/search/'
+            '?is_top=1&page=$page&per_page=20'),
+        headers: {'User-Agent': _ua, 'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 12));
+      if (r.statusCode != 200) return [];
+      final data = jsonDecode(r.body);
+      final videos = (data['videos'] ?? data['data'] ?? data) as List? ?? [];
+      return videos
+          .map((v) => _FeedVideo.fromYouporn(v as Map<String, dynamic>))
+          .whereType<_FeedVideo>()
+          .toList();
+    } catch (_) { return []; }
+  }
+
+  /// Busca todas as fontes em paralelo, mistura e baralha
+  static Future<List<_FeedVideo>> fetchAll(int page) async {
+    final rng = Random();
+    // Página aleatória por fonte para não repetir sempre o mesmo conteúdo
+    final epPage  = rng.nextInt(60) + 1;
+    final phPage  = rng.nextInt(40) + 1;
+    final rtPage  = rng.nextInt(30) + 1;
+    final ypPage  = rng.nextInt(20) + 1;
+
+    final results = await Future.wait([
+      fetchEporner(epPage),
+      fetchPornhub(phPage),
+      fetchRedtube(rtPage),
+      fetchYouporn(ypPage),
+    ]);
+
+    // Intercala as fontes em vez de concatenar — parece mais variado
+    final merged = <_FeedVideo>[];
+    final lists = results.where((l) => l.isNotEmpty).toList();
+    if (lists.isEmpty) return [];
+
+    int maxLen = lists.map((l) => l.length).reduce((a, b) => a > b ? a : b);
+    for (int i = 0; i < maxLen; i++) {
+      for (final list in lists) {
+        if (i < list.length) merged.add(list[i]);
+      }
+    }
+    merged.shuffle(rng);
+    return merged;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _ShortsTab — Feed multi-fonte estilo YouTube
+// ─────────────────────────────────────────────────────────────────────────────
+class _ShortsTab extends StatefulWidget {
   final double navBottom;
-  const _ShortsTab({required this.navBottom});
+  final void Function(_FeedVideo) onVideoTap;
+  const _ShortsTab({required this.navBottom, required this.onVideoTap});
+
+  @override
+  State<_ShortsTab> createState() => _ShortsTabState();
+}
+
+class _ShortsTabState extends State<_ShortsTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  final List<_FeedVideo> _videos = [];
+  bool _loading = true;
+  bool _error = false;
+  int _page = 1;
+  bool _fetching = false;
+  final ScrollController _scroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+    _scroll.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 500) {
+      _fetchMore();
+    }
+  }
+
+  Future<void> _fetch() async {
+    setState(() { _loading = true; _error = false; });
+    final videos = await _FeedFetcher.fetchAll(_page);
+    if (!mounted) return;
+    if (videos.isEmpty) {
+      setState(() { _loading = false; _error = true; });
+    } else {
+      _videos.clear();
+      _videos.addAll(videos);
+      _page++;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _fetchMore() async {
+    if (_fetching || _loading) return;
+    _fetching = true;
+    final videos = await _FeedFetcher.fetchAll(_page);
+    _fetching = false;
+    if (!mounted || videos.isEmpty) return;
+    setState(() {
+      _videos.addAll(videos);
+      _page++;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.construction_rounded, color: Colors.white24, size: 48),
-          SizedBox(height: 16),
-          Text(
-            'Em desenvolvimento',
-            style: TextStyle(
-              color: Colors.white38,
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.2,
+    super.build(context);
+    final topPad = MediaQuery.of(context).padding.top;
+
+    if (_loading) {
+      return Container(
+        color: Colors.black,
+        child: const Center(
+          child: CircularProgressIndicator(color: kPrimaryColor, strokeWidth: 1.5),
+        ),
+      );
+    }
+
+    if (_error) {
+      return Container(
+        color: Colors.black,
+        child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.wifi_off_rounded, color: Colors.white24, size: 48),
+          const SizedBox(height: 16),
+          const Text('Sem ligação', style: TextStyle(color: Colors.white38, fontSize: 14)),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: _fetch,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: kPrimaryColor, borderRadius: BorderRadius.circular(100)),
+              child: const Text('Tentar novamente',
+                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700)),
             ),
           ),
-        ],
+        ])),
+      );
+    }
+
+    return Container(
+      color: Colors.black,
+      child: RefreshIndicator(
+        color: kPrimaryColor,
+        backgroundColor: const Color(0xFF1A1A1A),
+        onRefresh: _fetch,
+        child: ListView.builder(
+          controller: _scroll,
+          padding: EdgeInsets.only(top: topPad + 8, bottom: widget.navBottom + 16),
+          itemCount: _videos.length + 1,
+          itemBuilder: (_, i) {
+            if (i == _videos.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: SizedBox(width: 20, height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 1.5, color: kPrimaryColor))),
+              );
+            }
+            return _VideoCard(video: _videos[i], onTap: () => widget.onVideoTap(_videos[i]));
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Card de vídeo estilo YouTube ─────────────────────────────────────────────
+class _VideoCard extends StatelessWidget {
+  final _FeedVideo video;
+  final VoidCallback onTap;
+  const _VideoCard({required this.video, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Thumbnail 16:9
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Stack(fit: StackFit.expand, children: [
+              Image.network(
+                video.thumb,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: const Color(0xFF1A1A1A),
+                  child: const Center(child: Icon(Icons.play_circle_outline_rounded,
+                      color: Colors.white24, size: 40)),
+                ),
+              ),
+              // Duration badge
+              if (video.duration.isNotEmpty)
+                Positioned(
+                  bottom: 6, right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black87, borderRadius: BorderRadius.circular(3)),
+                    child: Text(video.duration,
+                        style: const TextStyle(color: Colors.white,
+                            fontSize: 11, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              // Play overlay
+              Center(child: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.45), shape: BoxShape.circle),
+                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+              )),
+            ]),
+          ),
+
+          // Info em baixo — estilo YouTube
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Avatar neutro
+              Container(
+                width: 36, height: 36,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF222222), shape: BoxShape.circle),
+                child: Center(child: Text(video.sourceInitial,
+                    style: const TextStyle(color: Colors.white54, fontSize: 13,
+                        fontWeight: FontWeight.w600))),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(video.title,
+                    style: const TextStyle(color: Colors.white, fontSize: 13.5,
+                        fontWeight: FontWeight.w500, height: 1.3),
+                    maxLines: 2, overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${video.sourceLabel}${video.views.isNotEmpty ? "  ·  ${video.views} views" : ""}',
+                    style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 11.5),
+                  ),
+                ],
+              )),
+              Icon(Icons.more_vert_rounded,
+                  color: Colors.white.withOpacity(0.38), size: 20),
+            ]),
+          ),
+        ]),
       ),
     );
   }
@@ -939,7 +1379,8 @@ class _ShortsTab extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class _BrowseTab extends StatefulWidget {
   final double navBottom;
-  const _BrowseTab({required this.navBottom});
+  final String? embedUrl; // se não null, mostra este embed em vez do vídeo padrão
+  const _BrowseTab({required this.navBottom, this.embedUrl});
   @override
   State<_BrowseTab> createState() => _BrowseTabState();
 }
@@ -954,8 +1395,8 @@ class _BrowseTabState extends State<_BrowseTab>
   bool _ready = false;
   bool _error = false;
 
-  // URL directa do stream de vídeo mp4 — eporner CDN
-  static const _videoUrl =
+  // URL do vídeo padrão quando nenhum embed é seleccionado
+  static const _defaultVideoUrl =
       'https://www.pussyboy.net/mp4/655/...mp4?a=1';
 
   @override
@@ -967,7 +1408,7 @@ class _BrowseTabState extends State<_BrowseTab>
   Future<void> _initPlayer() async {
     try {
       _vpc = VideoPlayerController.networkUrl(
-        Uri.parse(_videoUrl),
+        Uri.parse(_defaultVideoUrl),
         httpHeaders: {
           'Referer': 'https://www.pussyboy.net/',
           'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
@@ -1008,15 +1449,38 @@ class _BrowseTabState extends State<_BrowseTab>
     super.build(context);
     final topPad = MediaQuery.of(context).padding.top;
 
+    // Se tem embedUrl → mostra WebView com o embed do eporner no topo
+    if (widget.embedUrl != null) {
+      return Container(
+        color: Colors.black,
+        child: Column(children: [
+          SizedBox(height: topPad),
+          // Player embed 16:9
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: InAppWebView(
+              initialUrlRequest: URLRequest(url: WebUri(widget.embedUrl!)),
+              initialSettings: InAppWebViewSettings(
+                javaScriptEnabled: true,
+                mediaPlaybackRequiresUserGesture: false,
+                allowsInlineMediaPlayback: true,
+                transparentBackground: false,
+              ),
+            ),
+          ),
+          // Espaço em baixo
+          const Expanded(child: SizedBox.shrink()),
+        ]),
+      );
+    }
+
+    // Sem embedUrl → player nativo Chewie com vídeo padrão
     return Container(
       color: Colors.black,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Espaço status bar
           SizedBox(height: topPad),
-
-          // Player 16:9 — colado ao topo, borda a borda
           AspectRatio(
             aspectRatio: 16 / 9,
             child: _error
@@ -1045,11 +1509,7 @@ class _BrowseTabState extends State<_BrowseTab>
                         ),
                       ),
           ),
-
-          // Área abaixo do player — pode mostrar info do vídeo futuramente
-          const Expanded(
-            child: SizedBox.shrink(),
-          ),
+          const Expanded(child: SizedBox.shrink()),
         ],
       ),
     );
