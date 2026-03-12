@@ -44,6 +44,9 @@ class DownloadService {
   List<DownloadedItem> _items = [];
   List<DownloadedItem> get items => List.unmodifiable(_items);
 
+  // Número de downloads em curso — usado pelo browser para o badge no botão ⋮
+  int get activeCount => _active.length;
+
   final _progressNotifiers = <String, ValueNotifier<double>>{};
   ValueNotifier<double> progressOf(String id) =>
       _progressNotifiers.putIfAbsent(id, () => ValueNotifier(0));
