@@ -6,13 +6,13 @@ plugins {
 
 android {
     namespace = "com.patrulha.xx"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-        // Desugaring necessário para APIs modernas em Android 6+
+        // Desugaring necessário para APIs modernas em Android 6+ (minSdk 23)
         isCoreLibraryDesugaringEnabled = true
     }
 
@@ -23,10 +23,10 @@ android {
     defaultConfig {
         applicationId = "com.patrulha.xx"
         minSdk = 23   // Android 6.0+
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        multiDexEnabled = true
+        // multiDex não é necessário com minSdk 23+; o runtime já suporta nativamente
     }
 
     buildTypes {
@@ -43,9 +43,7 @@ android {
 }
 
 dependencies {
-    // Nome correto do artefacto — com ponto entre os segmentos
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-    implementation("androidx.multidex:multidex:2.0.1")
 }
 
 flutter {
