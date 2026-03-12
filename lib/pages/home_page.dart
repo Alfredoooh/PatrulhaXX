@@ -191,7 +191,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
-  int _tab = 0;
+  int _tab = 1; // Feed é o tab principal
   late final AnimationController _fadeIn;
 
   // Cor extraída via HTML do wallpaper
@@ -299,14 +299,14 @@ class _HomePageState extends State<HomePage>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _BottomNav — barra fixa, sem floating, sem adaptação de cor
-// Pills com raio 100% curvos, fundo escuro sólido
+// _BottomNav
+// Feed: pill sempre activo com SVG vermelho sempre ligado
+// Navegar + Exibição: sem pill, ícone + label em baixo
 // ─────────────────────────────────────────────────────────────────────────────
 class _BottomNav extends StatelessWidget {
   final int tab;
   final void Function(int) onTab;
   final double navH, safeBottom;
-  static const _kRadius = 100.0;
   static const _kBg = Color(0xFF111111);
 
   const _BottomNav({
@@ -323,30 +323,28 @@ class _BottomNav extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _NavPill(
+          // Navegar — sem pill, ícone + label em baixo
+          _NavIcon(
             label: 'Navegar',
             svgFilled: _svgBrowseFilled,
             svgOutline: _svgBrowseOutline,
             active: tab == 0,
-            radius: _kRadius,
             onTap: () => onTab(0),
           ),
-          _NavPill(
-            label: 'Feed',
-            svgFilled: _svgShortsActive,
-            svgOutline: _svgShortsInactive,
+          // Feed — pill sempre activo, SVG vermelho sempre ligado
+          _NavFeedPill(
             active: tab == 1,
-            radius: _kRadius,
             onTap: () => onTab(1),
-            shortsStyle: true,
           ),
-          _NavPill(
+          // Exibição — sem pill, ícone play + label em baixo
+          _NavIcon(
             label: 'Exibição',
-            icon: tab == 2 ? Symbols.home_rounded : Symbols.home,
-            isMaterialIcon: true,
+            svgFilled: _svgBrowseFilled, // placeholder, overridden via isMaterial
+            svgOutline: _svgBrowseOutline,
             active: tab == 2,
-            radius: _kRadius,
             onTap: () => onTab(2),
+            isMaterialIcon: true,
+            icon: Icons.play_circle_rounded,
           ),
         ],
       ),
@@ -354,88 +352,104 @@ class _BottomNav extends StatelessWidget {
   }
 }
 
-// ─── Pill individual ──────────────────────────────────────────────────────────
-class _NavPill extends StatelessWidget {
+// ─── Tab Navegar / Exibição — ícone + label em baixo, sem pill ───────────────
+class _NavIcon extends StatelessWidget {
   final String label;
   final bool active;
-  final bool shortsStyle;
+  final VoidCallback onTap;
+  final String svgFilled, svgOutline;
   final bool isMaterialIcon;
   final IconData? icon;
-  final double radius;
-  final VoidCallback onTap;
-  final String? svgFilled, svgOutline;
 
-  const _NavPill({
+  const _NavIcon({
     required this.label,
     required this.active,
-    required this.radius,
     required this.onTap,
-    this.svgFilled,
-    this.svgOutline,
-    this.shortsStyle = false,
+    required this.svgFilled,
+    required this.svgOutline,
     this.isMaterialIcon = false,
     this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    Widget iconWidget;
+    final color = active ? Colors.white : Colors.white.withOpacity(0.38);
+    Widget iconW;
     if (isMaterialIcon && icon != null) {
-      iconWidget = Icon(icon,
-          color: active ? Colors.white : Colors.white.withOpacity(0.35),
-          size: 24);
-    } else if (shortsStyle && active) {
-      iconWidget = SvgPicture.string(svgFilled!, width: 22, height: 22);
-    } else if (svgFilled != null) {
-      final color = active ? Colors.white : Colors.white.withOpacity(0.35);
-      iconWidget = ColorFiltered(
-        colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-        child: SvgPicture.string(
-          active ? svgFilled! : svgOutline!,
-          width: 21, height: 21,
-        ),
-      );
+      iconW = Icon(icon, color: color, size: 24);
     } else {
-      iconWidget = const SizedBox.shrink();
+      iconW = ColorFiltered(
+        colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+        child: SvgPicture.string(active ? svgFilled : svgOutline, width: 22, height: 22),
+      );
     }
 
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            iconW,
+            const SizedBox(height: 4),
+            Text(label,
+              style: TextStyle(
+                color: color,
+                fontSize: 10.5,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+              )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Tab Feed — pill sempre activo, SVG TikTok vermelho sempre ───────────────
+class _NavFeedPill extends StatelessWidget {
+  final bool active;
+  final VoidCallback onTap;
+
+  const _NavFeedPill({required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeInOutCubic,
-        padding: active
-            ? const EdgeInsets.symmetric(horizontal: 18, vertical: 10)
-            : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
+          // Pill sempre visível — mais escuro quando inactivo, branco quando activo
           color: active
               ? Colors.white.withOpacity(0.13)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(radius),
+              : Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(100),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            iconWidget,
-            AnimatedSize(
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeInOutCubic,
-              child: active
-                  ? Row(children: [
-                      const SizedBox(width: 7),
-                      Text(label,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.2,
-                          )),
-                    ])
-                  : const SizedBox.shrink(),
-            ),
-          ],
-        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          // SVG TikTok vermelho — sempre activo
+          SvgPicture.string(_svgShortsActive, width: 22, height: 22),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeInOutCubic,
+            child: active
+                ? const Row(children: [
+                    SizedBox(width: 7),
+                    Text('Feed',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.2,
+                      )),
+                  ])
+                : const SizedBox.shrink(),
+          ),
+        ]),
       ),
     );
   }
@@ -942,7 +956,7 @@ class _BrowseTabState extends State<_BrowseTab>
 
   // URL directa do stream de vídeo mp4 — eporner CDN
   static const _videoUrl =
-      'https://cdn3.epstatic.com/videos/I23b1t50KLM/mp4/1080.mp4';
+      'https://www.pussyboy.net/mp4/655/...mp4?a=1';
 
   @override
   void initState() {
@@ -955,7 +969,7 @@ class _BrowseTabState extends State<_BrowseTab>
       _vpc = VideoPlayerController.networkUrl(
         Uri.parse(_videoUrl),
         httpHeaders: {
-          'Referer': 'https://www.eporner.com/',
+          'Referer': 'https://www.pussyboy.net/',
           'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
               'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
         },
