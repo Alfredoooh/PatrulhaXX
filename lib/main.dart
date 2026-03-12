@@ -358,6 +358,13 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
         onUnlocked: () => setState(() {
           _unlocked = true;
           _lockEnabled = true;
+          // Mostrar toast beta imediatamente após unlock
+          if (_betaChecked &&
+              !(_beta?.expired ?? true) &&
+              _beta?.expiresAt != null &&
+              !_betaToastDismissed) {
+            _showBetaToast = true;
+          }
         }),
       );
     }

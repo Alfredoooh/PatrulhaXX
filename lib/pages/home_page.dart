@@ -5,6 +5,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:animations/animations.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
 import '../models/site_model.dart';
 import '../widgets/site_icon_widget.dart';
 import 'browser_page.dart';
@@ -330,7 +332,7 @@ class _BottomNav extends StatelessWidget {
             onTap: () => onTab(0),
           ),
           _NavPill(
-            label: 'Shorts',
+            label: 'Feed',
             svgFilled: _svgShortsActive,
             svgOutline: _svgShortsInactive,
             active: tab == 1,
@@ -340,12 +342,11 @@ class _BottomNav extends StatelessWidget {
           ),
           _NavPill(
             label: 'Exibição',
-            svgFilled: _svgBrowseFilled,
-            svgOutline: _svgBrowseOutline,
+            icon: tab == 2 ? Symbols.home_rounded : Symbols.home,
+            isMaterialIcon: true,
             active: tab == 2,
             radius: _kRadius,
             onTap: () => onTab(2),
-            exibicaoStyle: true,
           ),
         ],
       ),
@@ -358,7 +359,8 @@ class _NavPill extends StatelessWidget {
   final String label;
   final bool active;
   final bool shortsStyle;
-  final bool exibicaoStyle;
+  final bool isMaterialIcon;
+  final IconData? icon;
   final double radius;
   final VoidCallback onTap;
   final String? svgFilled, svgOutline;
@@ -371,14 +373,18 @@ class _NavPill extends StatelessWidget {
     this.svgFilled,
     this.svgOutline,
     this.shortsStyle = false,
-    this.exibicaoStyle = false,
+    this.isMaterialIcon = false,
+    this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     Widget iconWidget;
-    if (shortsStyle && active) {
-      // Shorts ativo = cores originais (vermelho)
+    if (isMaterialIcon && icon != null) {
+      iconWidget = Icon(icon,
+          color: active ? Colors.white : Colors.white.withOpacity(0.35),
+          size: 24);
+    } else if (shortsStyle && active) {
       iconWidget = SvgPicture.string(svgFilled!, width: 22, height: 22);
     } else if (svgFilled != null) {
       final color = active ? Colors.white : Colors.white.withOpacity(0.35);
@@ -884,105 +890,38 @@ class _ActionBtn extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _ShortsTab
+// _ShortsTab (Feed) — em desenvolvimento
 // ─────────────────────────────────────────────────────────────────────────────
-class _ShortsTab extends StatefulWidget {
+class _ShortsTab extends StatelessWidget {
   final double navBottom;
   const _ShortsTab({required this.navBottom});
-  @override
-  State<_ShortsTab> createState() => _ShortsTabState();
-}
-
-class _ShortsTabState extends State<_ShortsTab>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-  bool _cookiesSet = false;
-
-  Future<void> _setCookies() async {
-    if (_cookiesSet) return;
-    _cookiesSet = true;
-    final mgr = CookieManager.instance();
-    final uri = WebUri('https://www.pornhub.com');
-    final exp = DateTime.now().add(const Duration(days: 365));
-    for (final e in {
-      'age_verified': '1', 'accessAgeDisclaimerPH': '1',
-      'accessPH': '1', 'hasVisited': '1',
-      'platform': 'pc', '_tc': '1', 'cookieConsent': '1',
-    }.entries) {
-      await mgr.setCookie(
-          url: uri, name: e.key, value: e.value,
-          domain: '.pornhub.com', path: '/',
-          expiresDate: exp.millisecondsSinceEpoch, isSecure: true);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-    final topPad = MediaQuery.of(context).padding.top;
-    return FutureBuilder(
-      future: _setCookies(),
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator(
-              color: kPrimaryColor, strokeWidth: 1.5));
-        }
-        return Padding(
-          padding: EdgeInsets.only(top: topPad, bottom: widget.navBottom),
-          child: InAppWebView(
-            initialUrlRequest: URLRequest(
-              url: WebUri('https://www.pornhub.com/shorties'),
-              headers: {
-                'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-                'Cookie': 'age_verified=1; accessAgeDisclaimerPH=1; accessPH=1; hasVisited=1; platform=pc; _tc=1',
-              },
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.construction_rounded, color: Colors.white24, size: 48),
+          SizedBox(height: 16),
+          Text(
+            'Em desenvolvimento',
+            style: TextStyle(
+              color: Colors.white38,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.2,
             ),
-            initialSettings: InAppWebViewSettings(
-              javaScriptEnabled: true, domStorageEnabled: true,
-              databaseEnabled: true, mediaPlaybackRequiresUserGesture: false,
-              allowsInlineMediaPlayback: true, useShouldOverrideUrlLoading: true,
-              supportZoom: false, transparentBackground: false,
-              cacheEnabled: true, clearCache: false,
-              userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
-                  '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-            ),
-            onLoadStart: (ctrl, _) async =>
-                ctrl.evaluateJavascript(source: _shortsJsCookies),
-            onLoadStop: (ctrl, url) async {
-              final u = url?.toString() ?? '';
-              if (!u.contains('shorties')) {
-                await Future.delayed(const Duration(milliseconds: 400));
-                await ctrl.loadUrl(urlRequest: URLRequest(
-                  url: WebUri('https://www.pornhub.com/shorties'),
-                  headers: {'Cookie': 'age_verified=1; accessAgeDisclaimerPH=1; accessPH=1; hasVisited=1; platform=pc; _tc=1'},
-                ));
-                return;
-              }
-              await ctrl.evaluateJavascript(source: _shortsJs);
-            },
-            shouldOverrideUrlLoading: (_, action) async {
-              final url = action.request.url?.toString().toLowerCase() ?? '';
-              if (url.startsWith('about:') || url.startsWith('blob:') ||
-                  url.startsWith('data:') || url.contains('pornhub.com') ||
-                  url.contains('phncdn.com') || url.contains('aylo.com')) {
-                return NavigationActionPolicy.ALLOW;
-              }
-              return NavigationActionPolicy.CANCEL;
-            },
-            onPermissionRequest: (_, req) async => PermissionResponse(
-                resources: req.resources,
-                action: PermissionResponseAction.GRANT),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _BrowseTab  —  Tab Exibição: vídeo embed fullscreen, toca nas bordas do ecrã
-// Container reta de borda a borda, do status bar até a nav bar
+// _BrowseTab — Exibição: player nativo estilo YouTube
+// Vídeo 16:9 no topo imediatamente abaixo do status bar, fundo preto
 // ─────────────────────────────────────────────────────────────────────────────
 class _BrowseTab extends StatefulWidget {
   final double navBottom;
@@ -996,49 +935,59 @@ class _BrowseTabState extends State<_BrowseTab>
   @override
   bool get wantKeepAlive => true;
 
-  // HTML com o embed do vídeo — player nativo do browser (controls nativos)
-  static const _embedUrl = 'https://www.eporner.com/embed/I23b1t50KLM/';
+  VideoPlayerController? _vpc;
+  ChewieController? _chewieCtrl;
+  bool _ready = false;
+  bool _error = false;
 
-  String get _html => '''
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    html, body {
-      width:100%; height:100%;
-      background:#000;
-      overflow:hidden;
+  // URL directa do stream de vídeo mp4 — eporner CDN
+  static const _videoUrl =
+      'https://cdn3.epstatic.com/videos/I23b1t50KLM/mp4/1080.mp4';
+
+  @override
+  void initState() {
+    super.initState();
+    _initPlayer();
+  }
+
+  Future<void> _initPlayer() async {
+    try {
+      _vpc = VideoPlayerController.networkUrl(
+        Uri.parse(_videoUrl),
+        httpHeaders: {
+          'Referer': 'https://www.eporner.com/',
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
+              'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+        },
+      );
+      await _vpc!.initialize();
+      _chewieCtrl = ChewieController(
+        videoPlayerController: _vpc!,
+        autoPlay: false,
+        looping: false,
+        allowFullScreen: true,
+        allowMuting: true,
+        showControls: true,
+        aspectRatio: 16 / 9,
+        materialProgressColors: ChewieProgressColors(
+          playedColor: kPrimaryColor,
+          handleColor: kPrimaryColor,
+          backgroundColor: Colors.white12,
+          bufferedColor: Colors.white24,
+        ),
+      );
+      if (mounted) setState(() => _ready = true);
+    } catch (_) {
+      if (mounted) setState(() => _error = true);
     }
-    .wrap {
-      position:fixed;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      background:#000;
-    }
-    iframe {
-      width:100%;
-      height:100%;
-      border:0;
-    }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <iframe
-      src="$_embedUrl"
-      allowfullscreen
-      allow="autoplay; fullscreen; picture-in-picture"
-      frameborder="0">
-    </iframe>
-  </div>
-</body>
-</html>
-''';
+  }
+
+  @override
+  void dispose() {
+    _chewieCtrl?.dispose();
+    _vpc?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1047,41 +996,47 @@ class _BrowseTabState extends State<_BrowseTab>
 
     return Container(
       color: Colors.black,
-      // Toca nas bordas — sem padding lateral, top = fim do statusbar, bottom = início da nav
-      padding: EdgeInsets.only(
-        top: topPad,       // alinha com borda inferior do status bar
-        bottom: widget.navBottom,
-      ),
-      child: InAppWebView(
-        initialData: InAppWebViewInitialData(data: _html, mimeType: 'text/html'),
-        initialSettings: InAppWebViewSettings(
-          javaScriptEnabled: true,
-          domStorageEnabled: true,
-          mediaPlaybackRequiresUserGesture: false,
-          allowsInlineMediaPlayback: true,
-          useShouldOverrideUrlLoading: false,
-          supportZoom: false,
-          transparentBackground: false,
-          cacheEnabled: true,
-          userAgent:
-              'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
-              '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-        ),
-        shouldOverrideUrlLoading: (_, action) async {
-          final url = action.request.url?.toString() ?? '';
-          // Permite eporner e CDNs, bloqueia tudo o resto
-          if (url.contains('eporner.com') ||
-              url.contains('epstatic.com') ||
-              url.startsWith('about:') ||
-              url.startsWith('blob:') ||
-              url.startsWith('data:')) {
-            return NavigationActionPolicy.ALLOW;
-          }
-          return NavigationActionPolicy.CANCEL;
-        },
-        onPermissionRequest: (_, req) async => PermissionResponse(
-            resources: req.resources,
-            action: PermissionResponseAction.GRANT),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Espaço status bar
+          SizedBox(height: topPad),
+
+          // Player 16:9 — colado ao topo, borda a borda
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: _error
+                ? Container(
+                    color: const Color(0xFF111111),
+                    child: const Center(
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.play_disabled_rounded,
+                            color: Colors.white24, size: 48),
+                        SizedBox(height: 8),
+                        Text('Não foi possível carregar',
+                            style: TextStyle(color: Colors.white24, fontSize: 12)),
+                      ]),
+                    ),
+                  )
+                : _ready
+                    ? Chewie(controller: _chewieCtrl!)
+                    : Container(
+                        color: Colors.black,
+                        child: const Center(
+                          child: SizedBox(
+                            width: 24, height: 24,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 1.5, color: Colors.white24),
+                          ),
+                        ),
+                      ),
+          ),
+
+          // Área abaixo do player — pode mostrar info do vídeo futuramente
+          const Expanded(
+            child: SizedBox.shrink(),
+          ),
+        ],
       ),
     );
   }

@@ -211,103 +211,105 @@ class _BrowserPageState extends State<BrowserPage> {
     return 'image';
   }
 
-  // AppBar sempre escuro — Android style
-  Color get _appBarColor => const Color(0xFF111111);
-  bool get _appBarIsLight => false;
-  Color get _fg => Colors.white;
+  // Domínio curto para o centro do AppBar (igual ao Facebook — mostra o host)
+  String get _domainLabel {
+    try {
+      final url = _startUrl;
+      final host = Uri.parse(url).host.toLowerCase();
+      return host.startsWith('www.') ? host.substring(4) : host;
+    } catch (_) {
+      return widget.site.name;
+    }
+  }
 
-  // Label: máximo 16 chars para caber bem por baixo do ícone
+  // Label: máximo 16 chars
   String get _shortLabel {
     final t = _pageTitle.isNotEmpty ? _pageTitle : widget.site.name;
-    // Remove domínio e caracteres desnecessários
     final clean = t
-        .replaceAll(RegExp(r'\s*[|\-–—]\s*.*'), '') // remove " | Subtitle"
+        .replaceAll(RegExp(r'\s*[|\-–—]\s*.*'), '')
         .trim();
     return clean.length > 16 ? '${clean.substring(0, 16)}…' : clean;
   }
+
+  // Conta downloads em curso
+  int get _activeDownloads => DownloadService.instance.activeCount;
 
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
 
     return PopScope(
-      // Botão back do Android → navega no WebView, NUNCA fecha
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         if (_wvCtrl != null && await _wvCtrl!.canGoBack()) {
           _wvCtrl!.goBack();
         }
-        // Sem Navigator.pop — só o X fecha
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle(
+        value: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness:
-              _appBarIsLight ? Brightness.dark : Brightness.light,
+          statusBarIconBrightness: Brightness.light,
         ),
         child: Scaffold(
           backgroundColor: Colors.black,
           body: Column(children: [
 
-            // ── AppBar: cor do site, favicon centrado + label em baixo ──
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 280),
-              color: _appBarColor,
+            // ── AppBar estilo Facebook Browser — fundo escuro ────────
+            Container(
+              color: const Color(0xFF1C1C1E),
               padding: EdgeInsets.only(top: topPad),
               child: SizedBox(
-                height: 62,
-                child: Stack(alignment: Alignment.center, children: [
+                height: 52,
+                child: Row(children: [
 
-                  // Centro: favicon + label em baixo
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SiteIconWidget(
-                        site: widget.site,
-                        size: 24,
-                        showShadow: false,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _shortLabel,
-                        style: TextStyle(
-                          color: _fg.withOpacity(0.88),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.1,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-
-                  // Esquerda: botão X — fecha o WebView
-                  Positioned(
-                    left: 4,
-                    child: IconButton(
-                      icon: SvgPicture.string(
+                  // X à esquerda — SVG original
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: SvgPicture.string(
                         _svgClose,
-                        width: 15, height: 15,
-                        colorFilter: ColorFilter.mode(
-                            _fg.withOpacity(0.82), BlendMode.srcIn),
+                        width: 16, height: 16,
+                        colorFilter: const ColorFilter.mode(
+                            Colors.white, BlendMode.srcIn),
                       ),
-                      onPressed: () => Navigator.of(context).pop(),
-                      splashRadius: 22,
                     ),
                   ),
 
-                  // Direita: refresh
-                  Positioned(
-                    right: 4,
-                    child: IconButton(
-                      icon: Icon(Icons.refresh_rounded,
-                          color: _fg.withOpacity(0.75), size: 20),
-                      onPressed: () => _wvCtrl?.reload(),
-                      splashRadius: 22,
+                  // Centro: 🔒 + domínio bold em cima, app name cinza em baixo
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SiteIconWidget(site: widget.site, size: 22, showShadow: false),
+                        const SizedBox(height: 2),
+                        Text(
+                          _shortLabel,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.90),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
+
+                  // ⋮ à direita — branco, com badge de downloads
+                  _MenuBtn(
+                    activeDownloads: _activeDownloads,
+                    onRefresh: () => _wvCtrl?.reload(),
+                    onCopyUrl: () async {
+                      final url = (await _wvCtrl?.getUrl())?.toString() ?? _startUrl;
+                      await Clipboard.setData(ClipboardData(text: url));
+                    },
+                    onOpenExternal: () async {},
+                  ),
+
                 ]),
               ),
             ),
@@ -402,6 +404,159 @@ class _BrowserPageState extends State<BrowserPage> {
     );
   }
 }
+
+// ── Popup menu ⋮ estilo Facebook Browser ─────────────────────────────────────
+class _MenuBtn extends StatefulWidget {
+  final int activeDownloads;
+  final VoidCallback onRefresh;
+  final VoidCallback onCopyUrl;
+  final VoidCallback onOpenExternal;
+
+  const _MenuBtn({
+    required this.activeDownloads,
+    required this.onRefresh,
+    required this.onCopyUrl,
+    required this.onOpenExternal,
+  });
+
+  @override
+  State<_MenuBtn> createState() => _MenuBtnState();
+}
+
+class _MenuBtnState extends State<_MenuBtn> {
+  final _key = GlobalKey();
+
+  void _show() {
+    final box = _key.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final pos = box.localToGlobal(Offset.zero);
+    final size = box.size;
+
+    showMenu<_MenuAction>(
+      context: context,
+      color: const Color(0xFF2C2C2E),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 12,
+      shadowColor: Colors.black54,
+      position: RelativeRect.fromLTRB(
+        pos.dx + size.width - 200,
+        pos.dy + size.height + 4,
+        pos.dx + size.width,
+        0,
+      ),
+      items: [
+        _menuItem(_MenuAction.refresh, Icons.refresh_rounded, 'Recarregar'),
+        _menuItem(_MenuAction.copy, Icons.link_rounded, 'Copiar link'),
+        if (widget.activeDownloads > 0)
+          _menuItem(
+            _MenuAction.downloads,
+            Icons.download_rounded,
+            'Downloads',
+            badge: widget.activeDownloads > 9
+                ? '9+'
+                : '${widget.activeDownloads}',
+          ),
+      ],
+    ).then((action) {
+      if (action == null) return;
+      switch (action) {
+        case _MenuAction.refresh:
+          widget.onRefresh();
+        case _MenuAction.copy:
+          widget.onCopyUrl();
+        case _MenuAction.downloads:
+          // navegar para downloads se necessário
+          break;
+      }
+    });
+  }
+
+  PopupMenuItem<_MenuAction> _menuItem(
+    _MenuAction value,
+    IconData icon,
+    String label, {
+    String? badge,
+  }) {
+    return PopupMenuItem<_MenuAction>(
+      value: value,
+      padding: EdgeInsets.zero,
+      child: Container(
+        width: 200,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(children: [
+          Icon(icon, size: 20, color: Colors.white70),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(
+                  color: Color(0xFF1C1C1E),
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w400,
+                )),
+          ),
+          if (badge != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF3B30),
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: Text(
+                badge,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final count = widget.activeDownloads;
+    return GestureDetector(
+      key: _key,
+      onTap: _show,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Stack(clipBehavior: Clip.none, children: [
+          // Ícone ⋮
+          const Icon(Icons.more_vert_rounded,
+              color: Colors.white, size: 22),
+          // Badge de downloads em curso
+          if (count > 0)
+            Positioned(
+              top: -5,
+              right: -5,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF3B30),
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                child: Text(
+                  count > 9 ? '9+' : '$count',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+enum _MenuAction { refresh, copy, downloads }
 
 // ── Download bottom sheet ─────────────────────────────────────────────────────
 class _DownloadSheet extends StatefulWidget {

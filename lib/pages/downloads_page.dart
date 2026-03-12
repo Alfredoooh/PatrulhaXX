@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/download_service.dart';
 import '../services/transfer_service.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -304,75 +307,21 @@ class _SendSheetState extends State<_SendSheet> {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         _handle(),
 
-        // ── Inserir SSID + password ou escanear QR ─────────────────
+        // ── Scan directo — sem campos manuais ─────────────────────
         if (_phase == 'enter') ...[
-          const _T('Ligar ao recetor'),
-          _sub2('Escaneia o QR  ou  insere os dados que aparecem no outro app'),
-          const SizedBox(height: 20),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(children: [
-              // Campo SSID
-              _Field(
-                ctrl: _ssidCtrl,
-                hint: 'Nome da rede (SSID)',
-                autofocus: false,
-                onDone: () => FocusScope.of(context).nextFocus(),
-              ),
-              const SizedBox(height: 10),
-              // Campo password
-              _Field(
-                ctrl: _passCtrl,
-                hint: 'Password',
-                obscure: true,
-                onDone: _tryManual,
-              ),
-            ]),
-          ),
-
+          const _T('Aponta para o QR'),
+          _sub2('Aponta a câmera para o QR que aparece no dispositivo do recetor'),
           const SizedBox(height: 16),
-          // Botão QR scan
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: GestureDetector(
-              onTap: () => setState(() => _phase = 'scan'),
-              child: Container(
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
-                ),
-                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  SvgPicture.string(_svgScanner, width: 16, height: 16,
-                      colorFilter: ColorFilter.mode(
-                          Colors.white.withOpacity(0.45), BlendMode.srcIn)),
-                  const SizedBox(width: 8),
-                  Text('Escanear QR em vez disso',
-                      style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 13)),
-                ]),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-          _PrimaryBtn(label: 'Ligar e enviar', onTap: _tryManual),
-          const SizedBox(height: 24),
-        ],
-
-        // ── QR scan ───────────────────────────────────────────────────
-        if (_phase == 'scan') ...[
-          const _T('Escanear QR do recetor'),
-          const SizedBox(height: 16),
-          _Viewfinder(
-            onManual: () => setState(() => _phase = 'enter'),
+          _RealViewfinder(
             onScanned: (ssid, pass) => _connectAndSend(ssid, pass),
           ),
-          const SizedBox(height: 12),
-          _BackBtn(onTap: () => setState(() => _phase = 'enter')),
+          const SizedBox(height: 8),
+          _GhostBtn(label: 'Cancelar', onTap: () => Navigator.pop(context)),
           const SizedBox(height: 16),
         ],
+
+        // fase 'scan' removida — agora entra directo no scanner
+
 
         // ── A ligar ───────────────────────────────────────────────────
         if (_phase == 'connecting') ...[
@@ -765,61 +714,169 @@ class _FileBar extends StatelessWidget {
       );
 }
 
-// ─── Viewfinder ───────────────────────────────────────────────────────────────
-class _Viewfinder extends StatelessWidget {
-  final VoidCallback onManual;
+// ─── _RealViewfinder — câmera real com MobileScanner ─────────────────────────
+class _RealViewfinder extends StatefulWidget {
   final void Function(String ssid, String pass) onScanned;
-  const _Viewfinder({required this.onManual, required this.onScanned});
-
-  List<Widget> _corners() {
-    Widget c(bool fx, bool fy) => Positioned(
-          left: fx ? null : 14, right: fx ? 14 : null,
-          top: fy ? null : 14, bottom: fy ? 14 : null,
-          child: Transform.scale(scaleX: fx ? -1 : 1, scaleY: fy ? -1 : 1,
-              child: CustomPaint(painter: _CP(), size: const Size(22, 22))));
-    return [c(false,false),c(true,false),c(false,true),c(true,true)];
-  }
-
+  const _RealViewfinder({required this.onScanned});
   @override
-  Widget build(BuildContext context) => Container(
-        height: 220,
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _kPrimary.withOpacity(0.4), width: 1.5),
-        ),
-        child: Stack(alignment: Alignment.center, children: [
-          ..._corners(),
-          Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            SvgPicture.string(_svgScanner, width: 38, height: 38,
-                colorFilter: const ColorFilter.mode(Colors.white24, BlendMode.srcIn)),
-            const SizedBox(height: 10),
-            const Text('Aponta para o QR do recetor',
-                style: TextStyle(color: Colors.white38, fontSize: 12)),
-            const SizedBox(height: 18),
-            GestureDetector(onTap: onManual,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(border: Border.all(color: Colors.white24),
-                    borderRadius: BorderRadius.circular(8)),
-                child: const Text('Inserir rede manualmente',
-                    style: TextStyle(color: Colors.white54, fontSize: 12)))),
-          ]),
-        ]),
-      );
+  State<_RealViewfinder> createState() => _RealViewfinderState();
 }
 
+class _RealViewfinderState extends State<_RealViewfinder> {
+  final MobileScannerController _ctrl = MobileScannerController(
+    detectionSpeed: DetectionSpeed.normal,
+    facing: CameraFacing.back,
+  );
+  bool _scanned = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _onDetect(BarcodeCapture capture) {
+    if (_scanned) return;
+    final raw = capture.barcodes.firstOrNull?.rawValue;
+    if (raw == null) return;
+    final parsed = TransferService.parseQrPayload(raw);
+    if (parsed == null) return;
+    _scanned = true;
+    _ctrl.stop();
+    widget.onScanned(parsed.ssid, parsed.password);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 280,
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _kPrimary.withOpacity(0.5), width: 1.5),
+      ),
+      child: Stack(children: [
+        // Câmera real
+        MobileScanner(
+          controller: _ctrl,
+          onDetect: _onDetect,
+        ),
+        // Overlay com moldura de cantos
+        CustomPaint(
+          painter: _ScanOverlayPainter(),
+          child: const SizedBox.expand(),
+        ),
+        // Linha de scan animada
+        const _ScanLine(),
+        // Hint em baixo
+        Positioned(
+          bottom: 16, left: 0, right: 0,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: const Text('Aponta para o QR do recetor',
+                  style: TextStyle(color: Colors.white70, fontSize: 12)),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// Overlay com cantos laranja
+class _ScanOverlayPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = _kPrimary
+      ..strokeWidth = 3.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    const len = 28.0;
+    const r = 6.0;
+    final corners = [
+      // top-left
+      [Offset(r, len), Offset(r, r), Offset(len, r)],
+      // top-right
+      [Offset(size.width - r, len), Offset(size.width - r, r), Offset(size.width - len, r)],
+      // bottom-left
+      [Offset(r, size.height - len), Offset(r, size.height - r), Offset(len, size.height - r)],
+      // bottom-right
+      [Offset(size.width - r, size.height - len), Offset(size.width - r, size.height - r), Offset(size.width - len, size.height - r)],
+    ];
+
+    for (final pts in corners) {
+      final path = Path()
+        ..moveTo(pts[0].dx, pts[0].dy)
+        ..lineTo(pts[1].dx, pts[1].dy)
+        ..lineTo(pts[2].dx, pts[2].dy);
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
+// Linha de scan animada
+class _ScanLine extends StatefulWidget {
+  const _ScanLine();
+  @override
+  State<_ScanLine> createState() => _ScanLineState();
+}
+
+class _ScanLineState extends State<_ScanLine>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this,
+        duration: const Duration(milliseconds: 1800));
+    _anim = Tween<double>(begin: 0.05, end: 0.95)
+        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+    _c.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Positioned(
+        left: 24, right: 24,
+        top: _anim.value * 240,
+        child: Container(
+          height: 2,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [
+              _kPrimary.withOpacity(0),
+              _kPrimary,
+              _kPrimary.withOpacity(0),
+            ]),
+            borderRadius: BorderRadius.circular(1),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Manter _CP para compatibilidade (já não usado mas evita erros de compilação)
 class _CP extends CustomPainter {
   @override
-  void paint(Canvas c, Size s) {
-    c.drawPath(Path()
-          ..moveTo(0, s.height*.6)..lineTo(0, 4)
-          ..arcToPoint(const Offset(4, 0), radius: const Radius.circular(4))
-          ..lineTo(s.width*.6, 0),
-        Paint()..color = _kPrimary..strokeWidth = 2.5
-          ..style = PaintingStyle.stroke..strokeCap = StrokeCap.round);
-  }
+  void paint(Canvas c, Size s) {}
   @override bool shouldRepaint(covariant CustomPainter o) => false;
 }
 
@@ -867,13 +924,59 @@ class _Tile extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // _Viewer
 // ─────────────────────────────────────────────────────────────────────────────
-class _Viewer extends StatelessWidget {
+class _Viewer extends StatefulWidget {
   final DownloadedItem item;
   const _Viewer({required this.item});
   @override
+  State<_Viewer> createState() => _ViewerState();
+}
+
+class _ViewerState extends State<_Viewer> {
+  VideoPlayerController? _vpc;
+  ChewieController? _chewie;
+  bool _ready = false;
+  bool _error = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.item.type == 'video') _initVideo();
+  }
+
+  Future<void> _initVideo() async {
+    try {
+      _vpc = VideoPlayerController.file(File(widget.item.localPath));
+      await _vpc!.initialize();
+      _chewie = ChewieController(
+        videoPlayerController: _vpc!,
+        autoPlay: true,
+        looping: false,
+        allowFullScreen: true,
+        aspectRatio: _vpc!.value.aspectRatio,
+        materialProgressColors: ChewieProgressColors(
+          playedColor: _kPrimary,
+          handleColor: _kPrimary,
+          backgroundColor: Colors.white12,
+          bufferedColor: Colors.white24,
+        ),
+      );
+      if (mounted) setState(() => _ready = true);
+    } catch (_) {
+      if (mounted) setState(() => _error = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _chewie?.dispose();
+    _vpc?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isVideo = item.type == 'video';
-    final file = File(item.localPath);
+    final isVideo = widget.item.type == 'video';
+    final file = File(widget.item.localPath);
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -883,20 +986,25 @@ class _Viewer extends StatelessWidget {
               colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(item.name, overflow: TextOverflow.ellipsis,
+        title: Text(widget.item.name, overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: Colors.white, fontSize: 13)),
       ),
-      body: Center(
-        child: isVideo
-            ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.videocam_rounded, color: Colors.white.withOpacity(0.18), size: 64),
-                const SizedBox(height: 16),
-                Text('Vídeo guardado', style: TextStyle(color: Colors.white.withOpacity(0.35))),
-              ])
-            : InteractiveViewer(child: Image.file(file,
-                errorBuilder: (_, __, ___) =>
-                    Icon(Icons.broken_image_outlined, color: Colors.white.withOpacity(0.18), size: 64))),
-      ),
+      body: isVideo
+          ? _error
+              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.videocam_off_rounded, color: Colors.white.withOpacity(0.18), size: 64),
+                  const SizedBox(height: 12),
+                  Text('Não foi possível reproduzir',
+                      style: TextStyle(color: Colors.white.withOpacity(0.35))),
+                ]))
+              : !_ready
+                  ? const Center(child: CircularProgressIndicator(color: _kPrimary, strokeWidth: 1.5))
+                  : Chewie(controller: _chewie!)
+          : Center(
+              child: InteractiveViewer(child: Image.file(file,
+                  errorBuilder: (_, __, ___) =>
+                      Icon(Icons.broken_image_outlined,
+                          color: Colors.white.withOpacity(0.18), size: 64)))),
     );
   }
 }
