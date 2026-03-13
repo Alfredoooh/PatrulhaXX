@@ -76,6 +76,9 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.patrulhaxx/device_id")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
+                    "getSdkInt" -> {
+                        result.success(Build.VERSION.SDK_INT)
+                    }
                     "getAndroidId" -> {
                         val id = Settings.Secure.getString(
                             contentResolver, Settings.Secure.ANDROID_ID

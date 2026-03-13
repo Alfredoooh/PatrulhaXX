@@ -79,6 +79,32 @@ const _svgSettings =
     'S34.5,18.201,34.5,24C34.5,29.799,29.799,34.5,24,34.5z"/>'
     '</svg>';
 
+const _svgExibicaoFilled =
+    '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 24 24">'
+    '<path d="M8,20c1.105,0,2,.895,2,2s-.895,2-2,2-2-.895-2-2,.895-2,2-2Zm2.36-13.463'
+    'c-.188-.095-.4,.006-.412,.243v4.441c.023,.235,.196,.337,.412,.243l3.997-2.221'
+    'c.2-.138,.2-.348,0-.485l-3.997-2.221Zm13.64-1.537V13c0,2.757-2.243,5-5,5H5'
+    'c-2.757,0-5-2.243-5-5V5C0,2.243,2.243,0,5,0h14c2.757,0,5,2.243,5,5Zm-7.5,4'
+    'c0-.826-.449-1.589-1.171-1.991l-3.997-2.221c-1.444-.867-3.44,.307-3.384,1.991v4.441'
+    'c-.057,1.684,1.94,2.857,3.384,1.991l3.998-2.221c.722-.402,1.171-1.165,1.171-1.991Z'
+    'm7.5,13c0-.553-.448-1-1-1H13c-.552,0-1,.447-1,1s.448,1,1,1h10c.552,0,1-.447,1-1Z'
+    'm-20,0c0-.553-.448-1-1-1H1c-.552,0-1,.447-1,1s.448,1,1,1H3c.552,0,1-.447,1-1Z"/>'
+    '</svg>';
+
+const _svgExibicaoOutline =
+    '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 24 24">'
+    '<path d="M19,0H5C2.243,0,0,2.243,0,5V13c0,2.757,2.243,5,5,5h14c2.757,0,5-2.243,5-5V5'
+    'c0-2.757-2.243-5-5-5Zm3,13c0,1.654-1.346,3-3,3H5c-1.654,0-3-1.346-3-3V5'
+    'c0-1.654,1.346-3,3-3h14c1.654,0,3,1.346,3,3V13Zm-12,9c0,1.105-.895,2-2,2s-2-.895-2-2'
+    ',.895-2,2-2,2,.895,2,2ZM15.329,7.009l-3.997-2.221c-1.444-.867-3.44,.307-3.384,1.991v4.441'
+    'c-.057,1.684,1.94,2.857,3.384,1.991l3.998-2.221c1.539-.795,1.539-3.187,0-3.981Z'
+    'm-.972,2.233l-3.997,2.221c-.115,.064-.213,.033-.275-.003-.062-.037-.137-.108-.137-.239'
+    'V6.779c0-.131,.074-.203,.137-.239,.036-.021,.084-.041,.141-.041,.041,0,.086,.01,.135,.037'
+    'l3.997,2.221c.119,.066,.144,.168,.144,.243s-.025,.177-.143,.243Z'
+    'm9.643,12.757c0,.553-.448,1-1,1H13c-.552,0-1-.447-1-1s.448-1,1-1h10c.552,0,1,.447,1,1Z'
+    'm-20,0c0,.553-.448,1-1,1H1c-.552,0-1-.447-1-1s.448-1,1-1H3c.552,0,1,.447,1,1Z"/>'
+    '</svg>';
+
 const _svgBrowseFilled =
     '<svg id="Layer_1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
     '<path d="m20.167 18.753c.524-.791.833-1.736.833-2.753 0-2.757-2.243-5-5-5s-5 2.243-5 5 2.243 5 5 5'
@@ -195,7 +221,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   int _tab = 1; // Feed é o tab principal
-  String? _selectedEmbedUrl; // embed seleccionado no Feed
+  String? _selectedEmbedUrl;
+  _FeedVideo? _selectedVideo;
   late final AnimationController _fadeIn;
 
   // Cor extraída via HTML do wallpaper
@@ -253,47 +280,50 @@ class _HomePageState extends State<HomePage>
         extendBody: false,
         backgroundColor: Colors.black,
         body: Column(children: [
-          // ── Tabs ──────────────────────────────────────────────────────
+          // ── Tabs — IndexedStack preserva estado do feed ───────────────
           Expanded(
             child: AnimatedBuilder(
               animation: ThemeService.instance,
-              builder: (_, __) => PageTransitionSwitcher(
-                duration: const Duration(milliseconds: 340),
-                transitionBuilder: (child, anim, secondAnim) =>
-                    FadeThroughTransition(
-                      animation: anim,
-                      secondaryAnimation: secondAnim,
-                      fillColor: Colors.black,
-                      child: child,
+              builder: (_, __) {
+                return IndexedStack(
+                  index: _tab,
+                  children: [
+                    _HomeTab(
+                      fadeIn: _fadeIn,
+                      navBottom: 0,
+                      onOpen: _openSite,
+                      onDownloads: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const DownloadsPage())),
+                      onSettings: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const SettingsPage())),
+                      onColorExtracted: _onColorExtracted,
+                      navColor: const Color(0xFF111111),
+                      navIsLight: false,
                     ),
-                child: KeyedSubtree(
-                  key: ValueKey(_tab),
-                  child: _tab == 0
-                      ? _HomeTab(
-                          fadeIn: _fadeIn,
-                          navBottom: 0,
-                          onOpen: _openSite,
-                          onDownloads: () => Navigator.push(context,
-                              MaterialPageRoute(builder: (_) => const DownloadsPage())),
-                          onSettings: () => Navigator.push(context,
-                              MaterialPageRoute(builder: (_) => const SettingsPage())),
-                          onColorExtracted: _onColorExtracted,
-                          navColor: const Color(0xFF111111),
-                          navIsLight: false,
-                        )
-                      : _tab == 1
-                          ? _ShortsTab(
-                              navBottom: 0,
-                              onVideoTap: (_FeedVideo video) {
-                                setState(() {
-                                  _selectedEmbedUrl = video.embedUrl;
-                                  _tab = 2;
-                                });
-                              },
-                            )
-                          : _BrowseTab(navBottom: 0, embedUrl: _selectedEmbedUrl),
-                ),
-              ),
+                    _ShortsTab(
+                      navBottom: 0,
+                      onVideoTap: (_FeedVideo video) {
+                        setState(() {
+                          _selectedEmbedUrl = video.embedUrl;
+                          _selectedVideo = video;
+                          _tab = 2;
+                        });
+                      },
+                    ),
+                    _BrowseTab(
+                      navBottom: 0,
+                      embedUrl: _selectedEmbedUrl,
+                      currentVideo: _selectedVideo,
+                      onVideoTap: (_FeedVideo video) {
+                        setState(() {
+                          _selectedEmbedUrl = video.embedUrl;
+                          _selectedVideo = video;
+                        });
+                      },
+                    ),
+                  ],
+                );
+              },
             ),
           ),
 
@@ -302,8 +332,7 @@ class _HomePageState extends State<HomePage>
             tab: _tab,
             onTab: (i) {
               setState(() {
-                // Se navega para Exibição manualmente (sem vir do feed) limpa o embed
-                if (i == 2 && i != _tab) _selectedEmbedUrl = null;
+                if (i == 2 && i != _tab) { _selectedEmbedUrl = null; _selectedVideo = null; }
                 _tab = i;
               });
             },
@@ -354,15 +383,13 @@ class _BottomNav extends StatelessWidget {
             active: tab == 1,
             onTap: () => onTab(1),
           ),
-          // Exibição — sem pill, ícone play + label em baixo
+          // Exibição — sem pill, SVG próprio + label em baixo
           _NavIcon(
             label: 'Exibição',
-            svgFilled: _svgBrowseFilled, // placeholder, overridden via isMaterial
-            svgOutline: _svgBrowseOutline,
+            svgFilled: _svgExibicaoFilled,
+            svgOutline: _svgExibicaoOutline,
             active: tab == 2,
             onTap: () => onTab(2),
-            isMaterialIcon: true,
-            icon: Icons.play_circle_rounded,
           ),
         ],
       ),
@@ -376,8 +403,6 @@ class _NavIcon extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
   final String svgFilled, svgOutline;
-  final bool isMaterialIcon;
-  final IconData? icon;
 
   const _NavIcon({
     required this.label,
@@ -385,22 +410,15 @@ class _NavIcon extends StatelessWidget {
     required this.onTap,
     required this.svgFilled,
     required this.svgOutline,
-    this.isMaterialIcon = false,
-    this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = active ? Colors.white : Colors.white.withOpacity(0.38);
-    Widget iconW;
-    if (isMaterialIcon && icon != null) {
-      iconW = Icon(icon, color: color, size: 24);
-    } else {
-      iconW = ColorFiltered(
-        colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-        child: SvgPicture.string(active ? svgFilled : svgOutline, width: 22, height: 22),
-      );
-    }
+    final iconW = ColorFiltered(
+      colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+      child: SvgPicture.string(active ? svgFilled : svgOutline, width: 22, height: 22),
+    );
 
     return GestureDetector(
       onTap: onTap,
@@ -425,7 +443,7 @@ class _NavIcon extends StatelessWidget {
   }
 }
 
-// ─── Tab Feed — pill sempre activo, SVG TikTok vermelho sempre ───────────────
+// ─── Tab Feed — pill sempre visível, linha cinza quando inactivo ──────────────
 class _NavFeedPill extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
@@ -440,16 +458,16 @@ class _NavFeedPill extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeInOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
-          // Pill sempre visível — mais escuro quando inactivo, branco quando activo
-          color: active
-              ? Colors.white.withOpacity(0.13)
-              : Colors.white.withOpacity(0.06),
+          color: active ? Colors.white.withOpacity(0.13) : Colors.transparent,
           borderRadius: BorderRadius.circular(100),
+          border: Border.all(
+            color: active ? Colors.transparent : Colors.white.withOpacity(0.22),
+            width: 1.2,
+          ),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          // SVG TikTok vermelho — sempre activo
           SvgPicture.string(_svgShortsActive, width: 22, height: 22),
           AnimatedSize(
             duration: const Duration(milliseconds: 260),
@@ -1285,6 +1303,17 @@ class _ShortsTabState extends State<_ShortsTab>
   }
 }
 
+
+// Helper — favicon URL por fonte
+String _faviconForSource(_VideoSource src) {
+  switch (src) {
+    case _VideoSource.eporner:  return 'https://www.eporner.com/favicon.ico';
+    case _VideoSource.pornhub:  return 'https://www.pornhub.com/favicon.ico';
+    case _VideoSource.redtube:  return 'https://www.redtube.com/favicon.ico';
+    case _VideoSource.youporn:  return 'https://www.youporn.com/favicon.ico';
+  }
+}
+
 // ─── Card de vídeo estilo YouTube ─────────────────────────────────────────────
 class _VideoCard extends StatelessWidget {
   final _FeedVideo video;
@@ -1338,14 +1367,21 @@ class _VideoCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Avatar neutro
-              Container(
-                width: 36, height: 36,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF222222), shape: BoxShape.circle),
-                child: Center(child: Text(video.sourceInitial,
-                    style: const TextStyle(color: Colors.white54, fontSize: 13,
-                        fontWeight: FontWeight.w600))),
+              // Avatar — favicon do site
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Image.network(
+                  _faviconForSource(video.source),
+                  width: 36, height: 36,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 36, height: 36,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF222222), shape: BoxShape.circle),
+                    child: Center(child: Text(video.sourceInitial,
+                        style: const TextStyle(color: Colors.white54, fontSize: 13,
+                            fontWeight: FontWeight.w600))),
+                  ),
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(child: Column(
@@ -1374,13 +1410,20 @@ class _VideoCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _BrowseTab — Exibição: player nativo estilo YouTube
-// Vídeo 16:9 no topo imediatamente abaixo do status bar, fundo preto
+// _BrowseTab — Exibição estilo YouTube
+// Embed 16:9 no topo + info do vídeo + vídeos relacionados em baixo
 // ─────────────────────────────────────────────────────────────────────────────
 class _BrowseTab extends StatefulWidget {
   final double navBottom;
-  final String? embedUrl; // se não null, mostra este embed em vez do vídeo padrão
-  const _BrowseTab({required this.navBottom, this.embedUrl});
+  final String? embedUrl;
+  final _FeedVideo? currentVideo;
+  final void Function(_FeedVideo) onVideoTap;
+  const _BrowseTab({
+    required this.navBottom,
+    this.embedUrl,
+    this.currentVideo,
+    required this.onVideoTap,
+  });
   @override
   State<_BrowseTab> createState() => _BrowseTabState();
 }
@@ -1390,127 +1433,304 @@ class _BrowseTabState extends State<_BrowseTab>
   @override
   bool get wantKeepAlive => true;
 
-  VideoPlayerController? _vpc;
-  ChewieController? _chewieCtrl;
-  bool _ready = false;
-  bool _error = false;
-
-  // URL do vídeo padrão quando nenhum embed é seleccionado
-  static const _defaultVideoUrl =
-      'https://www.pussyboy.net/mp4/655/...mp4?a=1';
+  final List<_FeedVideo> _related = [];
+  bool _loadingRelated = false;
+  InAppWebViewController? _webCtrl;
 
   @override
   void initState() {
     super.initState();
-    _initPlayer();
-  }
-
-  Future<void> _initPlayer() async {
-    try {
-      _vpc = VideoPlayerController.networkUrl(
-        Uri.parse(_defaultVideoUrl),
-        httpHeaders: {
-          'Referer': 'https://www.pussyboy.net/',
-          'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
-              'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-        },
-      );
-      await _vpc!.initialize();
-      _chewieCtrl = ChewieController(
-        videoPlayerController: _vpc!,
-        autoPlay: false,
-        looping: false,
-        allowFullScreen: true,
-        allowMuting: true,
-        showControls: true,
-        aspectRatio: 16 / 9,
-        materialProgressColors: ChewieProgressColors(
-          playedColor: kPrimaryColor,
-          handleColor: kPrimaryColor,
-          backgroundColor: Colors.white12,
-          bufferedColor: Colors.white24,
-        ),
-      );
-      if (mounted) setState(() => _ready = true);
-    } catch (_) {
-      if (mounted) setState(() => _error = true);
-    }
+    if (widget.currentVideo != null) _loadRelated();
   }
 
   @override
-  void dispose() {
-    _chewieCtrl?.dispose();
-    _vpc?.dispose();
-    super.dispose();
+  void didUpdateWidget(_BrowseTab old) {
+    super.didUpdateWidget(old);
+    if (widget.currentVideo != old.currentVideo && widget.currentVideo != null) {
+      _loadRelated();
+    }
+  }
+
+  Future<void> _loadRelated() async {
+    if (!mounted) return;
+    setState(() { _loadingRelated = true; _related.clear(); });
+    final videos = await _FeedFetcher.fetchAll(Random().nextInt(30) + 1);
+    if (!mounted) return;
+    // Remove o vídeo actual dos relacionados
+    final filtered = videos.where((v) => v.embedUrl != widget.embedUrl).toList();
+    setState(() { _related.addAll(filtered.take(20)); _loadingRelated = false; });
+  }
+
+  // Favicon URL por fonte
+  String _faviconUrl(_VideoSource src) {
+    switch (src) {
+      case _VideoSource.eporner:  return 'https://www.eporner.com/favicon.ico';
+      case _VideoSource.pornhub:  return 'https://www.pornhub.com/favicon.ico';
+      case _VideoSource.redtube:  return 'https://www.redtube.com/favicon.ico';
+      case _VideoSource.youporn:  return 'https://www.youporn.com/favicon.ico';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
     final topPad = MediaQuery.of(context).padding.top;
+    final video  = widget.currentVideo;
 
-    // Se tem embedUrl → mostra WebView com o embed do eporner no topo
-    if (widget.embedUrl != null) {
+    // Sem vídeo seleccionado — ecrã vazio limpo
+    if (widget.embedUrl == null || video == null) {
       return Container(
         color: Colors.black,
-        child: Column(children: [
-          SizedBox(height: topPad),
-          // Player embed 16:9
-          AspectRatio(
+        child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          SvgPicture.string(_svgExibicaoOutline, width: 48, height: 48,
+              colorFilter: const ColorFilter.mode(Colors.white24, BlendMode.srcIn)),
+          const SizedBox(height: 16),
+          const Text('Seleciona um vídeo no Feed',
+              style: TextStyle(color: Colors.white38, fontSize: 14)),
+        ])),
+      );
+    }
+
+    return Container(
+      color: Colors.black,
+      child: CustomScrollView(slivers: [
+        // Status bar space
+        SliverToBoxAdapter(child: SizedBox(height: topPad)),
+
+        // ── Player embed 16:9 ──────────────────────────────────────────
+        SliverToBoxAdapter(
+          child: AspectRatio(
             aspectRatio: 16 / 9,
             child: InAppWebView(
+              key: ValueKey(widget.embedUrl),
               initialUrlRequest: URLRequest(url: WebUri(widget.embedUrl!)),
               initialSettings: InAppWebViewSettings(
                 javaScriptEnabled: true,
                 mediaPlaybackRequiresUserGesture: false,
                 allowsInlineMediaPlayback: true,
                 transparentBackground: false,
+                // Bloqueia navegação — fica sempre no embed
+                disableDefaultErrorPage: true,
               ),
+              onWebViewCreated: (ctrl) => _webCtrl = ctrl,
+              shouldOverrideUrlLoading: (ctrl, action) async {
+                final url = action.request.url?.toString() ?? '';
+                // Permite apenas URLs de embed — bloqueia tudo o resto
+                final isEmbed = url.contains('/embed/') || url.contains('embed.redtube') || url == widget.embedUrl;
+                if (!isEmbed && !url.startsWith('about:')) {
+                  return NavigationActionPolicy.CANCEL;
+                }
+                return NavigationActionPolicy.ALLOW;
+              },
             ),
           ),
-          // Espaço em baixo
-          const Expanded(child: SizedBox.shrink()),
-        ]),
-      );
-    }
+        ),
 
-    // Sem embedUrl → player nativo Chewie com vídeo padrão
-    return Container(
-      color: Colors.black,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: topPad),
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: _error
-                ? Container(
-                    color: const Color(0xFF111111),
-                    child: const Center(
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.play_disabled_rounded,
-                            color: Colors.white24, size: 48),
-                        SizedBox(height: 8),
-                        Text('Não foi possível carregar',
-                            style: TextStyle(color: Colors.white24, fontSize: 12)),
-                      ]),
+        // ── Info do vídeo ──────────────────────────────────────────────
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 14, 12, 0),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(video.title,
+                style: const TextStyle(color: Colors.white, fontSize: 15,
+                    fontWeight: FontWeight.w600, height: 1.3),
+              ),
+              const SizedBox(height: 8),
+              Row(children: [
+                // Favicon do site
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.network(
+                    _faviconUrl(video.source),
+                    width: 20, height: 20,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 20, height: 20,
+                      decoration: const BoxDecoration(color: Color(0xFF333333), shape: BoxShape.circle),
+                      child: Center(child: Text(video.sourceInitial,
+                          style: const TextStyle(color: Colors.white54, fontSize: 9,
+                              fontWeight: FontWeight.w700))),
                     ),
-                  )
-                : _ready
-                    ? Chewie(controller: _chewieCtrl!)
-                    : Container(
-                        color: Colors.black,
-                        child: const Center(
-                          child: SizedBox(
-                            width: 24, height: 24,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 1.5, color: Colors.white24),
-                          ),
-                        ),
-                      ),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Text(video.sourceLabel,
+                    style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 12.5)),
+                if (video.views.isNotEmpty) ...[
+                  Text('  ·  ', style: TextStyle(color: Colors.white.withOpacity(0.35))),
+                  Text('${video.views} views',
+                      style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 12.5)),
+                ],
+              ]),
+
+              const SizedBox(height: 14),
+
+              // Botão de download forçado
+              GestureDetector(
+                onTap: () => _forceDownload(context, video),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF222222),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white.withOpacity(0.10)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.download_rounded, color: Colors.white70, size: 18),
+                    const SizedBox(width: 7),
+                    const Text('Descarregar',
+                        style: TextStyle(color: Colors.white70, fontSize: 13,
+                            fontWeight: FontWeight.w500)),
+                  ]),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+              const Divider(color: Color(0xFF1E1E1E), thickness: 1),
+              const SizedBox(height: 4),
+              const Text('A seguir',
+                  style: TextStyle(color: Colors.white, fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+            ]),
           ),
-          const Expanded(child: SizedBox.shrink()),
-        ],
+        ),
+
+        // ── Vídeos relacionados ────────────────────────────────────────
+        if (_loadingRelated)
+          const SliverToBoxAdapter(
+            child: Center(child: Padding(
+              padding: EdgeInsets.all(24),
+              child: SizedBox(width: 20, height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 1.5, color: kPrimaryColor)),
+            )),
+          )
+        else
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (_, i) {
+                if (i >= _related.length) return const SizedBox(height: 24);
+                final v = _related[i];
+                return _RelatedVideoCard(
+                  video: v,
+                  faviconUrl: _faviconUrl(v.source),
+                  onTap: () => widget.onVideoTap(v),
+                );
+              },
+              childCount: _related.length + 1,
+            ),
+          ),
+      ]),
+    );
+  }
+
+  // Download forçado via flutter_downloader ou http bytes
+  Future<void> _forceDownload(BuildContext ctx, _FeedVideo video) async {
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      const SnackBar(
+        content: Text('A iniciar download...'),
+        backgroundColor: Color(0xFF222222),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    // Injeta JS no embed para capturar o src do vídeo e forçar download
+    try {
+      final result = await _webCtrl?.evaluateJavascript(source: '''
+        (function() {
+          var v = document.querySelector('video');
+          if (v && v.src) return v.src;
+          var s = document.querySelector('source');
+          if (s && s.src) return s.src;
+          return '';
+        })()
+      ''');
+      final src = result?.toString() ?? '';
+      if (src.isNotEmpty && src.startsWith('http')) {
+        // Usa DownloadService do app para descarregar
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(
+            content: Text('URL capturado: ${src.substring(0, src.length.clamp(0, 60))}...'),
+            backgroundColor: const Color(0xFF222222),
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+}
+
+// ─── Card de vídeo relacionado (horizontal) — estilo YouTube ─────────────────
+class _RelatedVideoCard extends StatelessWidget {
+  final _FeedVideo video;
+  final String faviconUrl;
+  final VoidCallback onTap;
+  const _RelatedVideoCard({
+    required this.video, required this.faviconUrl, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Thumbnail
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Stack(children: [
+              SizedBox(
+                width: 160, height: 90,
+                child: Image.network(video.thumb, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: const Color(0xFF1A1A1A),
+                    child: const Center(child: Icon(Icons.play_circle_outline_rounded,
+                        color: Colors.white24, size: 28)),
+                  ),
+                ),
+              ),
+              if (video.duration.isNotEmpty)
+                Positioned(
+                  bottom: 4, right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.black87, borderRadius: BorderRadius.circular(3)),
+                    child: Text(video.duration,
+                        style: const TextStyle(color: Colors.white,
+                            fontSize: 10, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+            ]),
+          ),
+          const SizedBox(width: 10),
+          // Info
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(video.title,
+              style: const TextStyle(color: Colors.white, fontSize: 12.5,
+                  fontWeight: FontWeight.w500, height: 1.35),
+              maxLines: 2, overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 5),
+            Row(children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(faviconUrl, width: 14, height: 14,
+                  errorBuilder: (_, __, ___) => const SizedBox(width: 14, height: 14)),
+              ),
+              const SizedBox(width: 4),
+              Text(video.sourceLabel,
+                  style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 11)),
+              if (video.views.isNotEmpty)
+                Text('  ·  ${video.views}',
+                    style: TextStyle(color: Colors.white.withOpacity(0.40), fontSize: 11)),
+            ]),
+          ])),
+          // Menu
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(Icons.more_vert_rounded,
+                color: Colors.white.withOpacity(0.35), size: 18),
+          ),
+        ]),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_p2p_connection/flutter_p2p_connection.dart';
 
@@ -107,17 +108,18 @@ class TransferService {
   Future<({String ssid, String password})> startReceiver() async {
     _setState(TransferState.requestingPermission);
 
-    // initialize() obrigatório antes de qualquer chamada
     if (!_hostInit) { await _host.initialize(); _hostInit = true; }
 
-    // Permissões
-    if (!await _host.checkP2pPermissions())       await _host.askP2pPermissions();
-    if (!await _host.checkStoragePermission())     await _host.askStoragePermission();
-    if (!await _host.checkBluetoothPermissions())  await _host.askBluetoothPermissions();
+    final sdk = await _getSdkInt();
 
-    // Serviços
-    if (!await _host.checkWifiEnabled())    await _host.enableWifiServices();
-    if (!await _host.checkLocationEnabled()) await _host.enableLocationServices();
+    // P2P e Bluetooth só existem como permissão em Android 12+ (API 31+)
+    if (sdk >= 31) {
+      if (!await _host.checkP2pPermissions())       await _host.askP2pPermissions();
+      if (!await _host.checkBluetoothPermissions()) await _host.askBluetoothPermissions();
+    }
+    if (!await _host.checkStoragePermission())   await _host.askStoragePermission();
+    if (!await _host.checkWifiEnabled())         await _host.enableWifiServices();
+    if (!await _host.checkLocationEnabled())     await _host.enableLocationServices();
 
     _setState(TransferState.startingHotspot);
 
@@ -239,9 +241,12 @@ class TransferService {
 
     if (!_clientInit) { await _client.initialize(); _clientInit = true; }
 
-    if (!await _client.checkP2pPermissions())       await _client.askP2pPermissions();
-    if (!await _client.checkBluetoothPermissions())  await _client.askBluetoothPermissions();
-    if (!await _client.checkWifiEnabled())   await _client.enableWifiServices();
+    final sdk = await _getSdkInt();
+    if (sdk >= 31) {
+      if (!await _client.checkP2pPermissions())      await _client.askP2pPermissions();
+      if (!await _client.checkBluetoothPermissions()) await _client.askBluetoothPermissions();
+    }
+    if (!await _client.checkWifiEnabled())    await _client.enableWifiServices();
     if (!await _client.checkLocationEnabled()) await _client.enableLocationServices();
 
     _setState(TransferState.connectingToHotspot);
@@ -293,7 +298,10 @@ class TransferService {
 
     if (!_clientInit) { await _client.initialize(); _clientInit = true; }
 
-    if (!await _client.checkP2pPermissions())  await _client.askP2pPermissions();
+    final sdk = await _getSdkInt();
+    if (sdk >= 31) {
+      if (!await _client.checkP2pPermissions()) await _client.askP2pPermissions();
+    }
     if (!await _client.checkWifiEnabled())     await _client.enableWifiServices();
     if (!await _client.checkLocationEnabled()) await _client.enableLocationServices();
 
@@ -392,6 +400,16 @@ class TransferService {
   // ─────────────────────────────────────────────────────────────────────────────
   // Helpers públicos
   // ─────────────────────────────────────────────────────────────────────────────
+
+  /// Devolve o SDK do Android via MethodChannel (compatível com todas as versões).
+  static Future<int> _getSdkInt() async {
+    try {
+      const ch = MethodChannel('com.patrulhaxx/device_id');
+      final v = await ch.invokeMethod<int>('getSdkInt');
+      return v ?? 0;
+    } catch (_) { return 0; }
+  }
+
   static String formatBytes(int bytes) {
     if (bytes < 1024)             return '$bytes B';
     if (bytes < 1024 * 1024)     return '${(bytes / 1024).toStringAsFixed(1)} KB';
