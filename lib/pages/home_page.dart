@@ -223,7 +223,7 @@ class _HomePageState extends State<HomePage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   int _tab = 1; // Feed é o tab principal
   String? _selectedEmbedUrl;
-  _FeedVideo? _selectedVideo;
+  FeedVideo? _selectedVideo;
   late final AnimationController _fadeIn;
 
   // Cor extraída via HTML do wallpaper
@@ -303,7 +303,7 @@ class _HomePageState extends State<HomePage>
                     ),
                     _ShortsTab(
                       navBottom: 0,
-                      onVideoTap: (_FeedVideo video) {
+                      onVideoTap: (FeedVideo video) {
                         setState(() {
                           _selectedEmbedUrl = video.embedUrl;
                           _selectedVideo = video;
@@ -314,7 +314,7 @@ class _HomePageState extends State<HomePage>
                     ExibicaoPage(
                       embedUrl: _selectedEmbedUrl,
                       currentVideo: _selectedVideo,
-                      onVideoTap: (_FeedVideo video) {
+                      onVideoTap: (FeedVideo video) {
                         setState(() {
                           _selectedEmbedUrl = video.embedUrl;
                           _selectedVideo = video;
@@ -942,60 +942,60 @@ class _ActionBtn extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Modelo unificado de vídeo — 4 fontes: Eporner, Pornhub, RedTube, YouPorn
 // ─────────────────────────────────────────────────────────────────────────────
-enum _VideoSource { eporner, pornhub, redtube, youporn }
+enum VideoSource { eporner, pornhub, redtube, youporn }
 
-class _FeedVideo {
+class FeedVideo {
   final String title;
   final String thumb;
   final String embedUrl;
   final String duration;
   final String views;
-  final _VideoSource source;
+  final VideoSource source;
 
-  const _FeedVideo({
+  const FeedVideo({
     required this.title, required this.thumb, required this.embedUrl,
     required this.duration, required this.views, required this.source,
   });
 
   String get sourceLabel {
     switch (source) {
-      case _VideoSource.eporner:  return 'Eporner';
-      case _VideoSource.pornhub:  return 'Pornhub';
-      case _VideoSource.redtube:  return 'RedTube';
-      case _VideoSource.youporn:  return 'YouPorn';
+      case VideoSource.eporner:  return 'Eporner';
+      case VideoSource.pornhub:  return 'Pornhub';
+      case VideoSource.redtube:  return 'RedTube';
+      case VideoSource.youporn:  return 'YouPorn';
     }
   }
 
   String get sourceInitial {
     switch (source) {
-      case _VideoSource.eporner:  return 'E';
-      case _VideoSource.pornhub:  return 'P';
-      case _VideoSource.redtube:  return 'R';
-      case _VideoSource.youporn:  return 'Y';
+      case VideoSource.eporner:  return 'E';
+      case VideoSource.pornhub:  return 'P';
+      case VideoSource.redtube:  return 'R';
+      case VideoSource.youporn:  return 'Y';
     }
   }
 
   Color get sourceColor => const Color(0xFF222222);
 
   // ── Eporner ────────────────────────────────────────────────────────────────
-  static _FeedVideo? fromEporner(Map<String, dynamic> j) {
+  static FeedVideo? fromEporner(Map<String, dynamic> j) {
     final id = j['id'] as String? ?? '';
     if (id.isEmpty) return null;
     final thumb = (j['thumbs'] as List?)?.isNotEmpty == true
         ? ((j['thumbs'] as List).first['src'] as String? ?? '') : '';
     if (thumb.isEmpty) return null;
-    return _FeedVideo(
+    return FeedVideo(
       title: j['title'] as String? ?? '',
       thumb: thumb,
       embedUrl: 'https://www.eporner.com/embed/$id/',
       duration: j['duration'] as String? ?? '',
       views: _fmtViews(j['views']),
-      source: _VideoSource.eporner,
+      source: VideoSource.eporner,
     );
   }
 
   // ── Pornhub (HubTraffic) ───────────────────────────────────────────────────
-  static _FeedVideo? fromPornhub(Map<String, dynamic> j) {
+  static FeedVideo? fromPornhub(Map<String, dynamic> j) {
     final viewkey = j['video_id'] as String? ?? j['viewkey'] as String? ?? '';
     if (viewkey.isEmpty) return null;
     // Thumbnail: PH devolve lista 'thumbs' ou campo 'default_thumb'
@@ -1006,45 +1006,45 @@ class _FeedVideo {
     }
     if (thumb.isEmpty) thumb = j['default_thumb'] as String? ?? '';
     if (thumb.isEmpty) return null;
-    return _FeedVideo(
+    return FeedVideo(
       title: j['title'] as String? ?? '',
       thumb: thumb,
       embedUrl: 'https://www.pornhub.com/embed/$viewkey',
       duration: j['duration'] as String? ?? '',
       views: _fmtViews(j['views']),
-      source: _VideoSource.pornhub,
+      source: VideoSource.pornhub,
     );
   }
 
   // ── RedTube ────────────────────────────────────────────────────────────────
-  static _FeedVideo? fromRedtube(Map<String, dynamic> j) {
+  static FeedVideo? fromRedtube(Map<String, dynamic> j) {
     final vid = j['video_id'] as String? ?? '';
     if (vid.isEmpty) return null;
     final thumb = j['thumb'] as String? ?? j['default_thumb'] as String? ?? '';
     if (thumb.isEmpty) return null;
-    return _FeedVideo(
+    return FeedVideo(
       title: j['title'] as String? ?? '',
       thumb: thumb,
       embedUrl: 'https://embed.redtube.com/?id=$vid',
       duration: j['duration'] as String? ?? '',
       views: _fmtViews(j['views']),
-      source: _VideoSource.redtube,
+      source: VideoSource.redtube,
     );
   }
 
   // ── YouPorn ────────────────────────────────────────────────────────────────
-  static _FeedVideo? fromYouporn(Map<String, dynamic> j) {
+  static FeedVideo? fromYouporn(Map<String, dynamic> j) {
     final id = (j['id'] ?? j['video_id'] ?? '').toString();
     if (id.isEmpty || id == '0') return null;
     final thumb = j['thumb'] as String? ?? j['default_thumb'] as String? ?? '';
     if (thumb.isEmpty) return null;
-    return _FeedVideo(
+    return FeedVideo(
       title: j['title'] as String? ?? '',
       thumb: thumb,
       embedUrl: 'https://www.youporn.com/embed/$id/',
       duration: j['duration'] as String? ?? '',
       views: _fmtViews(j['views']),
-      source: _VideoSource.youporn,
+      source: VideoSource.youporn,
     );
   }
 
@@ -1058,15 +1058,15 @@ class _FeedVideo {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _FeedFetcher — lógica de fetch das 4 fontes
+// FeedFetcher — lógica de fetch das 4 fontes
 // ─────────────────────────────────────────────────────────────────────────────
-class _FeedFetcher {
+class FeedFetcher {
   static const _ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36';
   static const _epOrders = ['top-weekly', 'top-monthly', 'latest', 'most-viewed'];
   static const _phOrders = ['newest', 'mostviewed', 'rating'];
   static const _rtOrders = ['new', 'rating', 'views'];
 
-  static Future<List<_FeedVideo>> fetchEporner(int page) async {
+  static Future<List<FeedVideo>> fetchEporner(int page) async {
     try {
       final order = _epOrders[Random().nextInt(_epOrders.length)];
       final r = await http.get(
@@ -1077,13 +1077,13 @@ class _FeedFetcher {
       if (r.statusCode != 200) return [];
       final data = jsonDecode(r.body) as Map<String, dynamic>;
       return (data['videos'] as List? ?? [])
-          .map((v) => _FeedVideo.fromEporner(v as Map<String, dynamic>))
-          .whereType<_FeedVideo>()
+          .map((v) => FeedVideo.fromEporner(v as Map<String, dynamic>))
+          .whereType<FeedVideo>()
           .toList();
     } catch (_) { return []; }
   }
 
-  static Future<List<_FeedVideo>> fetchPornhub(int page) async {
+  static Future<List<FeedVideo>> fetchPornhub(int page) async {
     try {
       final order = _phOrders[Random().nextInt(_phOrders.length)];
       final r = await http.get(
@@ -1095,13 +1095,13 @@ class _FeedFetcher {
       final data = jsonDecode(r.body) as Map<String, dynamic>;
       final videos = data['videos'] as List? ?? data['video'] as List? ?? [];
       return videos
-          .map((v) => _FeedVideo.fromPornhub(v as Map<String, dynamic>))
-          .whereType<_FeedVideo>()
+          .map((v) => FeedVideo.fromPornhub(v as Map<String, dynamic>))
+          .whereType<FeedVideo>()
           .toList();
     } catch (_) { return []; }
   }
 
-  static Future<List<_FeedVideo>> fetchRedtube(int page) async {
+  static Future<List<FeedVideo>> fetchRedtube(int page) async {
     try {
       final order = _rtOrders[Random().nextInt(_rtOrders.length)];
       final r = await http.get(
@@ -1116,14 +1116,14 @@ class _FeedFetcher {
       return videos
           .map((v) {
             final inner = v['video'] as Map<String, dynamic>? ?? v as Map<String, dynamic>;
-            return _FeedVideo.fromRedtube(inner);
+            return FeedVideo.fromRedtube(inner);
           })
-          .whereType<_FeedVideo>()
+          .whereType<FeedVideo>()
           .toList();
     } catch (_) { return []; }
   }
 
-  static Future<List<_FeedVideo>> fetchYouporn(int page) async {
+  static Future<List<FeedVideo>> fetchYouporn(int page) async {
     try {
       final r = await http.get(
         Uri.parse('https://www.youporn.com/api/video/search/'
@@ -1134,14 +1134,14 @@ class _FeedFetcher {
       final data = jsonDecode(r.body);
       final videos = (data['videos'] ?? data['data'] ?? data) as List? ?? [];
       return videos
-          .map((v) => _FeedVideo.fromYouporn(v as Map<String, dynamic>))
-          .whereType<_FeedVideo>()
+          .map((v) => FeedVideo.fromYouporn(v as Map<String, dynamic>))
+          .whereType<FeedVideo>()
           .toList();
     } catch (_) { return []; }
   }
 
   /// Busca todas as fontes em paralelo, mistura e baralha
-  static Future<List<_FeedVideo>> fetchAll(int page) async {
+  static Future<List<FeedVideo>> fetchAll(int page) async {
     final rng = Random();
     // Página aleatória por fonte para não repetir sempre o mesmo conteúdo
     final epPage  = rng.nextInt(60) + 1;
@@ -1157,7 +1157,7 @@ class _FeedFetcher {
     ]);
 
     // Intercala as fontes em vez de concatenar — parece mais variado
-    final merged = <_FeedVideo>[];
+    final merged = <FeedVideo>[];
     final lists = results.where((l) => l.isNotEmpty).toList();
     if (lists.isEmpty) return [];
 
@@ -1177,7 +1177,7 @@ class _FeedFetcher {
 // ─────────────────────────────────────────────────────────────────────────────
 class _ShortsTab extends StatefulWidget {
   final double navBottom;
-  final void Function(_FeedVideo) onVideoTap;
+  final void Function(FeedVideo) onVideoTap;
   const _ShortsTab({required this.navBottom, required this.onVideoTap});
 
   @override
@@ -1189,7 +1189,7 @@ class _ShortsTabState extends State<_ShortsTab>
   @override
   bool get wantKeepAlive => true;
 
-  final List<_FeedVideo> _videos = [];
+  final List<FeedVideo> _videos = [];
   bool _loading = true;
   bool _error = false;
   int _page = 1;
@@ -1217,7 +1217,7 @@ class _ShortsTabState extends State<_ShortsTab>
 
   Future<void> _fetch() async {
     setState(() { _loading = true; _error = false; });
-    final videos = await _FeedFetcher.fetchAll(_page);
+    final videos = await FeedFetcher.fetchAll(_page);
     if (!mounted) return;
     if (videos.isEmpty) {
       setState(() { _loading = false; _error = true; });
@@ -1232,7 +1232,7 @@ class _ShortsTabState extends State<_ShortsTab>
   Future<void> _fetchMore() async {
     if (_fetching || _loading) return;
     _fetching = true;
-    final videos = await _FeedFetcher.fetchAll(_page);
+    final videos = await FeedFetcher.fetchAll(_page);
     _fetching = false;
     if (!mounted || videos.isEmpty) return;
     setState(() {
@@ -1305,18 +1305,18 @@ class _ShortsTabState extends State<_ShortsTab>
 
 
 // Helper — favicon URL por fonte
-String faviconForSource(_VideoSource src) {
+String faviconForSource(VideoSource src) {
   switch (src) {
-    case _VideoSource.eporner:  return 'https://www.eporner.com/favicon.ico';
-    case _VideoSource.pornhub:  return 'https://www.pornhub.com/favicon.ico';
-    case _VideoSource.redtube:  return 'https://www.redtube.com/favicon.ico';
-    case _VideoSource.youporn:  return 'https://www.youporn.com/favicon.ico';
+    case VideoSource.eporner:  return 'https://www.eporner.com/favicon.ico';
+    case VideoSource.pornhub:  return 'https://www.pornhub.com/favicon.ico';
+    case VideoSource.redtube:  return 'https://www.redtube.com/favicon.ico';
+    case VideoSource.youporn:  return 'https://www.youporn.com/favicon.ico';
   }
 }
 
 // ─── Card de vídeo estilo YouTube ─────────────────────────────────────────────
 class _VideoCard extends StatelessWidget {
-  final _FeedVideo video;
+  final FeedVideo video;
   final VoidCallback onTap;
   const _VideoCard({required this.video, required this.onTap});
 
