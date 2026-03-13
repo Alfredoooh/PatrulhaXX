@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'home_page.dart' show kPrimaryColor, _FeedVideo, _FeedFetcher,
-    _VideoSource, svgExibicaoOutline, faviconForSource;
+import 'home_page.dart' show kPrimaryColor, FeedVideo, FeedFetcher,
+    VideoSource, svgExibicaoOutline, faviconForSource;
 import '../services/download_service.dart';
 import 'download_list_page.dart';
 
@@ -63,8 +63,8 @@ const _svgDlList =
 // ─────────────────────────────────────────────────────────────────────────────
 class ExibicaoPage extends StatefulWidget {
   final String? embedUrl;
-  final _FeedVideo? currentVideo;
-  final void Function(_FeedVideo) onVideoTap;
+  final FeedVideo? currentVideo;
+  final void Function(FeedVideo) onVideoTap;
 
   const ExibicaoPage({
     super.key,
@@ -82,7 +82,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   @override
   bool get wantKeepAlive => true;
 
-  final List<_FeedVideo> _related = [];
+  final List<FeedVideo> _related = [];
   bool _loadingRelated = false;
   InAppWebViewController? _webCtrl;
   bool _titleExpanded = false;
@@ -106,7 +106,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   Future<void> _loadRelated() async {
     if (!mounted) return;
     setState(() { _loadingRelated = true; _related.clear(); });
-    final videos = await _FeedFetcher.fetchAll(Random().nextInt(30) + 1);
+    final videos = await FeedFetcher.fetchAll(Random().nextInt(30) + 1);
     if (!mounted) return;
     final filtered =
         videos.where((v) => v.embedUrl != widget.embedUrl).take(20).toList();
@@ -396,7 +396,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 
 // ─── Card relacionado — horizontal, título 2 linhas max ───────────────────────
 class _RelatedCard extends StatelessWidget {
-  final _FeedVideo video;
+  final FeedVideo video;
   final VoidCallback onTap;
   const _RelatedCard({required this.video, required this.onTap});
 
