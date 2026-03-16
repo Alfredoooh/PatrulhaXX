@@ -86,7 +86,7 @@ class _PlayerSkeleton extends StatelessWidget {
           _Shimmer(width: w * 0.55, height: 14),
           const SizedBox(height: 14),
           _Shimmer(width: 130, height: 34, radius: 100),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           Divider(color: AppTheme.current.isDark ? const Color(0xFF1C1C1C) : const Color(0xFFDDDDDD), height: 1),
           const SizedBox(height: 12),
           _Shimmer(width: 80, height: 14),
@@ -271,8 +271,8 @@ class _ExibicaoPageState extends State<ExibicaoPage>
           child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
             SvgPicture.string(svgExibicaoOutline, width: 52, height: 52,
                 colorFilter: const ColorFilter.mode(Colors.white24, BlendMode.srcIn)),
-            const SizedBox(height: 14),
-            const Text('Seleciona um vídeo no Feed',
+            SizedBox(height: 14),
+            Text('Seleciona um vídeo no Feed',
                 style: TextStyle(color: AppTheme.current.isDark ? Colors.white38 : Colors.black38, fontSize: 13.5)),
           ])),
         ),
@@ -409,7 +409,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                         ),
                       ),
 
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       Divider(
                           color: AppTheme.of(context).divider, thickness: 1, height: 1),
                       const SizedBox(height: 12),
@@ -472,7 +472,7 @@ class _RelatedCard extends StatelessWidget {
                   errorBuilder: (_, __, ___) => Container(
                     width: 160, height: 90,
                     color: AppTheme.current.card,
-                    child: const Center(
+                    child: Center(
                       child: Icon(Icons.play_circle_outline_rounded,
                           color: AppTheme.of(context).iconFaint, size: 28),
                     ),
@@ -492,7 +492,7 @@ class _RelatedCard extends StatelessWidget {
                         color: Colors.black87,
                         borderRadius: BorderRadius.circular(3)),
                     child: Text(video.duration,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppTheme.of(context).text,
                             fontSize: 10,
                             fontWeight: FontWeight.w600)),

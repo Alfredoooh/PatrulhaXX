@@ -87,7 +87,7 @@ class DownloadListPage extends StatelessWidget {
                       ),
                       child: Text(
                         active.length > 9 ? '9+' : '${active.length}',
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppTheme.of(context).text,
                             fontSize: 11,
                             fontWeight: FontWeight.w700),
@@ -110,7 +110,7 @@ class DownloadListPage extends StatelessWidget {
                                 colorFilter: const ColorFilter.mode(
                                     Colors.white24, BlendMode.srcIn)),
                             const SizedBox(height: 14),
-                            const Text('Nenhum download em curso',
+                            Text('Nenhum download em curso',
                                 style: TextStyle(
                                     color: AppTheme.current.isDark ? Colors.white38 : Colors.black38, fontSize: 13.5)),
                           ],
@@ -164,7 +164,7 @@ class _ActiveDownloadCard extends StatelessWidget {
               Text(item.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppTheme.of(context).text,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
@@ -259,7 +259,7 @@ class _ActiveDownloadCard extends StatelessWidget {
 
   Widget _thumbPlaceholder() => Container(
         color: AppTheme.current.card,
-        child: const Center(
+        child: Center(
           child: Icon(Icons.video_file_rounded, color: AppTheme.of(context).iconFaint, size: 28),
         ),
       );
@@ -293,7 +293,7 @@ class DownloadListBadge extends StatelessWidget {
                 child: Center(
                   child: Text(
                     count > 9 ? '9+' : '$count',
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppTheme.of(context).text,
                         fontSize: 9,
                         fontWeight: FontWeight.w700),

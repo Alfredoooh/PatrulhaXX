@@ -311,7 +311,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: AppTheme.of(context).statusBarBrightness,
+        statusBarIconBrightness: AppTheme.current.statusBarBrightness,
       ),
       child: Scaffold(
         backgroundColor: bg,
@@ -655,7 +655,7 @@ class _VideoCard extends StatelessWidget {
                         color: Colors.black87,
                         borderRadius: BorderRadius.circular(3)),
                     child: Text(video.duration,
-                        style: const TextStyle(color: AppTheme.of(context).text,
+                        style: TextStyle(color: AppTheme.current.text,
                             fontSize: 11, fontWeight: FontWeight.w600)),
                   ),
                 ),
@@ -676,7 +676,7 @@ class _VideoCard extends StatelessWidget {
                     decoration: const BoxDecoration(
                         color: Color(0xFF222222), shape: BoxShape.circle),
                     child: Center(child: Text(video.sourceInitial,
-                        style: const TextStyle(color: AppTheme.of(context).textSub,
+                        style: TextStyle(color: AppTheme.current.textSub,
                             fontSize: 12, fontWeight: FontWeight.w700))),
                   ),
                 ),
@@ -754,7 +754,7 @@ class _ImagesTab extends StatelessWidget {
                     ),
                   ),
                   child: Text(v.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: AppTheme.of(context).text,
+                      style: TextStyle(color: AppTheme.current.text,
                           fontSize: 10, fontWeight: FontWeight.w500)),
                 ),
               ),
@@ -913,7 +913,7 @@ class _DurationBadge extends StatelessWidget {
         color: Colors.black.withOpacity(0.75),
         borderRadius: BorderRadius.circular(4)),
     child: Text(text,
-        style: const TextStyle(color: AppTheme.of(context).text,
+        style: TextStyle(color: AppTheme.current.text,
             fontSize: 10, fontWeight: FontWeight.w600)),
   );
 }
@@ -930,7 +930,7 @@ class _ErrorView extends StatelessWidget {
       padding: const EdgeInsets.all(32),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.wifi_off_rounded, color: AppTheme.current.isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.07), size: 44),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Text(message, textAlign: TextAlign.center,
             style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.25) : Colors.black12, fontSize: 12)),
         const SizedBox(height: 20),

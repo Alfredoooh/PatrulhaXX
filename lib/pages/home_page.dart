@@ -191,11 +191,11 @@ class _HomePageState extends State<HomePage>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: AppTheme.of(context).statusBarBrightness,
+        statusBarIconBrightness: AppTheme.current.statusBarBrightness,
       ),
       child: Scaffold(
         extendBody: false,
-        backgroundColor: AppTheme.of(context).bgFeed,
+        backgroundColor: AppTheme.current.bgFeed,
         body: Column(children: [
           // ── Tabs — IndexedStack preserva estado do feed ───────────────
           Expanded(
@@ -374,7 +374,7 @@ class _MiniPlayerState extends State<_MiniPlayer>
                         headers: const {'User-Agent': 'Mozilla/5.0'},
                         errorBuilder: (_, __, ___) => Container(
                           color: const Color(0xFF333333),
-                          child: const Icon(Icons.play_circle_rounded,
+                          child: Icon(Icons.play_circle_rounded,
                               color: AppTheme.current.textSub, size: 28),
                         ),
                       ),
@@ -473,7 +473,7 @@ class _BottomNav extends StatelessWidget {
   final int tab;
   final void Function(int) onTab;
   final double navH, safeBottom;
-  Color get _kBg => AppTheme.of(context).bgNav;
+  Color get _kBg => AppTheme.current.bgNav;
 
   const _BottomNav({
     required this.tab, required this.onTab,
@@ -600,7 +600,7 @@ class _NavFeedPill extends StatelessWidget {
           const SizedBox(width: 7),
           Text('Feed',
             style: TextStyle(
-              color: (AppTheme.of(context).text).withOpacity(active ? 1.0 : 0.70),
+              color: (AppTheme.current.text).withOpacity(active ? 1.0 : 0.70),
               fontSize: 13,
               fontWeight: active ? FontWeight.w600 : FontWeight.w400,
               letterSpacing: -0.2,
@@ -717,9 +717,9 @@ class _NavAppBar extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Text('Navegar',
-          style: TextStyle(color: AppTheme.of(context).text, fontSize: 20,
+          style: TextStyle(color: AppTheme.current.text, fontSize: 20,
               fontWeight: FontWeight.w700, letterSpacing: -0.5)),
       ]),
     );
@@ -749,16 +749,16 @@ class _NavDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
     return Drawer(
-      backgroundColor: AppTheme.of(context).bgNav,
+      backgroundColor: AppTheme.current.bgNav,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(height: topPad + 20),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           child: Row(children: [
             SvgPicture.string(_svgShortsActive, width: 32, height: 32),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Text('patrulhaXX',
-              style: TextStyle(color: AppTheme.of(context).text, fontSize: 18,
+              style: TextStyle(color: AppTheme.current.text, fontSize: 18,
                   fontWeight: FontWeight.w700)),
           ]),
         ),
@@ -828,14 +828,14 @@ class _HomeTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final ts = ThemeService.instance;
     return Scaffold(
-      backgroundColor: AppTheme.of(context).bg,
+      backgroundColor: AppTheme.current.bg,
       drawer: _NavDrawer(
         onDownloads: onDownloads,
         onSettings: onSettings,
       ),
       body: Builder(builder: (scaffoldCtx) => Stack(fit: StackFit.expand, children: [
       // Fundo
-      Container(color: AppTheme.of(context).bg),
+      Container(color: AppTheme.current.bg),
 
       // Wallpaper (muda instantaneamente com key)
       if (ts.useWallpaper && ts.bg.isNotEmpty)
@@ -1000,10 +1000,10 @@ class _SearchPageState extends State<_SearchPage> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: AppTheme.of(context).statusBarBrightness,
+        statusBarIconBrightness: AppTheme.current.statusBarBrightness,
       ),
       child: Scaffold(
-        backgroundColor: AppTheme.of(context).bgFeed,
+        backgroundColor: AppTheme.current.bgFeed,
         body: Column(children: [
           SizedBox(height: topPad + 12),
           // Barra de pesquisa
@@ -1018,7 +1018,7 @@ class _SearchPageState extends State<_SearchPage> {
                     color: AppTheme.current.border,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.arrow_back_ios_new_rounded,
+                  child: Icon(Icons.arrow_back_ios_new_rounded,
                       color: AppTheme.current.icon, size: 16),
                 ),
               ),
@@ -1027,14 +1027,14 @@ class _SearchPageState extends State<_SearchPage> {
                 child: Container(
                   height: 50,
                   decoration: BoxDecoration(
-                    color: AppTheme.of(context).bgInput,
+                    color: AppTheme.current.bgInput,
                     borderRadius: BorderRadius.circular(100),
                     border: Border.all(color: AppTheme.current.inputBorder),
                   ),
                   child: Row(children: [
-                    const SizedBox(width: 18),
+                    SizedBox(width: 18),
                     Icon(Icons.search_rounded,
-                        color: AppTheme.of(context).textSub, size: 20),
+                        color: AppTheme.current.textSub, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
@@ -1070,9 +1070,9 @@ class _SearchPageState extends State<_SearchPage> {
                             color: kPrimaryColor,
                             borderRadius: BorderRadius.circular(100),
                           ),
-                          child: const Text('Ir',
+                          child: Text('Ir',
                               style: TextStyle(
-                                  color: AppTheme.of(context).bgFeed, fontSize: 13,
+                                  color: AppTheme.current.bgFeed, fontSize: 13,
                                   fontWeight: FontWeight.w700)),
                         ),
                       )
@@ -1621,7 +1621,7 @@ class _ShortsTabState extends State<_ShortsTab>
 
     if (_loading) {
       return Container(
-        color: AppTheme.of(context).bgFeed,
+        color: AppTheme.current.bgFeed,
         child: ListView(
           padding: EdgeInsets.only(top: topPad + 56),
           children: List.generate(5, (_) => _FeedCardSkeleton()),
@@ -1631,10 +1631,10 @@ class _ShortsTabState extends State<_ShortsTab>
 
     if (_error) {
       return Container(
-        color: AppTheme.of(context).bgFeed,
+        color: AppTheme.current.bgFeed,
         child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.wifi_off_rounded, color: AppTheme.of(context).iconFaint, size: 48),
-          const SizedBox(height: 16),
+          Icon(Icons.wifi_off_rounded, color: AppTheme.current.iconFaint, size: 48),
+          SizedBox(height: 16),
           Text('Sem ligação à internet', style: TextStyle(color: AppTheme.current.textSub, fontSize: 14)),
           const SizedBox(height: 20),
           GestureDetector(
@@ -1643,8 +1643,8 @@ class _ShortsTabState extends State<_ShortsTab>
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               decoration: BoxDecoration(
                 color: kPrimaryColor, borderRadius: BorderRadius.circular(100)),
-              child: const Text('Tentar novamente',
-                  style: TextStyle(color: AppTheme.of(context).bgFeed, fontWeight: FontWeight.w700)),
+              child: Text('Tentar novamente',
+                  style: TextStyle(color: AppTheme.current.bgFeed, fontWeight: FontWeight.w700)),
             ),
           ),
         ])),
@@ -1721,7 +1721,7 @@ class _FeedAppBarState extends State<_FeedAppBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppTheme.of(context).bgFeed,
+      color: AppTheme.current.bgFeed,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(height: widget.topPad),
         // Título + refresh
@@ -1729,7 +1729,7 @@ class _FeedAppBarState extends State<_FeedAppBar> {
           padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
           child: Row(children: [
             SvgPicture.string(_svgShortsActive, width: 26, height: 26),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Text('Feed',
               style: TextStyle(color: AppTheme.current.text, fontSize: 20,
                   fontWeight: FontWeight.w700, letterSpacing: -0.5)),
@@ -1742,7 +1742,7 @@ class _FeedAppBarState extends State<_FeedAppBar> {
                   color: AppTheme.current.border,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.refresh_rounded,
+                child: Icon(Icons.refresh_rounded,
                     color: AppTheme.current.iconSub, size: 20),
               ),
             ),
@@ -1764,7 +1764,7 @@ class _FeedAppBarState extends State<_FeedAppBar> {
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
                   decoration: BoxDecoration(
-                    color: selected ? (AppTheme.of(context).text) : (AppTheme.current.bg  /* 1E1E1E) / const Color(0xFFE5E5EA) */),
+                    color: selected ? (AppTheme.current.text) : (AppTheme.current.bg  /* 1E1E1E) / const Color(0xFFE5E5EA) */),
                     borderRadius: BorderRadius.circular(100),
                   ),
                   child: Text(_chips[i],
@@ -1873,14 +1873,14 @@ class _VideoCard extends StatelessWidget {
                   'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36',
                 },
                 errorBuilder: (_, __, ___) => Container(
-                  color: AppTheme.of(context).bgThumb,
+                  color: AppTheme.current.bgThumb,
                   child: Center(child: Icon(Icons.play_circle_outline_rounded,
-                      color: AppTheme.of(context).iconFaint, size: 40)),
+                      color: AppTheme.current.iconFaint, size: 40)),
                 ),
                 loadingBuilder: (_, child, progress) {
                   if (progress == null) return child;
                   return Container(
-                    color: AppTheme.of(context).bg,
+                    color: AppTheme.current.bg,
                     child: Center(child: SizedBox(
                       width: 18, height: 18,
                       child: CircularProgressIndicator(
@@ -1888,7 +1888,7 @@ class _VideoCard extends StatelessWidget {
                         value: progress.expectedTotalBytes != null
                             ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
                             : null,
-                        color: AppTheme.of(context).iconFaint,
+                        color: AppTheme.current.iconFaint,
                       ),
                     )),
                   );
@@ -1903,7 +1903,7 @@ class _VideoCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.black87, borderRadius: BorderRadius.circular(3)),
                     child: Text(video.duration,
-                        style: const TextStyle(color: AppTheme.of(context).text,
+                        style: TextStyle(color: AppTheme.current.text,
                             fontSize: 11, fontWeight: FontWeight.w600)),
                   ),
                 ),
@@ -1932,7 +1932,7 @@ class _VideoCard extends StatelessWidget {
                     decoration: const BoxDecoration(
                       color: Color(0xFF222222), shape: BoxShape.circle),
                     child: Center(child: Text(video.sourceInitial,
-                        style: const TextStyle(color: AppTheme.of(context).textSub, fontSize: 13,
+                        style: TextStyle(color: AppTheme.current.textSub, fontSize: 13,
                             fontWeight: FontWeight.w600))),
                   ),
                 ),
@@ -1949,7 +1949,7 @@ class _VideoCard extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     '${video.sourceLabel}${video.views.isNotEmpty ? "  ·  ${video.views} vis." : ""}',
-                    style: TextStyle(color: AppTheme.of(context).textSub, fontSize: 11.5),
+                    style: TextStyle(color: AppTheme.current.textSub, fontSize: 11.5),
                   ),
                 ],
               )),

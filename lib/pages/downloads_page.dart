@@ -461,8 +461,8 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
           Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             SvgPicture.string(_svgHotspot, width: 36, height: 36,
                 colorFilter: ColorFilter.mode(Colors.white.withOpacity(0.2), BlendMode.srcIn)),
-            const SizedBox(height: 16),
-            const Text('A ativar hotspot…',
+            SizedBox(height: 16),
+            Text('A ativar hotspot…',
                 style: TextStyle(color: AppTheme.current.isDark ? Colors.white38 : Colors.black38, fontSize: 14)),
             const SizedBox(height: 20),
             const CircularProgressIndicator(color: _kPrimary, strokeWidth: 1.5),
@@ -523,8 +523,8 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
                   Text('Escaneia com o outro app',
                       style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12)),
 
-                  const SizedBox(height: 16),
-                  const Divider(color: AppTheme.current.isDark ? Colors.white12 : Colors.black12, height: 1),
+                  SizedBox(height: 16),
+                  Divider(color: AppTheme.current.isDark ? Colors.white12 : Colors.black12, height: 1),
                   const SizedBox(height: 16),
 
                   // SSID + password visíveis para inserção manual
@@ -751,7 +751,7 @@ class _RealViewfinderState extends State<_RealViewfinder> {
                 color: AppTheme.current.isDark ? Colors.black54 : Colors.white70,
                 borderRadius: BorderRadius.circular(100),
               ),
-              child: const Text('Aponta para o QR do recetor',
+              child: Text('Aponta para o QR do recetor',
                   style: TextStyle(color: AppTheme.current.iconSub, fontSize: 12)),
             ),
           ),
@@ -965,7 +965,7 @@ class _ViewerState extends State<_Viewer> {
           ? _error
               ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.videocam_off_rounded, color: Colors.white.withOpacity(0.18), size: 64),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   Text('Não foi possível reproduzir',
                       style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26)),
                 ]))
@@ -985,7 +985,7 @@ class _ViewerState extends State<_Viewer> {
 // Widgets comuns
 // ─────────────────────────────────────────────────────────────────────────────
 Widget _handle() => Column(children: [
-      const SizedBox(height: 10),
+      SizedBox(height: 10),
       Center(child: Container(width: 36, height: 4,
           decoration: BoxDecoration(color: AppTheme.current.isDark ? Colors.white12 : Colors.black12, borderRadius: BorderRadius.circular(2)))),
       const SizedBox(height: 14),
@@ -1036,8 +1036,8 @@ class _BigBtn extends StatelessWidget {
             SvgPicture.string(svg, width: 27, height: 27,
                 colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
             const SizedBox(height: 8),
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 2),
+            Text(label, style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+            SizedBox(height: 2),
             Text(sub, style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26, fontSize: 10)),
           ])));
 }
@@ -1052,7 +1052,7 @@ class _PrimaryBtn extends StatelessWidget {
           child: Container(height: 50,
             decoration: BoxDecoration(color: _kPrimary, borderRadius: BorderRadius.circular(14)),
             alignment: Alignment.center,
-            child: Text(label, style: const TextStyle(color: AppTheme.current.bg, fontSize: 15, fontWeight: FontWeight.w700)))));
+            child: Text(label, style: TextStyle(color: AppTheme.current.bg, fontSize: 15, fontWeight: FontWeight.w700)))));
 }
 
 class _GhostBtn extends StatelessWidget {
@@ -1066,7 +1066,7 @@ class _GhostBtn extends StatelessWidget {
             decoration: BoxDecoration(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.07) : Colors.black.withOpacity(0.04),
                 borderRadius: BorderRadius.circular(14)),
             alignment: Alignment.center,
-            child: Text(label, style: const TextStyle(color: AppTheme.current.isDark ? Colors.white54 : Colors.black45, fontSize: 14)))));
+            child: Text(label, style: TextStyle(color: AppTheme.current.isDark ? Colors.white54 : Colors.black45, fontSize: 14)))));
 }
 
 class _BackBtn extends StatelessWidget {
