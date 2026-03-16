@@ -372,7 +372,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       borderRadius: BorderRadius.circular(12),
                       child: Image.asset(wp, fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
-                              color: Colors.white.withOpacity(0.05))),
+                              color: AppTheme.current.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03))),
                     ),
                   ),
                 );
@@ -759,7 +759,7 @@ class _MiniSwitch extends StatelessWidget {
         height: _h,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(_h / 2),
-          color: value ? _kPrimary : (ThemeService.instance.isDark ? Colors.white.withOpacity(0.14) : Colors.black.withOpacity(0.10)),
+          color: value ? _kPrimary : (AppTheme.current.isDark ? Colors.white.withOpacity(0.14) : Colors.black.withOpacity(0.10)),
         ),
         child: AnimatedAlign(
           duration: const Duration(milliseconds: 200),
@@ -771,7 +771,7 @@ class _MiniSwitch extends StatelessWidget {
             margin: const EdgeInsets.all(_pad),
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white,
+              color: AppTheme.current.isDark ? Colors.white : const Color(0xFF1C1C1E),
               boxShadow: [
                 BoxShadow(
                   color: Color(0x33000000),

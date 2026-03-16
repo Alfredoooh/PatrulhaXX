@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../services/download_service.dart';
 import '../services/theme_service.dart';
+import '../theme/app_theme.dart';
 
 // SVGs fornecidos pelo utilizador
 const _svgDownload =
@@ -40,10 +41,10 @@ class DownloadListPage extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: AppTheme.of(context).statusBarBrightness,
       ),
       child: Scaffold(
-        backgroundColor: ThemeService.instance.isDark ? Colors.black : const Color(0xFFF5F5F5),
+        backgroundColor: AppTheme.of(context).bgFeed,
         body: ListenableBuilder(
           listenable: DownloadService.instance,
           builder: (context, _) {
@@ -61,7 +62,7 @@ class DownloadListPage extends StatelessWidget {
                     child: Container(
                       width: 38, height: 38,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.07),
+                        color: AppTheme.current.isDark ? Colors.white.withOpacity(0.07) : Colors.black.withOpacity(0.04),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.arrow_back_ios_new_rounded,
@@ -71,7 +72,7 @@ class DownloadListPage extends StatelessWidget {
                   const SizedBox(width: 14),
                   Text('Downloads em curso',
                       style: TextStyle(
-                          color: ThemeService.instance.isDark ? Colors.white : const Color(0xFF1C1C1E),
+                          color: AppTheme.of(context).text,
                           fontSize: 17,
                           fontWeight: FontWeight.w600)),
                   const Spacer(),
@@ -87,7 +88,7 @@ class DownloadListPage extends StatelessWidget {
                       child: Text(
                         active.length > 9 ? '9+' : '${active.length}',
                         style: const TextStyle(
-                            color: Colors.white,
+                            color: AppTheme.of(context).text,
                             fontSize: 11,
                             fontWeight: FontWeight.w700),
                       ),
@@ -95,7 +96,7 @@ class DownloadListPage extends StatelessWidget {
                 ]),
               ),
 
-              const Divider(color: Color(0xFF1C1C1C), height: 1),
+              Divider(color: AppTheme.current.isDark ? const Color(0xFF1C1C1C) : const Color(0xFFDDDDDD), height: 1),
 
               // Lista de activos
               Expanded(
@@ -111,7 +112,7 @@ class DownloadListPage extends StatelessWidget {
                             const SizedBox(height: 14),
                             const Text('Nenhum download em curso',
                                 style: TextStyle(
-                                    color: Colors.white38, fontSize: 13.5)),
+                                    color: AppTheme.current.isDark ? Colors.white38 : Colors.black38, fontSize: 13.5)),
                           ],
                         ),
                       )
@@ -164,7 +165,7 @@ class _ActiveDownloadCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      color: Colors.white,
+                      color: AppTheme.of(context).text,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
                       height: 1.3)),
@@ -181,7 +182,7 @@ class _ActiveDownloadCard extends StatelessWidget {
                       const SizedBox(width: 5),
                       Text('Concluído',
                           style: TextStyle(
-                              color: Colors.white.withOpacity(0.50),
+                              color: AppTheme.current.isDark ? Colors.white.withOpacity(0.50) : Colors.black45,
                               fontSize: 11)),
                     ]);
                   }
@@ -192,18 +193,18 @@ class _ActiveDownloadCard extends StatelessWidget {
                       const SizedBox(width: 5),
                       Text('Erro',
                           style: TextStyle(
-                              color: Colors.white.withOpacity(0.50),
+                              color: AppTheme.current.isDark ? Colors.white.withOpacity(0.50) : Colors.black45,
                               fontSize: 11)),
                     ]);
                   }
                   if (status == DownloadStatus.cancelled) {
                     return Row(children: [
                       Icon(Icons.cancel_rounded,
-                          color: Colors.white.withOpacity(0.30), size: 14),
+                          color: AppTheme.current.isDark ? Colors.white.withOpacity(0.30) : Colors.black26, size: 14),
                       const SizedBox(width: 5),
                       Text('Cancelado',
                           style: TextStyle(
-                              color: Colors.white.withOpacity(0.40),
+                              color: AppTheme.of(context).textHint,
                               fontSize: 11)),
                     ]);
                   }
@@ -229,7 +230,7 @@ class _ActiveDownloadCard extends StatelessWidget {
                               ? '${(p * 100).toStringAsFixed(0)}%'
                               : 'A iniciar...',
                           style: TextStyle(
-                              color: Colors.white.withOpacity(0.40),
+                              color: AppTheme.of(context).textHint,
                               fontSize: 10.5),
                         ),
                       ],
@@ -257,9 +258,9 @@ class _ActiveDownloadCard extends StatelessWidget {
   }
 
   Widget _thumbPlaceholder() => Container(
-        color: const Color(0xFF1A1A1A),
+        color: AppTheme.current.card,
         child: const Center(
-          child: Icon(Icons.video_file_rounded, color: Colors.white24, size: 28),
+          child: Icon(Icons.video_file_rounded, color: AppTheme.of(context).iconFaint, size: 28),
         ),
       );
 }
@@ -293,7 +294,7 @@ class DownloadListBadge extends StatelessWidget {
                   child: Text(
                     count > 9 ? '9+' : '$count',
                     style: const TextStyle(
-                        color: Colors.white,
+                        color: AppTheme.of(context).text,
                         fontSize: 9,
                         fontWeight: FontWeight.w700),
                   ),

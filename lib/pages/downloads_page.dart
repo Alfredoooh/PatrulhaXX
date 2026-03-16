@@ -10,17 +10,18 @@ import 'package:chewie/chewie.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/download_service.dart';
 import '../services/theme_service.dart';
+import '../theme/app_theme.dart';
 import '../services/transfer_service.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 const _kPrimary = Color(0xFFFF9000);
 
 // ── Cores reactivas ao tema ───────────────────────────────────────────────────
-Color get _bg   => ThemeService.instance.isDark ? const Color(0xFF111111) : const Color(0xFFF2F2F7);
-Color get _card => ThemeService.instance.isDark ? const Color(0xFF1A1A1A) : Colors.white;
-Color get _textPrimary => ThemeService.instance.isDark ? Colors.white : const Color(0xFF1C1C1E);
-Color get _textSub     => ThemeService.instance.isDark ? Colors.white54 : Colors.black45;
-Color get _divider     => ThemeService.instance.isDark ? Colors.white12 : Colors.black12;
+Color get _bg   => AppTheme.current.isDark ? const Color(0xFF111111) : const Color(0xFFF2F2F7);
+Color get _card => AppTheme.current.card;
+Color get _textPrimary => AppTheme.current.text;
+Color get _textSub     => AppTheme.current.isDark ? Colors.white54 : Colors.black45;
+Color get _divider     => AppTheme.current.isDark ? Colors.white12 : Colors.black12;
 
 
 const _kBg      = Color(0xFF111111);
@@ -28,64 +29,25 @@ const _kCard2   = Color(0xFF1A1A1A);
 
 // ─── ÍCONE DE VOLTAR (conforme enviado) ──────────────────────────────────────
 const _svgBack =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23'
-    'a1,1,0,0,0,1-1h0a1,1,0,0,0-1-1H2.55L6.17,7.38A1,1,0,0,0,6.17,6h0A1,1,0,0,0,'
-    '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/></svg>';
+    __SVG_0__;
 
 const _svgSend =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="m4.034.282C2.981-.22,1.748-.037.893.749.054,1.521-.22,2.657.18,3.717'
-    'l4.528,8.288L.264,20.288c-.396,1.061-.121,2.196.719,2.966.524.479,1.19.734,'
-    '1.887.734.441,0,.895-.102,1.332-.312l19.769-11.678L4.034.282Zm-2.002,2.676'
-    'c-.114-.381.108-.64.214-.736.095-.087.433-.348.895-.149l15.185,8.928H6.438'
-    'L2.032,2.958Zm1.229,18.954c-.472.228-.829-.044-.928-.134-.105-.097-.329-.355'
-    '-.214-.737l4.324-8.041h11.898L3.261,21.912Z"/></svg>';
+    __SVG_1__;
 
 const _svgQr =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M3,3h7v7H3V3Zm2,2v3h3V5H5Z"/>'
-    '<path d="M14,3h7v7h-7V3Zm2,2v3h3V5h-3Z"/>'
-    '<path d="M3,14h7v7H3v-7Zm2,2v3h3v-3H5Z"/>'
-    '<path d="M14,14h2v2h-2v-2Z"/><path d="M18,14h3v2h-3v-2Z"/>'
-    '<path d="M14,18h2v3h-2v-3Z"/><path d="M18,18h3v3h-3v-3Z"/>'
-    '</svg>';
+    __SVG_2__;
 
 const _svgTrash =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M21,4H17.9A5.009,5.009,0,0,0,13,0H11A5.009,5.009,0,0,0,6.1,4H3'
-    'A1,1,0,0,0,3,6H4V19a5.006,5.006,0,0,0,5,5h6a5.006,5.006,0,0,0,5-5V6h1'
-    'a1,1,0,0,0,0-2ZM11,2h2a3.006,3.006,0,0,1,2.829,2H8.171A3.006,3.006,0,0,1,11,2Z'
-    'm7,17a3,3,0,0,1-3,3H9a3,3,0,0,1-3-3V6H18Z"/>'
-    '<path d="M10,18a1,1,0,0,0,1-1V11a1,1,0,0,0-2,0v6A1,1,0,0,0,10,18Z"/>'
-    '<path d="M14,18a1,1,0,0,0,1-1V11a1,1,0,0,0-2,0v6A1,1,0,0,0,14,18Z"/>'
-    '</svg>';
+    __SVG_3__;
 
 const _svgWifi =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<circle cx="12" cy="20" r="2" fill="currentColor"/>'
-    '<path d="M12,13a8,8,0,0,0-5.657,2.343,1,1,0,1,0,1.414,1.414,6,6,0,0,1,8.486,0,1,1,0,1,0,1.414-1.414A8,8,0,0,0,12,13Z" fill="currentColor"/>'
-    '<path d="M12,8A13,13,0,0,0,2.808,11.808a1,1,0,1,0,1.414,1.414,11,11,0,0,1,15.556,0,1,1,0,0,0,1.414-1.414A13,13,0,0,0,12,8Z" fill="currentColor"/>'
-    '<path d="M23.536,4.05A18,18,0,0,0,.464,4.05,1,1,0,1,0,1.878,5.464a16,16,0,0,1,20.244,0A1,1,0,1,0,23.536,4.05Z" fill="currentColor"/>'
-    '</svg>';
+    __SVG_4__;
 
 const _svgHotspot =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z"/>'
-    '<circle cx="12" cy="12" r="3"/>'
-    '<path d="M12,7a5,5,0,1,0,5,5A5,5,0,0,0,12,7Zm0,8a3,3,0,1,1,3-3A3,3,0,0,1,12,15Z" opacity=".4"/>'
-    '</svg>';
+    __SVG_5__;
 
 const _svgScanner =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="m23,13H1c-.552,0-1-.448-1-1s.448-1,1-1h22c.552,0,1,.448,1,1s-.448,1-1,1Z'
-    'm-15,10c0-.552-.448-1-1-1h-2c-1.654,0-3-1.346-3-3v-2c0-.552-.448-1-1-1s-1,.448-1,1'
-    'v2c0,2.757,2.243,5,5,5h2c.552,0,1-.448,1-1Zm16-4v-2c0-.552-.448-1-1-1s-1,.448-1,1v2'
-    'c0,1.654-1.346,3-3,3h-2c-.552,0-1,.448-1,1s.448,1,1,1h2c2.757,0,5-2.243,5-5Z'
-    'm0-12v-2c0-2.757-2.243-5-5-5h-2c-.552,0-1,.448-1,1s.448,1,1,1h2c1.654,0,3,1.346,3,3'
-    'v2c0,.552.448,1,1,1s1-.448,1-1Zm-22,0v-2c0-1.654,1.346-3,3-3h2c.552,0,1-.448,1-1'
-    's-.448-1-1-1h-2C2.243,0,0,2.243,0,5v2c0,.552.448,1,1,1s1-.448,1-1Z"/>'
-    '</svg>';
+    __SVG_6__;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DownloadsPage
@@ -501,7 +463,7 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
                 colorFilter: ColorFilter.mode(Colors.white.withOpacity(0.2), BlendMode.srcIn)),
             const SizedBox(height: 16),
             const Text('A ativar hotspot…',
-                style: TextStyle(color: Colors.white38, fontSize: 14)),
+                style: TextStyle(color: AppTheme.current.isDark ? Colors.white38 : Colors.black38, fontSize: 14)),
             const SizedBox(height: 20),
             const CircularProgressIndicator(color: _kPrimary, strokeWidth: 1.5),
           ]))
@@ -550,7 +512,7 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.06),
+                  color: AppTheme.current.isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: Colors.white.withOpacity(0.1)),
                 ),
@@ -562,7 +524,7 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
                       style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12)),
 
                   const SizedBox(height: 16),
-                  const Divider(color: Colors.white12, height: 1),
+                  const Divider(color: AppTheme.current.isDark ? Colors.white12 : Colors.black12, height: 1),
                   const SizedBox(height: 16),
 
                   // SSID + password visíveis para inserção manual
@@ -573,7 +535,7 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
                       children: [
                         Text('Ou insere manualmente no outro app:',
                             style: TextStyle(
-                                color: Colors.white.withOpacity(0.35), fontSize: 11)),
+                                color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26, fontSize: 11)),
                         const SizedBox(height: 10),
                         _NetworkInfo(ssid: _ssid, password: _password),
                       ],
@@ -634,7 +596,7 @@ class _NetworkInfoState extends State<_NetworkInfo> {
 
   Widget _row(String label, String value, bool isSsid, bool copied) => Row(children: [
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 11)),
+      Text(label, style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26, fontSize: 11)),
       const SizedBox(height: 2),
       Text(
         isSsid ? value : (_showPass ? value : '••••••••'),
@@ -646,7 +608,7 @@ class _NetworkInfoState extends State<_NetworkInfo> {
       GestureDetector(
         onTap: () => setState(() => _showPass = !_showPass),
         child: Icon(_showPass ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-            color: Colors.white24, size: 16),
+            color: AppTheme.current.thumbIcon, size: 16),
       ),
     const SizedBox(width: 8),
     GestureDetector(
@@ -665,7 +627,7 @@ class _NetworkInfoState extends State<_NetworkInfo> {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     decoration: BoxDecoration(
-      color: Colors.white.withOpacity(0.05),
+      color: AppTheme.current.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
       borderRadius: BorderRadius.circular(10),
     ),
     child: Column(children: [
@@ -686,7 +648,7 @@ class _QrDisplay extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: 160,
     height: 160,
-    color: Colors.white,
+    color: AppTheme.current.text,
     padding: const EdgeInsets.all(8),
     child: QrImageView(
       data: payload,
@@ -712,7 +674,7 @@ class _FileBar extends StatelessWidget {
             Text(p.done
                 ? TransferService.formatBytes(p.totalBytes)
                 : '${TransferService.formatBytes(p.sentBytes)} · $speed',
-                style: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 11)),
+                style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26, fontSize: 11)),
           ]),
           const SizedBox(height: 6),
           ClipRRect(borderRadius: BorderRadius.circular(3),
@@ -786,11 +748,11 @@ class _RealViewfinderState extends State<_RealViewfinder> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.black54,
+                color: AppTheme.current.isDark ? Colors.black54 : Colors.white70,
                 borderRadius: BorderRadius.circular(100),
               ),
               child: const Text('Aponta para o QR do recetor',
-                  style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  style: TextStyle(color: AppTheme.current.iconSub, fontSize: 12)),
             ),
           ),
         ),
@@ -911,9 +873,9 @@ class _Tile extends StatelessWidget {
       child: ClipRRect(borderRadius: BorderRadius.circular(4),
         child: AspectRatio(aspectRatio: isVideo ? 9/16 : _ratio,
           child: Stack(fit: StackFit.expand, children: [
-            Container(color: Colors.white.withOpacity(0.05)),
+            Container(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03)),
             if (!isVideo && file.existsSync()) Image.file(file, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: Colors.white.withOpacity(0.05))),
+                errorBuilder: (_, __, ___) => Container(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03))),
             if (isVideo) Center(child: Container(width: 42, height: 42,
                 decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.black.withOpacity(0.55)),
                 child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 26))),
@@ -923,7 +885,7 @@ class _Tile extends StatelessWidget {
             if (selectMode && !selected) Positioned(top: 4, right: 4,
               child: Container(width: 18, height: 18,
                 decoration: BoxDecoration(shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white54, width: 1.5), color: Colors.black38))),
+                    border: Border.all(color: AppTheme.current.isDark ? Colors.white54 : Colors.black45, width: 1.5), color: Colors.black38))),
           ]),
         ),
       ),
@@ -988,9 +950,9 @@ class _ViewerState extends State<_Viewer> {
     final isVideo = widget.item.type == 'video';
     final file = File(widget.item.localPath);
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppTheme.current.bg,
       appBar: AppBar(
-        backgroundColor: Colors.black, elevation: 0, surfaceTintColor: Colors.transparent,
+        backgroundColor: AppTheme.current.bg, elevation: 0, surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: SvgPicture.string(_svgBack, width: 20, height: 20,
               colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
@@ -1005,7 +967,7 @@ class _ViewerState extends State<_Viewer> {
                   Icon(Icons.videocam_off_rounded, color: Colors.white.withOpacity(0.18), size: 64),
                   const SizedBox(height: 12),
                   Text('Não foi possível reproduzir',
-                      style: TextStyle(color: Colors.white.withOpacity(0.35))),
+                      style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26)),
                 ]))
               : !_ready
                   ? const Center(child: CircularProgressIndicator(color: _kPrimary, strokeWidth: 1.5))
@@ -1025,14 +987,14 @@ class _ViewerState extends State<_Viewer> {
 Widget _handle() => Column(children: [
       const SizedBox(height: 10),
       Center(child: Container(width: 36, height: 4,
-          decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(2)))),
+          decoration: BoxDecoration(color: AppTheme.current.isDark ? Colors.white12 : Colors.black12, borderRadius: BorderRadius.circular(2)))),
       const SizedBox(height: 14),
     ]);
 
 Widget _sub2(String t) => Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Text(t, textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white.withOpacity(0.38), fontSize: 13)));
+          style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.38) : Colors.black38, fontSize: 13)));
 
 class _T extends StatelessWidget {
   final String text;
@@ -1067,16 +1029,16 @@ class _BigBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GestureDetector(onTap: onTap,
         child: Container(height: 108,
-          decoration: BoxDecoration(color: Colors.white.withOpacity(0.07),
+          decoration: BoxDecoration(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.07) : Colors.black.withOpacity(0.04),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.08))),
+              border: Border.all(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05))),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             SvgPicture.string(svg, width: 27, height: 27,
                 colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
             const SizedBox(height: 8),
             Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
             const SizedBox(height: 2),
-            Text(sub, style: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 10)),
+            Text(sub, style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26, fontSize: 10)),
           ])));
 }
 
@@ -1090,7 +1052,7 @@ class _PrimaryBtn extends StatelessWidget {
           child: Container(height: 50,
             decoration: BoxDecoration(color: _kPrimary, borderRadius: BorderRadius.circular(14)),
             alignment: Alignment.center,
-            child: Text(label, style: const TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w700)))));
+            child: Text(label, style: const TextStyle(color: AppTheme.current.bg, fontSize: 15, fontWeight: FontWeight.w700)))));
 }
 
 class _GhostBtn extends StatelessWidget {
@@ -1101,10 +1063,10 @@ class _GhostBtn extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: GestureDetector(onTap: onTap,
           child: Container(height: 48,
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.07),
+            decoration: BoxDecoration(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.07) : Colors.black.withOpacity(0.04),
                 borderRadius: BorderRadius.circular(14)),
             alignment: Alignment.center,
-            child: Text(label, style: const TextStyle(color: Colors.white54, fontSize: 14)))));
+            child: Text(label, style: const TextStyle(color: AppTheme.current.isDark ? Colors.white54 : Colors.black45, fontSize: 14)))));
 }
 
 class _BackBtn extends StatelessWidget {
@@ -1114,7 +1076,7 @@ class _BackBtn extends StatelessWidget {
   Widget build(BuildContext context) => TextButton(
         onPressed: onTap,
         child: Text('← Voltar',
-            style: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 13)));
+            style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26, fontSize: 13)));
 }
 
 class _Field extends StatelessWidget {
@@ -1133,7 +1095,7 @@ class _Field extends StatelessWidget {
         onSubmitted: (_) => onDone(),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.25), fontSize: 13),
+          hintStyle: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.25) : Colors.black12, fontSize: 13),
           filled: true,
           fillColor: Colors.white.withOpacity(0.07),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),

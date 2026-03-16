@@ -10,6 +10,7 @@ import '../models/site_model.dart';
 import '../services/theme_service.dart';
 import 'browser_page.dart';
 import 'home_page.dart' show kPrimaryColor, FeedVideo, FeedFetcher,
+import '../theme/app_theme.dart';
     VideoSource, faviconForSource;
 
 // ─── Modelo original mantido para compatibilidade ────────────────────────────
@@ -300,17 +301,17 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     final ts      = ThemeService.instance;
     final isDark  = ts.isDark;
     final topPad  = MediaQuery.of(context).padding.top;
-    final bg      = isDark ? const Color(0xFF0C0C0C) : const Color(0xFFF5F5F5);
-    final appBarBg= isDark ? const Color(0xFF0C0C0C) : Colors.white;
+    final bg      = t.bg;
+    final appBarBg= t.appBar;
     final fieldBg = isDark ? Colors.white.withOpacity(0.09) : Colors.black.withOpacity(0.06);
-    final textCol = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final textCol = t.text;
     final subCol  = isDark ? Colors.white54 : Colors.black45;
     final divCol  = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE0E0E0);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarIconBrightness: AppTheme.of(context).statusBarBrightness,
       ),
       child: Scaffold(
         backgroundColor: bg,
@@ -636,9 +637,9 @@ class _VideoCard extends StatelessWidget {
                 cacheWidth: 640,
                 headers: const {'User-Agent': 'Mozilla/5.0'},
                 errorBuilder: (_, __, ___) => Container(
-                  color: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFE0E0E0),
+                  color: t.thumbBg,
                   child: Icon(Icons.play_circle_outline_rounded,
-                      color: isDark ? Colors.white24 : Colors.black26, size: 40),
+                      color: t.thumbIcon, size: 40),
                 ),
                 loadingBuilder: (_, child, p) {
                   if (p == null) return child;
@@ -654,7 +655,7 @@ class _VideoCard extends StatelessWidget {
                         color: Colors.black87,
                         borderRadius: BorderRadius.circular(3)),
                     child: Text(video.duration,
-                        style: const TextStyle(color: Colors.white,
+                        style: const TextStyle(color: AppTheme.of(context).text,
                             fontSize: 11, fontWeight: FontWeight.w600)),
                   ),
                 ),
@@ -675,7 +676,7 @@ class _VideoCard extends StatelessWidget {
                     decoration: const BoxDecoration(
                         color: Color(0xFF222222), shape: BoxShape.circle),
                     child: Center(child: Text(video.sourceInitial,
-                        style: const TextStyle(color: Colors.white54,
+                        style: const TextStyle(color: AppTheme.of(context).textSub,
                             fontSize: 12, fontWeight: FontWeight.w700))),
                   ),
                 ),
@@ -753,7 +754,7 @@ class _ImagesTab extends StatelessWidget {
                     ),
                   ),
                   child: Text(v.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white,
+                      style: const TextStyle(color: AppTheme.of(context).text,
                           fontSize: 10, fontWeight: FontWeight.w500)),
                 ),
               ),
@@ -912,7 +913,7 @@ class _DurationBadge extends StatelessWidget {
         color: Colors.black.withOpacity(0.75),
         borderRadius: BorderRadius.circular(4)),
     child: Text(text,
-        style: const TextStyle(color: Colors.white,
+        style: const TextStyle(color: AppTheme.of(context).text,
             fontSize: 10, fontWeight: FontWeight.w600)),
   );
 }
@@ -928,17 +929,17 @@ class _ErrorView extends StatelessWidget {
     child: Padding(
       padding: const EdgeInsets.all(32),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.wifi_off_rounded, color: Colors.white.withOpacity(0.12), size: 44),
+        Icon(Icons.wifi_off_rounded, color: AppTheme.current.isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.07), size: 44),
         const SizedBox(height: 12),
         Text(message, textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white.withOpacity(0.25), fontSize: 12)),
+            style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.25) : Colors.black12, fontSize: 12)),
         const SizedBox(height: 20),
         GestureDetector(
           onTap: onRetry,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.white.withOpacity(0.15)),
+              border: Border.all(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.15) : Colors.black12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text('Tentar novamente',
