@@ -6,6 +6,7 @@ import '../services/favicon_service.dart';
 import '../services/download_service.dart';
 import '../services/lock_service.dart';
 import '../services/theme_service.dart';
+import '../theme/app_theme.dart';
 import 'lock_screen.dart';
 
 // ─── Cor primária ─────────────────────────────────────────────────────────────
@@ -344,7 +345,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
           // ── Grelha de imagens (só visível quando switch ativo) ────────────
           if (_ts.useWallpaper) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             SizedBox(height: 160, child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -759,7 +760,7 @@ class _MiniSwitch extends StatelessWidget {
         height: _h,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(_h / 2),
-          color: value ? _kPrimary : (AppTheme.current.isDark ? Colors.white.withOpacity(0.14) : Colors.black.withOpacity(0.10)),
+          color: value ? _kPrimary : AppTheme.current.cardAlt,
         ),
         child: AnimatedAlign(
           duration: const Duration(milliseconds: 200),
