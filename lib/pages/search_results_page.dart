@@ -301,17 +301,17 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     final ts      = ThemeService.instance;
     final isDark  = ts.isDark;
     final topPad  = MediaQuery.of(context).padding.top;
-    final bg      = t.bg;
-    final appBarBg= t.appBar;
+    final bg      = AppTheme.current.bg;
+    final appBarBg= AppTheme.current.appBar;
     final fieldBg = isDark ? Colors.white.withOpacity(0.09) : Colors.black.withOpacity(0.06);
-    final textCol = t.text;
+    final textCol = AppTheme.current.text;
     final subCol  = isDark ? Colors.white54 : Colors.black45;
     final divCol  = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE0E0E0);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: AppTheme.current.statusBarBrightness,
+        statusBarIconBrightness: AppTheme.current.statusBar,
       ),
       child: Scaffold(
         backgroundColor: bg,
@@ -637,9 +637,9 @@ class _VideoCard extends StatelessWidget {
                 cacheWidth: 640,
                 headers: const {'User-Agent': 'Mozilla/5.0'},
                 errorBuilder: (_, __, ___) => Container(
-                  color: t.thumbBg,
+                  color: AppTheme.current.thumbBg,
                   child: Icon(Icons.play_circle_outline_rounded,
-                      color: t.thumbIcon, size: 40),
+                      color: AppTheme.current.thumbIcon, size: 40),
                 ),
                 loadingBuilder: (_, child, p) {
                   if (p == null) return child;
