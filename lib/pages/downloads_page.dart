@@ -9,10 +9,20 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/download_service.dart';
+import '../services/theme_service.dart';
 import '../services/transfer_service.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 const _kPrimary = Color(0xFFFF9000);
+
+// ── Cores reactivas ao tema ───────────────────────────────────────────────────
+Color get _bg   => ThemeService.instance.isDark ? const Color(0xFF111111) : const Color(0xFFF2F2F7);
+Color get _card => ThemeService.instance.isDark ? const Color(0xFF1A1A1A) : Colors.white;
+Color get _textPrimary => ThemeService.instance.isDark ? Colors.white : const Color(0xFF1C1C1E);
+Color get _textSub     => ThemeService.instance.isDark ? Colors.white54 : Colors.black45;
+Color get _divider     => ThemeService.instance.isDark ? Colors.white12 : Colors.black12;
+
+
 const _kBg      = Color(0xFF111111);
 const _kCard2   = Color(0xFF1A1A1A);
 
@@ -95,9 +105,9 @@ class _DownloadsPageState extends State<DownloadsPage> {
   Widget build(BuildContext context) {
     final items = _svc.items;
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: _kBg,
+        backgroundColor: _bg,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
@@ -186,7 +196,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
 
   void _showSheet(Widget child) => showModalBottomSheet(
         context: context,
-        backgroundColor: _kCard2,
+        backgroundColor: _card,
         isScrollControlled: true,
         shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(22))),

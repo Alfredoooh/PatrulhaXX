@@ -224,6 +224,7 @@ class _HomePageState extends State<HomePage>
   int _tab = 1; // Feed é o tab principal
   String? _selectedEmbedUrl;
   FeedVideo? _selectedVideo;
+  bool _miniPlayerActive = false; // vídeo a tocar em mini player
   late final AnimationController _fadeIn;
 
   // Cor extraída via HTML do wallpaper
@@ -279,7 +280,7 @@ class _HomePageState extends State<HomePage>
       ),
       child: Scaffold(
         extendBody: false,
-        backgroundColor: Colors.black,
+        backgroundColor: ThemeService.instance.isDark ? Colors.black : const Color(0xFFF5F5F5),
         body: Column(children: [
           // ── Tabs — IndexedStack preserva estado do feed ───────────────
           Expanded(
@@ -327,12 +328,35 @@ class _HomePageState extends State<HomePage>
             ),
           ),
 
+          // ── Mini Player — aparece entre conteúdo e bottom nav ────────
+          if (_miniPlayerActive && _selectedVideo != null)
+            _MiniPlayer(
+              video: _selectedVideo!,
+              onTap: () => setState(() {
+                _miniPlayerActive = false;
+                _tab = 2;
+              }),
+              onClose: () => setState(() {
+                _miniPlayerActive = false;
+                _selectedVideo = null;
+                _selectedEmbedUrl = null;
+              }),
+            ),
+
           // ── Bottom Nav fixo ────────────────────────────────────────────
           _BottomNav(
             tab: _tab,
             onTab: (i) {
               setState(() {
-                if (i == 2 && i != _tab) { _selectedEmbedUrl = null; _selectedVideo = null; }
+                if (i == 2 && i != _tab) {
+                  _selectedEmbedUrl = null;
+                  _selectedVideo = null;
+                  _miniPlayerActive = false;
+                } else if (i != 2 && _tab == 2 && _selectedVideo != null) {
+                  _miniPlayerActive = true;
+                } else if (i == 2) {
+                  _miniPlayerActive = false;
+                }
                 _tab = i;
               });
             },
@@ -345,6 +369,187 @@ class _HomePageState extends State<HomePage>
   }
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _MiniPlayer — vídeo em curso abaixo do conteúdo, acima do bottom nav
+// ─────────────────────────────────────────────────────────────────────────────
+class _MiniPlayer extends StatefulWidget {
+  final FeedVideo video;
+  final VoidCallback onTap;
+  final VoidCallback onClose;
+  const _MiniPlayer({required this.video, required this.onTap, required this.onClose});
+  @override
+  State<_MiniPlayer> createState() => _MiniPlayerState();
+}
+
+class _MiniPlayerState extends State<_MiniPlayer>
+    with SingleTickerProviderStateMixin {
+  InAppWebViewController? _ctrl;
+  bool _playing = true;
+  late final AnimationController _slideIn;
+
+  @override
+  void initState() {
+    super.initState();
+    _slideIn = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 320));
+    _slideIn.forward();
+    // Auto-play após 1s
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (mounted) {
+        _ctrl?.evaluateJavascript(
+            source: 'document.querySelector("video")?.play()');
+      }
+    });
+  }
+
+  @override
+  void dispose() { _slideIn.dispose(); super.dispose(); }
+
+  void _togglePlay() {
+    _ctrl?.evaluateJavascript(source: _playing
+        ? 'document.querySelector("video")?.pause()'
+        : 'document.querySelector("video")?.play()');
+    setState(() => _playing = !_playing);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = ThemeService.instance.isDark;
+    final bg = isDark ? const Color(0xFF212121) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final subColor = isDark ? Colors.white54 : Colors.black45;
+
+    return SlideTransition(
+      position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+          .animate(CurvedAnimation(parent: _slideIn, curve: Curves.easeOutCubic)),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          // Colado ao bottom nav — sem margem lateral, sem margem inferior
+          width: double.infinity,
+          height: 64,
+          color: bg,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Linha de progresso no topo (como YouTube) ────────────
+              Container(
+                height: 2,
+                color: isDark
+                    ? Colors.white.withOpacity(0.08)
+                    : Colors.black.withOpacity(0.06),
+                child: FractionallySizedBox(
+                  widthFactor: 0.35, // placeholder — sem progresso real no embed
+                  alignment: Alignment.centerLeft,
+                  child: Container(color: kPrimaryColor),
+                ),
+              ),
+
+              // ── Conteúdo ──────────────────────────────────────────────
+              Expanded(
+                child: Row(children: [
+
+                  // Thumbnail — sem padding lateral, colado à esquerda
+                  SizedBox(
+                    width: 114, height: 62,
+                    child: Stack(fit: StackFit.expand, children: [
+                      Image.network(
+                        widget.video.thumb,
+                        fit: BoxFit.cover,
+                        headers: const {'User-Agent': 'Mozilla/5.0'},
+                        errorBuilder: (_, __, ___) => Container(
+                          color: const Color(0xFF333333),
+                          child: const Icon(Icons.play_circle_rounded,
+                              color: Colors.white38, size: 28),
+                        ),
+                      ),
+                      // WebView invisível — mantém embed activo em background
+                      Opacity(
+                        opacity: 0.0,
+                        child: InAppWebView(
+                          key: ValueKey(widget.video.embedUrl),
+                          initialUrlRequest: URLRequest(
+                              url: WebUri(widget.video.embedUrl)),
+                          initialSettings: InAppWebViewSettings(
+                            javaScriptEnabled: true,
+                            mediaPlaybackRequiresUserGesture: false,
+                            allowsInlineMediaPlayback: true,
+                          ),
+                          onWebViewCreated: (c) => _ctrl = c,
+                        ),
+                      ),
+                    ]),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  // Título + canal
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.video.title,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.video.sourceLabel,
+                          style: TextStyle(color: subColor, fontSize: 11.5),
+                          maxLines: 1,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ── Pause / Play — ícone grande como YouTube ──────────
+                  GestureDetector(
+                    onTap: _togglePlay,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Icon(
+                        _playing
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        color: textColor,
+                        size: 28,
+                      ),
+                    ),
+                  ),
+
+                  // ── Fechar ────────────────────────────────────────────
+                  GestureDetector(
+                    onTap: widget.onClose,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 16),
+                      child: Icon(
+                        Icons.close_rounded,
+                        color: subColor,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // _BottomNav
 // Feed: pill sempre activo com SVG vermelho sempre ligado
@@ -354,7 +559,7 @@ class _BottomNav extends StatelessWidget {
   final int tab;
   final void Function(int) onTab;
   final double navH, safeBottom;
-  static const _kBg = Color(0xFF111111);
+  Color get _kBg => ThemeService.instance.isDark ? const Color(0xFF111111) : Colors.white;
 
   const _BottomNav({
     required this.tab, required this.onTab,
@@ -364,7 +569,10 @@ class _BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: _kBg,
+      decoration: BoxDecoration(
+        color: _kBg,
+        border: ThemeService.instance.isDark ? null : const Border(top: BorderSide(color: Color(0xFFE0E0E0), width: 0.5)),
+      ),
       padding: EdgeInsets.only(bottom: safeBottom),
       height: navH + safeBottom,
       child: Row(
@@ -414,7 +622,8 @@ class _NavIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? Colors.white : Colors.white.withOpacity(0.38);
+    final isDark = ThemeService.instance.isDark;
+    final color = active ? (isDark ? Colors.white : const Color(0xFF1C1C1E)) : (isDark ? Colors.white.withOpacity(0.38) : Colors.black38);
     final iconW = ColorFiltered(
       colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
       child: SvgPicture.string(active ? svgFilled : svgOutline, width: 22, height: 22),
@@ -460,31 +669,25 @@ class _NavFeedPill extends StatelessWidget {
         curve: Curves.easeInOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
+          // Activo: fill branco translúcido — Inactivo: apenas borda cinza
           color: active ? Colors.white.withOpacity(0.13) : Colors.transparent,
           borderRadius: BorderRadius.circular(100),
           border: Border.all(
-            color: active ? Colors.transparent : Colors.white.withOpacity(0.22),
+            color: ThemeService.instance.isDark ? Colors.white.withOpacity(active ? 0.0 : 0.28) : Colors.black.withOpacity(active ? 0.0 : 0.18),
             width: 1.2,
           ),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           SvgPicture.string(_svgShortsActive, width: 22, height: 22),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 260),
-            curve: Curves.easeInOutCubic,
-            child: active
-                ? const Row(children: [
-                    SizedBox(width: 7),
-                    Text('Feed',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -0.2,
-                      )),
-                  ])
-                : const SizedBox.shrink(),
-          ),
+          // Texto "Feed" SEMPRE visível
+          const SizedBox(width: 7),
+          Text('Feed',
+            style: TextStyle(
+              color: (ThemeService.instance.isDark ? Colors.white : const Color(0xFF1C1C1E)).withOpacity(active ? 1.0 : 0.65),
+              fontSize: 13,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+              letterSpacing: -0.2,
+            )),
         ]),
       ),
     );
@@ -564,6 +767,126 @@ class _WallpaperColorExtractorState extends State<_WallpaperColorExtractor> {
 // ─────────────────────────────────────────────────────────────────────────────
 // _HomeTab
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─── AppBar do Navegar ────────────────────────────────────────────────────────
+class _NavAppBar extends StatelessWidget {
+  final VoidCallback onMenu;
+  const _NavAppBar({required this.onMenu});
+
+  @override
+  Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    return Padding(
+      padding: EdgeInsets.only(top: topPad + 6, bottom: 4),
+      child: Row(children: [
+        // Menu hamburguer
+        GestureDetector(
+          onTap: onMenu,
+          child: Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.07),
+              shape: BoxShape.circle,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _HamburgerLine(),
+                const SizedBox(height: 4),
+                _HamburgerLine(width: 14),
+                const SizedBox(height: 4),
+                _HamburgerLine(),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        const Text('Navegar',
+          style: TextStyle(color: Colors.white, fontSize: 20,
+              fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+      ]),
+    );
+  }
+}
+
+class _HamburgerLine extends StatelessWidget {
+  final double width;
+  const _HamburgerLine({this.width = 18});
+  @override
+  Widget build(BuildContext context) => Container(
+    width: width, height: 1.8,
+    decoration: BoxDecoration(
+      color: Colors.white70,
+      borderRadius: BorderRadius.circular(2),
+    ),
+  );
+}
+
+// ─── Drawer do Navegar ────────────────────────────────────────────────────────
+class _NavDrawer extends StatelessWidget {
+  final VoidCallback onDownloads;
+  final VoidCallback onSettings;
+  const _NavDrawer({required this.onDownloads, required this.onSettings});
+
+  @override
+  Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    return Drawer(
+      backgroundColor: ThemeService.instance.isDark ? const Color(0xFF111111) : Colors.white,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(height: topPad + 20),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Row(children: [
+            SvgPicture.string(_svgShortsActive, width: 32, height: 32),
+            const SizedBox(width: 10),
+            const Text('patrulhaXX',
+              style: TextStyle(color: ThemeService.instance.isDark ? Colors.white : const Color(0xFF1C1C1E), fontSize: 18,
+                  fontWeight: FontWeight.w700)),
+          ]),
+        ),
+        const Divider(color: Color(0xFF222222), height: 1),
+        const SizedBox(height: 8),
+        _DrawerItem(
+          icon: Icons.download_rounded,
+          label: 'Downloads',
+          onTap: () { Navigator.pop(context); onDownloads(); },
+        ),
+        _DrawerItem(
+          icon: Icons.settings_rounded,
+          label: 'Definições',
+          onTap: () { Navigator.pop(context); onSettings(); },
+        ),
+        const Spacer(),
+        const Divider(color: Color(0xFF222222), height: 1),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+          child: Text('patrulhaXX',
+            style: TextStyle(color: Colors.white.withOpacity(0.25),
+                fontSize: 11)),
+        ),
+      ]),
+    );
+  }
+}
+
+class _DrawerItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _DrawerItem({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: Icon(icon, color: Colors.white70, size: 22),
+    title: Text(label,
+        style: const TextStyle(color: Colors.white, fontSize: 14,
+            fontWeight: FontWeight.w500)),
+    onTap: onTap,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+  );
+}
+
 class _HomeTab extends StatelessWidget {
   final AnimationController fadeIn;
   final double navBottom;
@@ -587,9 +910,15 @@ class _HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ts = ThemeService.instance;
-    return Stack(fit: StackFit.expand, children: [
+    return Scaffold(
+      backgroundColor: ThemeService.instance.isDark ? const Color(0xFF0C0C0C) : const Color(0xFFF0F0F5),
+      drawer: _NavDrawer(
+        onDownloads: onDownloads,
+        onSettings: onSettings,
+      ),
+      body: Builder(builder: (scaffoldCtx) => Stack(fit: StackFit.expand, children: [
       // Fundo
-      Container(color: const Color(0xFF0C0C0C)),
+      Container(color: ThemeService.instance.isDark ? const Color(0xFF0C0C0C) : const Color(0xFFF0F0F5)),
 
       // Wallpaper (muda instantaneamente com key)
       if (ts.useWallpaper && ts.bg.isNotEmpty)
@@ -620,17 +949,20 @@ class _HomeTab extends StatelessWidget {
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ── Search bar — abre SearchResultsPage com SharedAxisTransition
+                    // ── AppBar Navegar com menu drawer ─────────────────
+                    _NavAppBar(onMenu: () => Scaffold.of(scaffoldCtx).openDrawer()),
+                    const SizedBox(height: 10),
+                    // ── Search bar ─────────────────────────────────────
                     _SearchTrigger(
                       navColor: navColor,
                       navIsLight: navIsLight,
                     ),
                     const SizedBox(height: 10),
-                    // ── Botões Downloads + Settings com cor adaptativa
+                    // ── Botões Downloads + Settings ────────────────────
                     _ActionRow(
                       onDownloads: onDownloads,
                       onSettings: onSettings,
@@ -649,7 +981,8 @@ class _HomeTab extends StatelessWidget {
           SliverToBoxAdapter(child: SizedBox(height: navBottom + 16)),
         ]),
       ),
-    ]);
+    ])),
+    );
   }
 }
 
@@ -708,7 +1041,11 @@ class _SearchTrigger extends StatelessWidget {
           ]),
         ),
       ),
-      openBuilder: (_, __) => const _SearchPage(),
+      openBuilder: (context, __) => SearchPage(
+        onVideoTap: (v) {
+          Navigator.pop(context);
+        },
+      ),
     );
   }
 }
@@ -753,7 +1090,7 @@ class _SearchPageState extends State<_SearchPage> {
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: ThemeService.instance.isDark ? Colors.black : const Color(0xFFF5F5F5),
         body: Column(children: [
           SizedBox(height: topPad + 12),
           // Barra de pesquisa
@@ -942,7 +1279,7 @@ class _ActionBtn extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Modelo unificado de vídeo — 4 fontes: Eporner, Pornhub, RedTube, YouPorn
 // ─────────────────────────────────────────────────────────────────────────────
-enum VideoSource { eporner, pornhub, redtube, youporn }
+enum VideoSource { eporner, pornhub, redtube, youporn, xvideos, xhamster, spankbang }
 
 class FeedVideo {
   final String title;
@@ -963,6 +1300,9 @@ class FeedVideo {
       case VideoSource.pornhub:  return 'Pornhub';
       case VideoSource.redtube:  return 'RedTube';
       case VideoSource.youporn:  return 'YouPorn';
+      case VideoSource.xvideos:  return 'XVideos';
+      case VideoSource.xhamster: return 'xHamster';
+      case VideoSource.spankbang: return 'SpankBang';
     }
   }
 
@@ -972,6 +1312,9 @@ class FeedVideo {
       case VideoSource.pornhub:  return 'P';
       case VideoSource.redtube:  return 'R';
       case VideoSource.youporn:  return 'Y';
+      case VideoSource.xvideos:  return 'XV';
+      case VideoSource.xhamster: return 'XH';
+      case VideoSource.spankbang: return 'SB';
     }
   }
 
@@ -981,11 +1324,17 @@ class FeedVideo {
   static FeedVideo? fromEporner(Map<String, dynamic> j) {
     final id = j['id'] as String? ?? '';
     if (id.isEmpty) return null;
-    final thumb = (j['thumbs'] as List?)?.isNotEmpty == true
-        ? ((j['thumbs'] as List).first['src'] as String? ?? '') : '';
+    String thumb = '';
+    final thumbs = j['thumbs'] as List?;
+    if (thumbs != null && thumbs.isNotEmpty) {
+      // Prefere maior resolução disponível
+      final sorted = thumbs.map((t) => t as Map).toList()
+        ..sort((a, b) => ((b['width'] ?? 0) as int).compareTo((a['width'] ?? 0) as int));
+      thumb = sorted.first['src'] as String? ?? '';
+    }
     if (thumb.isEmpty) return null;
     return FeedVideo(
-      title: j['title'] as String? ?? '',
+      title: FeedVideo.cleanTitle(j['title'] as String? ?? ''),
       thumb: thumb,
       embedUrl: 'https://www.eporner.com/embed/$id/',
       duration: j['duration'] as String? ?? '',
@@ -1007,7 +1356,7 @@ class FeedVideo {
     if (thumb.isEmpty) thumb = j['default_thumb'] as String? ?? '';
     if (thumb.isEmpty) return null;
     return FeedVideo(
-      title: j['title'] as String? ?? '',
+      title: FeedVideo.cleanTitle(j['title'] as String? ?? ''),
       thumb: thumb,
       embedUrl: 'https://www.pornhub.com/embed/$viewkey',
       duration: j['duration'] as String? ?? '',
@@ -1023,7 +1372,7 @@ class FeedVideo {
     final thumb = j['thumb'] as String? ?? j['default_thumb'] as String? ?? '';
     if (thumb.isEmpty) return null;
     return FeedVideo(
-      title: j['title'] as String? ?? '',
+      title: FeedVideo.cleanTitle(j['title'] as String? ?? ''),
       thumb: thumb,
       embedUrl: 'https://embed.redtube.com/?id=$vid',
       duration: j['duration'] as String? ?? '',
@@ -1039,12 +1388,77 @@ class FeedVideo {
     final thumb = j['thumb'] as String? ?? j['default_thumb'] as String? ?? '';
     if (thumb.isEmpty) return null;
     return FeedVideo(
-      title: j['title'] as String? ?? '',
+      title: FeedVideo.cleanTitle(j['title'] as String? ?? ''),
       thumb: thumb,
       embedUrl: 'https://www.youporn.com/embed/$id/',
       duration: j['duration'] as String? ?? '',
       views: _fmtViews(j['views']),
       source: VideoSource.youporn,
+    );
+  }
+
+  static String cleanTitle(String raw) {
+    // Corrige títulos com encoding errado (latin1 interpretado como utf8)
+    try {
+      final bytes = latin1.encode(raw);
+      final decoded = utf8.decode(bytes, allowMalformed: true);
+      // Se o resultado tem mais caracteres válidos, usa-o
+      if (decoded.runes.where((r) => r > 127).length <
+          raw.runes.where((r) => r > 127).length) {
+        return decoded;
+      }
+    } catch (_) {}
+    return raw;
+  }
+
+
+  // ── XVideos ────────────────────────────────────────────────────────────────
+  static FeedVideo? fromXvideos(Map<String, dynamic> j) {
+    final id = (j['id'] ?? j['video_id'] ?? '').toString();
+    if (id.isEmpty || id == '0') return null;
+    final thumb = j['thumb'] as String? ?? j['thumbnail'] as String? ??
+        j['default_thumb'] as String? ?? '';
+    if (thumb.isEmpty) return null;
+    return FeedVideo(
+      title:    cleanTitle(j['title'] as String? ?? ''),
+      thumb:    thumb,
+      embedUrl: 'https://www.xvideos.com/embedframe/$id',
+      duration: j['duration'] as String? ?? '',
+      views:    _fmtViews(j['views'] ?? j['nb_views']),
+      source:   VideoSource.xvideos,
+    );
+  }
+
+  // ── xHamster ───────────────────────────────────────────────────────────────
+  static FeedVideo? fromXhamster(Map<String, dynamic> j) {
+    final id = (j['id'] ?? '').toString();
+    if (id.isEmpty) return null;
+    final thumb = j['thumbUrl'] as String? ?? j['thumb'] as String? ??
+        j['thumbnail'] as String? ?? '';
+    if (thumb.isEmpty) return null;
+    return FeedVideo(
+      title:    cleanTitle(j['title'] as String? ?? ''),
+      thumb:    thumb,
+      embedUrl: 'https://xhamster.com/xembed.php?video=$id',
+      duration: j['duration']?.toString() ?? '',
+      views:    _fmtViews(j['views']),
+      source:   VideoSource.xhamster,
+    );
+  }
+
+  // ── SpankBang ───────────────────────────────────────────────────────────────
+  static FeedVideo? fromSpankbang(Map<String, dynamic> j) {
+    final id = (j['id'] ?? j['video_id'] ?? '').toString();
+    if (id.isEmpty) return null;
+    final thumb = j['thumb'] as String? ?? j['thumbnail'] as String? ?? '';
+    if (thumb.isEmpty) return null;
+    return FeedVideo(
+      title:    cleanTitle(j['title'] as String? ?? ''),
+      thumb:    thumb,
+      embedUrl: 'https://spankbang.com/$id/embed/',
+      duration: j['duration']?.toString() ?? '',
+      views:    _fmtViews(j['views']),
+      source:   VideoSource.spankbang,
     );
   }
 
@@ -1069,9 +1483,10 @@ class FeedFetcher {
   static Future<List<FeedVideo>> fetchEporner(int page) async {
     try {
       final order = _epOrders[Random().nextInt(_epOrders.length)];
+      final term = _terms[Random().nextInt(_terms.length)];
       final r = await http.get(
         Uri.parse('https://www.eporner.com/api/v2/video/search/'
-            '?query=&per_page=20&page=$page&thumbsize=big&order=$order&format=json'),
+            '?query=$term&per_page=20&page=$page&thumbsize=big&order=$order&format=json'),
         headers: {'User-Agent': _ua},
       ).timeout(const Duration(seconds: 12));
       if (r.statusCode != 200) return [];
@@ -1086,9 +1501,10 @@ class FeedFetcher {
   static Future<List<FeedVideo>> fetchPornhub(int page) async {
     try {
       final order = _phOrders[Random().nextInt(_phOrders.length)];
+      final term = _terms[Random().nextInt(_terms.length)];
       final r = await http.get(
         Uri.parse('https://www.pornhub.com/webmasters/search'
-            '?search=&ordering=$order&page=$page&thumbsize=medium&format=json'),
+            '?search=$term&ordering=$order&page=$page&thumbsize=medium&format=json'),
         headers: {'User-Agent': _ua},
       ).timeout(const Duration(seconds: 14));
       if (r.statusCode != 200) return [];
@@ -1104,10 +1520,11 @@ class FeedFetcher {
   static Future<List<FeedVideo>> fetchRedtube(int page) async {
     try {
       final order = _rtOrders[Random().nextInt(_rtOrders.length)];
+      final term = _terms[Random().nextInt(_terms.length)];
       final r = await http.get(
         Uri.parse('https://api.redtube.com/'
             '?data=redtube.Videos.searchVideos&output=json'
-            '&search=&ordering=$order&page=$page&thumbsize=big'),
+            '&search=$term&ordering=$order&page=$page&thumbsize=big'),
         headers: {'User-Agent': _ua},
       ).timeout(const Duration(seconds: 12));
       if (r.statusCode != 200) return [];
@@ -1140,20 +1557,63 @@ class FeedFetcher {
     } catch (_) { return []; }
   }
 
+
+  static Future<List<FeedVideo>> fetchXvideos(int page) async {
+    try {
+      final term = _terms[Random().nextInt(_terms.length)];
+      final r = await http.get(
+        Uri.parse('https://www.xvideos.com/api/videos/search/$term/$page/?q=${Uri.encodeComponent(term)}'),
+        headers: {'User-Agent': _ua, 'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 12));
+      if (r.statusCode != 200) return [];
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      final videos = data['videos'] as List? ?? [];
+      return videos.map((v) => FeedVideo.fromXvideos(v as Map<String, dynamic>))
+          .whereType<FeedVideo>().toList();
+    } catch (_) { return []; }
+  }
+
+  static Future<List<FeedVideo>> fetchXhamster(int page) async {
+    try {
+      final term = _terms[Random().nextInt(_terms.length)];
+      final r = await http.get(
+        Uri.parse('https://xhamster.com/api/front/search?q=${Uri.encodeComponent(term)}&page=$page&sectionName=video'),
+        headers: {'User-Agent': _ua, 'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'},
+      ).timeout(const Duration(seconds: 12));
+      if (r.statusCode != 200) return [];
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      final items = (data['data']?['videos']?['models'] as List?) ?? [];
+      return items.map((v) => FeedVideo.fromXhamster(v as Map<String, dynamic>))
+          .whereType<FeedVideo>().toList();
+    } catch (_) { return []; }
+  }
+
   /// Busca todas as fontes em paralelo, mistura e baralha
+  // Termos aleatórios para variar resultados a cada fetch
+  static const _terms = [
+    '', 'amateur', 'teen', 'milf', 'blonde', 'brunette', 'asian', 'latina',
+    'big', 'hot', 'sexy', 'beautiful', 'young', 'wild', 'homemade',
+  ];
+
   static Future<List<FeedVideo>> fetchAll(int page) async {
-    final rng = Random();
-    // Página aleatória por fonte para não repetir sempre o mesmo conteúdo
+    // Seed baseado no tempo — cada chamada produz resultados completamente diferentes
+    final rng = Random(DateTime.now().millisecondsSinceEpoch ^ page.hashCode);
     final epPage  = rng.nextInt(60) + 1;
     final phPage  = rng.nextInt(40) + 1;
     final rtPage  = rng.nextInt(30) + 1;
     final ypPage  = rng.nextInt(20) + 1;
+
+    final xvPage  = rng.nextInt(50) + 1;
+    final xhPage  = rng.nextInt(30) + 1;
 
     final results = await Future.wait([
       fetchEporner(epPage),
       fetchPornhub(phPage),
       fetchRedtube(rtPage),
       fetchYouporn(ypPage),
+      fetchXvideos(xvPage),
+      fetchXhamster(xhPage),
     ]);
 
     // Intercala as fontes em vez de concatenar — parece mais variado
@@ -1249,8 +1709,9 @@ class _ShortsTabState extends State<_ShortsTab>
     if (_loading) {
       return Container(
         color: Colors.black,
-        child: const Center(
-          child: CircularProgressIndicator(color: kPrimaryColor, strokeWidth: 1.5),
+        child: ListView(
+          padding: EdgeInsets.only(top: topPad + 56),
+          children: List.generate(5, (_) => _FeedCardSkeleton()),
         ),
       );
     }
@@ -1261,7 +1722,7 @@ class _ShortsTabState extends State<_ShortsTab>
         child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.wifi_off_rounded, color: Colors.white24, size: 48),
           const SizedBox(height: 16),
-          const Text('Sem ligação', style: TextStyle(color: Colors.white38, fontSize: 14)),
+          const Text('Sem ligação à internet', style: TextStyle(color: Colors.white38, fontSize: 14)),
           const SizedBox(height: 20),
           GestureDetector(
             onTap: _fetch,
@@ -1277,28 +1738,37 @@ class _ShortsTabState extends State<_ShortsTab>
       );
     }
 
+    final isDark = ThemeService.instance.isDark;
     return Container(
-      color: Colors.black,
-      child: RefreshIndicator(
-        color: kPrimaryColor,
-        backgroundColor: const Color(0xFF1A1A1A),
-        onRefresh: _fetch,
-        child: ListView.builder(
-          controller: _scroll,
-          padding: EdgeInsets.only(top: topPad + 8, bottom: widget.navBottom + 16),
-          itemCount: _videos.length + 1,
-          itemBuilder: (_, i) {
-            if (i == _videos.length) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: SizedBox(width: 20, height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 1.5, color: kPrimaryColor))),
-              );
-            }
-            return _VideoCard(video: _videos[i], onTap: () => widget.onVideoTap(_videos[i]));
-          },
+      color: isDark ? Colors.black : const Color(0xFFF5F5F5),
+      child: Column(children: [
+        // ── AppBar Feed ────────────────────────────────────────────────
+        _FeedAppBar(topPad: topPad, onRefresh: _fetch),
+
+        // ── Lista de vídeos ────────────────────────────────────────────
+        Expanded(
+          child: RefreshIndicator(
+            color: kPrimaryColor,
+            backgroundColor: const Color(0xFF1A1A1A),
+            onRefresh: _fetch,
+            child: ListView.builder(
+              controller: _scroll,
+              padding: const EdgeInsets.only(top: 8, bottom: 24),
+              itemCount: _videos.length + 1,
+              itemBuilder: (_, i) {
+                if (i == _videos.length) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: SizedBox(width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 1.5, color: kPrimaryColor))),
+                  );
+                }
+                return _VideoCard(video: _videos[i], onTap: () => widget.onVideoTap(_videos[i]));
+              },
+            ),
+          ),
         ),
-      ),
+      ]),
     );
   }
 }
@@ -1311,6 +1781,156 @@ String faviconForSource(VideoSource src) {
     case VideoSource.pornhub:  return 'https://www.pornhub.com/favicon.ico';
     case VideoSource.redtube:  return 'https://www.redtube.com/favicon.ico';
     case VideoSource.youporn:  return 'https://www.youporn.com/favicon.ico';
+    case VideoSource.xvideos:  return 'https://www.xvideos.com/favicon.ico';
+    case VideoSource.xhamster: return 'https://xhamster.com/favicon.ico';
+    case VideoSource.spankbang: return 'https://spankbang.com/favicon.ico';
+  }
+}
+
+
+// ─── AppBar do Feed — título + chips de filtro estilo YouTube ─────────────────
+class _FeedAppBar extends StatefulWidget {
+  final double topPad;
+  final VoidCallback onRefresh;
+  const _FeedAppBar({required this.topPad, required this.onRefresh});
+  @override
+  State<_FeedAppBar> createState() => _FeedAppBarState();
+}
+
+class _FeedAppBarState extends State<_FeedAppBar> {
+  int _selectedChip = 0;
+  static const _chips = [
+    'Todos', 'Mais vistos', 'Recentes', 'Avaliação',
+    'Amador', 'MILF', 'Asiática', 'Latina', 'Loira',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: ThemeService.instance.isDark ? Colors.black : const Color(0xFFF5F5F5),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(height: widget.topPad),
+        // Título + refresh
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+          child: Row(children: [
+            SvgPicture.string(_svgShortsActive, width: 26, height: 26),
+            const SizedBox(width: 8),
+            const Text('Feed',
+              style: TextStyle(color: Colors.white, fontSize: 20,
+                  fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+            const Spacer(),
+            GestureDetector(
+              onTap: widget.onRefresh,
+              child: Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.07),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.refresh_rounded,
+                    color: Colors.white70, size: 20),
+              ),
+            ),
+          ]),
+        ),
+        // Chips horizontais
+        SizedBox(
+          height: 36,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(left: 14, right: 14),
+            itemCount: _chips.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (_, i) {
+              final selected = _selectedChip == i;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedChip = i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: selected ? (ThemeService.instance.isDark ? Colors.white : const Color(0xFF1C1C1E)) : (ThemeService.instance.isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE5E5EA)),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Text(_chips[i],
+                    style: TextStyle(
+                      color: selected ? (ThemeService.instance.isDark ? Colors.black : Colors.white) : (ThemeService.instance.isDark ? Colors.white70 : Colors.black54),
+                      fontSize: 12.5,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    )),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Divider(color: Color(0xFF1A1A1A), height: 1),
+      ]),
+    );
+  }
+}
+
+
+// ─── Feed card skeleton ───────────────────────────────────────────────────────
+class _FeedCardSkeleton extends StatefulWidget {
+  @override
+  State<_FeedCardSkeleton> createState() => _FeedCardSkeletonState();
+}
+class _FeedCardSkeletonState extends State<_FeedCardSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _anim;
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+    _anim = Tween<double>(begin: -2, end: 2)
+        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+  }
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  Widget _box(double w, double h, {double r = 6}) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Container(
+        width: w, height: h,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(r),
+          gradient: LinearGradient(
+            begin: Alignment(_anim.value - 1, 0),
+            end: Alignment(_anim.value + 1, 0),
+            colors: const [Color(0xFF1A1A1A), Color(0xFF262626), Color(0xFF1A1A1A)],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Thumbnail 16:9
+        _box(w, w * 9 / 16, r: 0),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _box(36, 36, r: 18),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _box(w * 0.7, 14),
+              const SizedBox(height: 6),
+              _box(w * 0.45, 12),
+            ])),
+          ]),
+        ),
+      ]),
+    );
   }
 }
 
@@ -1334,11 +1954,31 @@ class _VideoCard extends StatelessWidget {
               Image.network(
                 video.thumb,
                 fit: BoxFit.cover,
+                cacheWidth: 640, // data saver — limita a 640px (suficiente para 16:9 em mobile)
+                headers: const {
+                  'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36',
+                },
                 errorBuilder: (_, __, ___) => Container(
-                  color: const Color(0xFF1A1A1A),
-                  child: const Center(child: Icon(Icons.play_circle_outline_rounded,
-                      color: Colors.white24, size: 40)),
+                  color: ThemeService.instance.isDark ? const Color(0xFF1A1A1A) : const Color(0xFFE8E8E8),
+                  child: Center(child: Icon(Icons.play_circle_outline_rounded,
+                      color: ThemeService.instance.isDark ? Colors.white24 : Colors.black26, size: 40)),
                 ),
+                loadingBuilder: (_, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
+                    color: const Color(0xFF111111),
+                    child: Center(child: SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.2,
+                        value: progress.expectedTotalBytes != null
+                            ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                            : null,
+                        color: Colors.white24,
+                      ),
+                    )),
+                  );
+                },
               ),
               // Duration badge
               if (video.duration.isNotEmpty)
@@ -1394,13 +2034,20 @@ class _VideoCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '${video.sourceLabel}${video.views.isNotEmpty ? "  ·  ${video.views} views" : ""}',
-                    style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 11.5),
+                    '${video.sourceLabel}${video.views.isNotEmpty ? "  ·  ${video.views} vis." : ""}',
+                    style: TextStyle(color: ThemeService.instance.isDark ? Colors.white.withOpacity(0.45) : Colors.black45, fontSize: 11.5),
                   ),
                 ],
               )),
-              Icon(Icons.more_vert_rounded,
-                  color: Colors.white.withOpacity(0.38), size: 20),
+              SvgPicture.string(
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+                '<circle cx="12" cy="2.5" r="2.5"/>'
+                '<circle cx="12" cy="12" r="2.5"/>'
+                '<circle cx="12" cy="21.5" r="2.5"/></svg>',
+                width: 18, height: 18,
+                colorFilter: ColorFilter.mode(
+                    Colors.white.withOpacity(0.38), BlendMode.srcIn),
+              ),
             ]),
           ),
         ]),

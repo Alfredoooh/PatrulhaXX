@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'home_page.dart' show kPrimaryColor, FeedVideo, FeedFetcher,
     VideoSource, svgExibicaoOutline, faviconForSource;
+import '../services/theme_service.dart';
 import '../services/download_service.dart';
 import 'download_list_page.dart';
 
@@ -57,6 +58,104 @@ const _svgDlList =
     '-.1,.543,.259,1.065,.802,1.165,.062,.011,.123,.017,.183,.017'
     ',.473,0,.894-.337,.982-.818,.117-.634,.296-1.258,.533-1.855'
     ',.204-.513-.047-1.095-.561-1.298Z"/></svg>';
+
+
+// ─── Skeleton shimmer ─────────────────────────────────────────────────────────
+class _Shimmer extends StatefulWidget {
+  final double width, height;
+  final double radius;
+  const _Shimmer({required this.width, required this.height, this.radius = 6});
+  @override
+  State<_Shimmer> createState() => _ShimmerState();
+}
+
+class _ShimmerState extends State<_Shimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat();
+    _anim = Tween<double>(begin: -2, end: 2).animate(
+        CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Container(
+        width: widget.width, height: widget.height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(widget.radius),
+          gradient: LinearGradient(
+            begin: Alignment(_anim.value - 1, 0),
+            end: Alignment(_anim.value + 1, 0),
+            colors: ThemeService.instance.isDark
+                ? const [Color(0xFF1E1E1E), Color(0xFF2A2A2A), Color(0xFF1E1E1E)]
+                : const [Color(0xFFE8E8E8), Color(0xFFF0F0F0), Color(0xFFE8E8E8)],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Skeleton do player 16:9
+class _PlayerSkeleton extends StatelessWidget {
+  const _PlayerSkeleton();
+  @override
+  Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // Player
+      _Shimmer(width: w, height: w * 9 / 16, radius: 0),
+      const SizedBox(height: 12),
+      // Título
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _Shimmer(width: w * 0.85, height: 16),
+          const SizedBox(height: 6),
+          _Shimmer(width: w * 0.55, height: 14),
+          const SizedBox(height: 14),
+          _Shimmer(width: 130, height: 34, radius: 100),
+          const SizedBox(height: 20),
+          const Divider(color: Color(0xFF1C1C1C), height: 1),
+          const SizedBox(height: 12),
+          _Shimmer(width: 80, height: 14),
+          const SizedBox(height: 12),
+        ]),
+      ),
+      // Cards skeleton
+      ..._skeletonCards(3),
+    ]);
+  }
+}
+
+List<Widget> _skeletonCards(int count) => List.generate(count, (_) =>
+  Padding(
+    padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+    child: Row(children: [
+      _Shimmer(width: 160, height: 90),
+      const SizedBox(width: 10),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _Shimmer(width: double.infinity, height: 13),
+        const SizedBox(height: 5),
+        _Shimmer(width: 120, height: 13),
+        const SizedBox(height: 5),
+        _Shimmer(width: 80, height: 11),
+      ])),
+    ]),
+  ),
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ExibicaoPage — player fixo no topo, conteúdo scrollável em baixo
@@ -227,7 +326,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: ThemeService.instance.isDark ? Colors.black : const Color(0xFFF5F5F5),
         body: Column(children: [
 
           // Status bar
@@ -283,8 +382,8 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                             setState(() => _titleExpanded = !_titleExpanded),
                         child: Text(
                           video.title,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: ThemeService.instance.isDark ? Colors.white : const Color(0xFF1C1C1E),
                             fontSize: 14.5,
                             fontWeight: FontWeight.w600,
                             height: 1.3,
@@ -312,13 +411,13 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                         const SizedBox(width: 5),
                         Text(video.sourceLabel,
                             style: TextStyle(
-                                color: Colors.white.withOpacity(0.50),
+                                color: ThemeService.instance.isDark ? Colors.white.withOpacity(0.50) : Colors.black54,
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w500)),
                         if (video.views.isNotEmpty)
-                          Text('  ·  ${video.views} views',
+                          Text('  ·  ${video.views} vis.',
                               style: TextStyle(
-                                  color: Colors.white.withOpacity(0.40),
+                                  color: ThemeService.instance.isDark ? Colors.white.withOpacity(0.40) : Colors.black38,
                                   fontSize: 11.5)),
                       ]),
 
@@ -331,7 +430,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1C1C1C),
+                            color: ThemeService.instance.isDark ? const Color(0xFF1C1C1C) : const Color(0xFFE8E8ED),
                             borderRadius: BorderRadius.circular(100),
                             border: Border.all(
                                 color: Colors.white.withOpacity(0.09)),
@@ -339,12 +438,12 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                             SvgPicture.string(_svgDl,
                                 width: 14, height: 14,
-                                colorFilter: const ColorFilter.mode(
-                                    Colors.white60, BlendMode.srcIn)),
+                                colorFilter: ColorFilter.mode(
+                                    ThemeService.instance.isDark ? Colors.white60 : Colors.black54, BlendMode.srcIn)),
                             const SizedBox(width: 7),
-                            const Text('Descarregar',
+                            Text('Descarregar',
                                 style: TextStyle(
-                                    color: Colors.white60,
+                                    color: ThemeService.instance.isDark ? Colors.white60 : Colors.black54,
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w500)),
                           ]),
@@ -352,13 +451,13 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                       ),
 
                       const SizedBox(height: 16),
-                      const Divider(
-                          color: Color(0xFF1C1C1C), thickness: 1, height: 1),
+                      Divider(
+                          color: ThemeService.instance.isDark ? const Color(0xFF1C1C1C) : const Color(0xFFE0E0E0), thickness: 1, height: 1),
                       const SizedBox(height: 12),
 
-                      const Text('A seguir',
+                      Text('A seguir',
                           style: TextStyle(
-                              color: Colors.white,
+                              color: ThemeService.instance.isDark ? Colors.white : const Color(0xFF1C1C1E),
                               fontSize: 13.5,
                               fontWeight: FontWeight.w600)),
                       const SizedBox(height: 10),
@@ -368,16 +467,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 
                 // Relacionados
                 if (_loadingRelated)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 28),
-                    child: Center(
-                      child: SizedBox(
-                        width: 20, height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 1.5, color: kPrimaryColor),
-                      ),
-                    ),
-                  )
+                  Column(children: _skeletonCards(5))
                 else
                   ..._related.map((v) => _RelatedCard(
                         video: v,
@@ -418,6 +508,8 @@ class _RelatedCard extends StatelessWidget {
                 child: Image.network(
                   video.thumb,
                   fit: BoxFit.cover,
+                  cacheWidth: 320, // reduz memória — 2x da largura exibida
+                  headers: const {'User-Agent': 'Mozilla/5.0'},
                   errorBuilder: (_, __, ___) => Container(
                     width: 160, height: 90,
                     color: const Color(0xFF1A1A1A),
@@ -426,6 +518,9 @@ class _RelatedCard extends StatelessWidget {
                           color: Colors.white24, size: 28),
                     ),
                   ),
+                  loadingBuilder: (_, child, p) => p == null
+                      ? child
+                      : _Shimmer(width: 160, height: 90),
                 ),
               ),
               if (video.duration.isNotEmpty)
@@ -456,8 +551,8 @@ class _RelatedCard extends StatelessWidget {
               children: [
                 Text(
                   video.title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: ThemeService.instance.isDark ? Colors.white : const Color(0xFF1C1C1E),
                     fontSize: 12.5,
                     fontWeight: FontWeight.w500,
                     height: 1.35,
@@ -479,10 +574,9 @@ class _RelatedCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      '${video.sourceLabel}'
-                      '${video.views.isNotEmpty ? "  ·  ${video.views}" : ""}',
+                      '${video.sourceLabel}${video.views.isNotEmpty ? "  ·  ${video.views} vis." : ""}',
                       style: TextStyle(
-                          color: Colors.white.withOpacity(0.40),
+                          color: ThemeService.instance.isDark ? Colors.white.withOpacity(0.40) : Colors.black38,
                           fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

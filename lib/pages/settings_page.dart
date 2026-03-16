@@ -164,12 +164,13 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _lock = false;
   final _ts = ThemeService.instance;
 
-  // Tema sempre escuro
-  Color get _bg   => const Color(0xFF111111);
-  Color get _card => const Color(0xFF1C1C1E);
-  Color get _text => Colors.white;
-  Color get _sub  => Colors.white54;
-  Color get _div  => Colors.white12;
+  // Cores reactivas ao tema
+  bool get _isDark => _ts.isDark;
+  Color get _bg   => _isDark ? const Color(0xFF111111) : const Color(0xFFF2F2F7);
+  Color get _card => _isDark ? const Color(0xFF1C1C1E) : Colors.white;
+  Color get _text => _isDark ? Colors.white : const Color(0xFF1C1C1E);
+  Color get _sub  => _isDark ? Colors.white54 : Colors.black45;
+  Color get _div  => _isDark ? Colors.white12 : Colors.black12;
 
   @override
   void initState() {
@@ -326,7 +327,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       style: TextStyle(color: _text, fontSize: 14,
                           fontWeight: FontWeight.w500)),
                   const SizedBox(height: 2),
-                  Text(_ts.useWallpaper ? 'Imagem ativa' : 'Fundo escuro sólido',
+                  Text(_ts.useWallpaper ? 'Imagem ativa' : _ts.isDark ? 'Fundo escuro sólido' : 'Fundo claro sólido',
                       style: TextStyle(color: _sub, fontSize: 12)),
                 ],
               )),
@@ -415,7 +416,7 @@ class _SettingsPageState extends State<SettingsPage> {
             icon: SvgPicture.string(
               _iBack,
               width: 22, height: 22,
-              colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+              colorFilter: ColorFilter.mode(_text, BlendMode.srcIn),
             ),
             onPressed: () => Navigator.pop(context),
           ),
@@ -429,13 +430,26 @@ class _SettingsPageState extends State<SettingsPage> {
             // ── Aparência ────────────────────────────────────────────
             _label('Aparência'),
             _section([
+              // Switch tema claro/escuro
+              _SwitchRow(
+                svg: '$theme_svg_light',
+                label: 'Tema claro',
+                sub: _isDark ? 'Tema escuro ativo' : 'Tema claro ativo',
+                value: !_isDark,
+                textColor: _text, subColor: _sub,
+                onChanged: (v) {
+                  _ts.setDark(!v);
+                  setState(() {});
+                },
+              ),
+              _divider(),
               // "Fundo de ecrã" — abre o picker (que inclui switch + grelha)
               _TapRow(
                 svg: _iWallpaper,
                 label: 'Fundo de ecrã',
                 sub: _ts.useWallpaper
                     ? _ts.bg.split('/').last
-                    : 'Fundo escuro',
+                    : (_isDark ? 'Fundo escuro' : 'Fundo claro'),
                 textColor: _text, subColor: _sub,
                 onTap: _pickWallpaper,
               ),
@@ -678,7 +692,7 @@ class _TapRow extends StatelessWidget {
           ])),
           SvgPicture.string(_iChevron, width: 16, height: 16,
               colorFilter: ColorFilter.mode(
-                  Colors.white.withOpacity(0.25), BlendMode.srcIn)),
+                  subColor.withOpacity(0.5), BlendMode.srcIn)),
         ]),
       ),
     );
@@ -745,7 +759,7 @@ class _MiniSwitch extends StatelessWidget {
         height: _h,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(_h / 2),
-          color: value ? _kPrimary : Colors.white.withOpacity(0.14),
+          color: value ? _kPrimary : (ThemeService.instance.isDark ? Colors.white.withOpacity(0.14) : Colors.black.withOpacity(0.10)),
         ),
         child: AnimatedAlign(
           duration: const Duration(milliseconds: 200),

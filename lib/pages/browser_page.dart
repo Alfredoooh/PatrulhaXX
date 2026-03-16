@@ -7,6 +7,39 @@ import '../models/site_model.dart';
 import '../services/favicon_service.dart';
 import '../services/download_service.dart';
 import '../widgets/site_icon_widget.dart';
+import '../services/theme_service.dart';
+
+
+// SVGs fornecidos pelo utilizador
+const _svgMenuCopy =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="m19,0h-6c-2.757,0-5,2.243-5,5v6c0,2.757,2.243,5,5,5h6c2.757,0,5-2.243,5-5v-6'
+    'c0-2.757-2.243-5-5-5Zm3,11c0,1.654-1.346,3-3,3h-6c-1.654,0-3-1.346-3-3v-6'
+    'c0-1.654,1.346-3,3-3h6c1.654,0,3,1.346,3,3v6Zm-6,8c0,2.757-2.243,5-5,5h-6'
+    'c-2.757,0-5-2.243-5-5v-6c0-2.757,2.243-5,5-5,.553,0,1,.448,1,1s-.447,1-1,1'
+    'c-1.654,0-3,1.346-3,3v6c0,1.654,1.346,3,3,3h6c1.654,0,3-1.346,3-3'
+    ',0-.552.447-1,1-1s1,.448,1,1Z"/>'
+    '</svg>';
+
+const _svgMenuRefresh =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M12,0c-2.991,0-5.813,1.113-8,3.078V1c0-.553-.448-1-1-1s-1,.447-1,1V5'
+    'c0,1.103,.897,2,2,2h4c.552,0,1-.447,1-1s-.448-1-1-1h-3.13'
+    'c1.876-1.913,4.422-3,7.13-3,5.514,0,10,4.486,10,10s-4.486,10-10,10'
+    'c-5.21,0-9.492-3.908-9.959-9.09-.049-.549-.522-.953-1.086-.906'
+    'C.405,12.054,0,12.54,.049,13.09c.561,6.22,5.699,10.91,11.951,10.91'
+    ',6.617,0,12-5.383,12-12S18.617,0,12,0Z"/>'
+    '</svg>';
+
+const _svgMenuDownloads =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M9.878,18.122a3,3,0,0,0,4.244,0l3.211-3.211A1,1,0,0,0,15.919,13.5'
+    'l-2.926,2.927L13,1a1,1,0,0,0-1-1h0a1,1,0,0,0-1,1l-.009,15.408'
+    'L8.081,13.5a1,1,0,0,0-1.414,1.415Z"/>'
+    '<path d="M23,16h0a1,1,0,0,0-1,1v4a1,1,0,0,1-1,1H3a1,1,0,0,1-1-1V17'
+    'a1,1,0,0,0-1-1H1a1,1,0,0,0-1,1v4a3,3,0,0,0,3,3H21a3,3,0,0,0,3-3V17'
+    'A1,1,0,0,0,23,16Z"/>'
+    '</svg>';
 
 // SVG X — o que foi fornecido
 const _svgClose =
@@ -405,7 +438,7 @@ class _BrowserPageState extends State<BrowserPage> {
   }
 }
 
-// ── Popup menu ⋮ estilo Facebook Browser ─────────────────────────────────────
+// ── Popup menu custom — animação rápida, SVGs, cores correctas ───────────────
 class _MenuBtn extends StatefulWidget {
   final int activeDownloads;
   final VoidCallback onRefresh;
@@ -425,95 +458,32 @@ class _MenuBtn extends StatefulWidget {
 
 class _MenuBtnState extends State<_MenuBtn> {
   final _key = GlobalKey();
+  OverlayEntry? _overlay;
 
   void _show() {
     final box = _key.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
-    final pos = box.localToGlobal(Offset.zero);
+    final pos  = box.localToGlobal(Offset.zero);
     final size = box.size;
 
-    showMenu<_MenuAction>(
-      context: context,
-      color: const Color(0xFF2C2C2E),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      elevation: 12,
-      shadowColor: Colors.black54,
-      position: RelativeRect.fromLTRB(
-        pos.dx + size.width - 200,
-        pos.dy + size.height + 4,
-        pos.dx + size.width,
-        0,
-      ),
-      items: [
-        _menuItem(_MenuAction.refresh, Icons.refresh_rounded, 'Recarregar'),
-        _menuItem(_MenuAction.copy, Icons.link_rounded, 'Copiar link'),
-        if (widget.activeDownloads > 0)
-          _menuItem(
-            _MenuAction.downloads,
-            Icons.download_rounded,
-            'Downloads',
-            badge: widget.activeDownloads > 9
-                ? '9+'
-                : '${widget.activeDownloads}',
-          ),
-      ],
-    ).then((action) {
-      if (action == null) return;
-      switch (action) {
-        case _MenuAction.refresh:
-          widget.onRefresh();
-        case _MenuAction.copy:
-          widget.onCopyUrl();
-        case _MenuAction.downloads:
-          // navegar para downloads se necessário
-          break;
-      }
-    });
+    _overlay = OverlayEntry(builder: (_) => _PopupMenuOverlay(
+      anchorRight: pos.dx + size.width,
+      anchorTop:   pos.dy + size.height + 6,
+      activeDownloads: widget.activeDownloads,
+      onDismiss: _hide,
+      onRefresh: () { _hide(); widget.onRefresh(); },
+      onCopy:    () { _hide(); widget.onCopyUrl(); },
+    ));
+    Overlay.of(context).insert(_overlay!);
   }
 
-  PopupMenuItem<_MenuAction> _menuItem(
-    _MenuAction value,
-    IconData icon,
-    String label, {
-    String? badge,
-  }) {
-    return PopupMenuItem<_MenuAction>(
-      value: value,
-      padding: EdgeInsets.zero,
-      child: Container(
-        width: 200,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        child: Row(children: [
-          Icon(icon, size: 20, color: Colors.white70),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Text(label,
-                style: const TextStyle(
-                  color: Color(0xFF1C1C1E),
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w400,
-                )),
-          ),
-          if (badge != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF3B30),
-                borderRadius: BorderRadius.circular(100),
-              ),
-              child: Text(
-                badge,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-        ]),
-      ),
-    );
+  void _hide() {
+    _overlay?.remove();
+    _overlay = null;
   }
+
+  @override
+  void dispose() { _hide(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -525,14 +495,18 @@ class _MenuBtnState extends State<_MenuBtn> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Stack(clipBehavior: Clip.none, children: [
-          // Ícone ⋮
-          const Icon(Icons.more_vert_rounded,
-              color: Colors.white, size: 22),
-          // Badge de downloads em curso
+          // SVG ⋮ — três círculos
+          SvgPicture.string(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+            '<circle cx="12" cy="2.5" r="2.5"/>'
+            '<circle cx="12" cy="12" r="2.5"/>'
+            '<circle cx="12" cy="21.5" r="2.5"/></svg>',
+            width: 20, height: 20,
+            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+          ),
           if (count > 0)
             Positioned(
-              top: -5,
-              right: -5,
+              top: -5, right: -5,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
                 decoration: BoxDecoration(
@@ -541,18 +515,134 @@ class _MenuBtnState extends State<_MenuBtn> {
                 ),
                 child: Text(
                   count > 9 ? '9+' : '$count',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    height: 1.1,
-                  ),
+                  style: const TextStyle(color: Colors.white, fontSize: 9,
+                      fontWeight: FontWeight.w800, height: 1.1),
                 ),
               ),
             ),
         ]),
       ),
     );
+  }
+}
+
+// ── Overlay do popup — animação de escala rápida ─────────────────────────────
+class _PopupMenuOverlay extends StatefulWidget {
+  final double anchorRight, anchorTop;
+  final int activeDownloads;
+  final VoidCallback onDismiss, onRefresh, onCopy;
+  const _PopupMenuOverlay({
+    required this.anchorRight, required this.anchorTop,
+    required this.activeDownloads, required this.onDismiss,
+    required this.onRefresh, required this.onCopy,
+  });
+  @override
+  State<_PopupMenuOverlay> createState() => _PopupMenuOverlayState();
+}
+
+class _PopupMenuOverlayState extends State<_PopupMenuOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _scale;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this,
+        duration: const Duration(milliseconds: 140));
+    _scale = CurvedAnimation(parent: _c, curve: Curves.easeOutBack);
+    _fade  = CurvedAnimation(parent: _c, curve: Curves.easeOut);
+    _c.forward();
+  }
+
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  Future<void> _dismiss() async {
+    await _c.reverse();
+    widget.onDismiss();
+  }
+
+  Widget _item(String svg, String label, VoidCallback onTap, {String? badge}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 196,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        child: Row(children: [
+          SvgPicture.string(svg, width: 18, height: 18,
+              colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label,
+              style: const TextStyle(color: Colors.white, fontSize: 14,
+                  fontWeight: FontWeight.w400))),
+          if (badge != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFF3B30),
+                  borderRadius: BorderRadius.circular(100)),
+              child: Text(badge,
+                  style: const TextStyle(color: Colors.white, fontSize: 10,
+                      fontWeight: FontWeight.w700)),
+            ),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenW = MediaQuery.of(context).size.width;
+    final left    = (widget.anchorRight - 200).clamp(8.0, screenW - 208.0);
+
+    return Stack(children: [
+      // Tap fora fecha
+      Positioned.fill(child: GestureDetector(onTap: _dismiss,
+          behavior: HitTestBehavior.translucent,
+          child: const SizedBox.expand())),
+
+      Positioned(
+        left: left,
+        top:  widget.anchorTop,
+        child: FadeTransition(
+          opacity: _fade,
+          child: ScaleTransition(
+            scale: _scale,
+            alignment: Alignment.topRight,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: 200,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2C2C2E),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.5),
+                        blurRadius: 16, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    _item(_svgMenuRefresh, 'Recarregar', widget.onRefresh),
+                    Divider(height: 1, color: Colors.white.withOpacity(0.08)),
+                    _item(_svgMenuCopy, 'Copiar link', widget.onCopy),
+                    if (widget.activeDownloads > 0) ...[
+                      Divider(height: 1, color: Colors.white.withOpacity(0.08)),
+                      _item(_svgMenuDownloads, 'Downloads', _dismiss,
+                          badge: widget.activeDownloads > 9
+                              ? '9+' : '${widget.activeDownloads}'),
+                    ],
+                  ]),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ]);
   }
 }
 
@@ -628,7 +718,7 @@ class _DownloadSheetState extends State<_DownloadSheet> {
                     color: Colors.white.withOpacity(0.05),
                     child: Center(child: Icon(
                         isVideo ? Icons.videocam_outlined : Icons.image_outlined,
-                        color: Colors.white24, size: 32))),
+                        color: Colors.white24, size: 32)),  // placeholder
               ),
             )
           else
@@ -642,8 +732,9 @@ class _DownloadSheetState extends State<_DownloadSheet> {
           const SizedBox(height: 16),
 
           Row(children: [
-            Icon(isVideo ? Icons.videocam_outlined : Icons.image_outlined,
-                color: Colors.white54, size: 18),
+            SvgPicture.string(isVideo ? _svgMenuDownloads : _svgMenuCopy,
+                width: 18, height: 18,
+                colorFilter: const ColorFilter.mode(Colors.white54, BlendMode.srcIn)),
             const SizedBox(width: 8),
             Expanded(child: Text(
               'Baixar ${isVideo ? 'vídeo' : 'imagem'}',
@@ -698,7 +789,8 @@ class _DownloadSheetState extends State<_DownloadSheet> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(24)),
                     child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const Icon(Icons.download_rounded, color: Colors.black87, size: 20),
+                      SvgPicture.string(_svgMenuDownloads, width: 18, height: 18,
+                          colorFilter: const ColorFilter.mode(Colors.black87, BlendMode.srcIn)),
                       const SizedBox(width: 8),
                       Text('Baixar ${isVideo ? 'vídeo' : 'imagem'}',
                           style: const TextStyle(color: Colors.black87,

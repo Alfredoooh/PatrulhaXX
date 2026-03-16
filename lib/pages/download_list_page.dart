@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../services/download_service.dart';
+import '../services/theme_service.dart';
 
 // SVGs fornecidos pelo utilizador
 const _svgDownload =
@@ -42,7 +43,7 @@ class DownloadListPage extends StatelessWidget {
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: ThemeService.instance.isDark ? Colors.black : const Color(0xFFF5F5F5),
         body: ListenableBuilder(
           listenable: DownloadService.instance,
           builder: (context, _) {
@@ -68,9 +69,9 @@ class DownloadListPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 14),
-                  const Text('Downloads em curso',
+                  Text('Downloads em curso',
                       style: TextStyle(
-                          color: Colors.white,
+                          color: ThemeService.instance.isDark ? Colors.white : const Color(0xFF1C1C1E),
                           fontSize: 17,
                           fontWeight: FontWeight.w600)),
                   const Spacer(),
