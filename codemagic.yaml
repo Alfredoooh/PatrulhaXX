@@ -1,0 +1,54 @@
+workflows:
+  android-release:
+    name: nuxxx Android Release
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      java: 17
+      vars:
+        KEYSTORE_PATH: /tmp/patrulhaxx.jks
+        KEY_ALIAS: patrulhaxx
+        PACKAGE_NAME: com.patrulha.xx
+
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Generate keystore
+        script: |
+          keytool -genkey -v \
+            -keystore "$KEYSTORE_PATH" \
+            -alias "$KEY_ALIAS" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 36500 \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
+            -dname "CN=nuxxx, OU=App, O=nuxxx, L=Luanda, S=Luanda, C=AO"
+
+      - name: Create key.properties
+        script: |
+          cat > android/key.properties << KEYEOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=$KEYSTORE_PATH
+          KEYEOF
+
+      - name: Build release APK
+        script: |
+          flutter build apk \
+            --release \
+            --obfuscate \
+            --split-debug-info=build/debug-info
+
+    artifacts:
+      - build/app/outputs/flutter-apk/app-release.apk
+
+    publishing:
+      email:
+        recipients:
+          - o-teu-email@gmail.com
+        notify:
+          success: true
+          failure: true
