@@ -801,8 +801,8 @@ class _NavAppBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        const Text('Navegar',
-          style: TextStyle(color: Colors.white, fontSize: 20,
+        Text('Navegar',
+          style: TextStyle(color: ThemeService.instance.isDark ? Colors.white : const Color(0xFF1C1C1E), fontSize: 20,
               fontWeight: FontWeight.w700, letterSpacing: -0.5)),
       ]),
     );
@@ -816,7 +816,7 @@ class _HamburgerLine extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: width, height: 1.8,
     decoration: BoxDecoration(
-      color: Colors.white70,
+      color: ThemeService.instance.isDark ? Colors.white70 : Colors.black54,
       borderRadius: BorderRadius.circular(2),
     ),
   );
@@ -840,12 +840,12 @@ class _NavDrawer extends StatelessWidget {
           child: Row(children: [
             SvgPicture.string(_svgShortsActive, width: 32, height: 32),
             const SizedBox(width: 10),
-            const Text('patrulhaXX',
+            Text('patrulhaXX',
               style: TextStyle(color: ThemeService.instance.isDark ? Colors.white : const Color(0xFF1C1C1E), fontSize: 18,
                   fontWeight: FontWeight.w700)),
           ]),
         ),
-        const Divider(color: Color(0xFF222222), height: 1),
+        Divider(color: ThemeService.instance.isDark ? const Color(0xFF222222) : const Color(0xFFE0E0E0), height: 1),
         const SizedBox(height: 8),
         _DrawerItem(
           icon: Icons.download_rounded,
@@ -858,7 +858,7 @@ class _NavDrawer extends StatelessWidget {
           onTap: () { Navigator.pop(context); onSettings(); },
         ),
         const Spacer(),
-        const Divider(color: Color(0xFF222222), height: 1),
+        Divider(color: ThemeService.instance.isDark ? const Color(0xFF222222) : const Color(0xFFE0E0E0), height: 1),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
           child: Text('patrulhaXX',
@@ -1041,11 +1041,7 @@ class _SearchTrigger extends StatelessWidget {
           ]),
         ),
       ),
-      openBuilder: (context, __) => SearchPage(
-        onVideoTap: (v) {
-          Navigator.pop(context);
-        },
-      ),
+      openBuilder: (_, __) => const _SearchPage(),
     );
   }
 }
@@ -1720,9 +1716,9 @@ class _ShortsTabState extends State<_ShortsTab>
       return Container(
         color: Colors.black,
         child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.wifi_off_rounded, color: Colors.white24, size: 48),
+          Icon(Icons.wifi_off_rounded, color: ThemeService.instance.isDark ? Colors.white24 : Colors.black26, size: 48),
           const SizedBox(height: 16),
-          const Text('Sem ligação à internet', style: TextStyle(color: Colors.white38, fontSize: 14)),
+          Text('Sem ligação à internet', style: TextStyle(color: ThemeService.instance.isDark ? Colors.white38 : Colors.black38, fontSize: 14)),
           const SizedBox(height: 20),
           GestureDetector(
             onTap: _fetch,
@@ -1816,7 +1812,7 @@ class _FeedAppBarState extends State<_FeedAppBar> {
           child: Row(children: [
             SvgPicture.string(_svgShortsActive, width: 26, height: 26),
             const SizedBox(width: 8),
-            const Text('Feed',
+            Text('Feed',
               style: TextStyle(color: Colors.white, fontSize: 20,
                   fontWeight: FontWeight.w700, letterSpacing: -0.5)),
             const Spacer(),

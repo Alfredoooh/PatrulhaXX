@@ -718,7 +718,7 @@ class _DownloadSheetState extends State<_DownloadSheet> {
                     color: Colors.white.withOpacity(0.05),
                     child: Center(child: Icon(
                         isVideo ? Icons.videocam_outlined : Icons.image_outlined,
-                        color: Colors.white24, size: 32)),  // placeholder
+                        color: Colors.white24, size: 32))),
               ),
             )
           else
