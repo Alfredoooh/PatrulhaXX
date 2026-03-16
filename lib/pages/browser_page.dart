@@ -13,17 +13,17 @@ import '../theme/app_theme.dart';
 
 // SVGs fornecidos pelo utilizador
 const _svgMenuCopy =
-    __SVG_0__;
+    '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 24 24"><path d="m19,0h-6c-2.757,0-5,2.243-5,5v6c0,2.757,2.243,5,5,5h6c2.757,0,5-2.243,5-5v-6c0-2.757-2.243-5-5-5Zm3,11c0,1.654-1.346,3-3,3h-6c-1.654,0-3-1.346-3-3v-6c0-1.654,1.346-3,3-3h6c1.654,0,3,1.346,3,3v6Zm-6,8c0,2.757-2.243,5-5,5h-6c-2.757,0-5-2.243-5-5v-6c0-2.757,2.243-5,5-5,.553,0,1,.448,1,1s-.447,1-1,1c-1.654,0-3,1.346-3,3v6c0,1.654,1.346,3,3,3h6c1.654,0,3-1.346,3-3,0-.552.447-1,1-1s1,.448,1,1Z"/></svg>';
 
 const _svgMenuRefresh =
-    __SVG_1__;
+    '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 24 24"><path d="M12,0c-2.991,0-5.813,1.113-8,3.078V1c0-.553-.448-1-1-1s-1,.447-1,1V5c0,1.103,.897,2,2,2h4c.552,0,1-.447,1-1s-.448-1-1-1h-3.13c1.876-1.913,4.422-3,7.13-3,5.514,0,10,4.486,10,10s-4.486,10-10,10c-5.21,0-9.492-3.908-9.959-9.09-.049-.549-.522-.953-1.086-.906C.405,12.054,0,12.54,.049,13.09c.561,6.22,5.699,10.91,11.951,10.91,6.617,0,12-5.383,12-12S18.617,0,12,0Z"/></svg>';
 
 const _svgMenuDownloads =
-    __SVG_2__;
+    '<svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24"><path d="M9.878,18.122a3,3,0,0,0,4.244,0l3.211-3.211A1,1,0,0,0,15.919,13.5l-2.926,2.927L13,1a1,1,0,0,0-1-1h0a1,1,0,0,0-1,1l-.009,15.408L8.081,13.5a1,1,0,0,0-1.414,1.415Z"/><path d="M23,16h0a1,1,0,0,0-1,1v4a1,1,0,0,1-1,1H3a1,1,0,0,1-1-1V17a1,1,0,0,0-1-1H1a1,1,0,0,0-1,1v4a3,3,0,0,0,3,3H21a3,3,0,0,0,3-3V17A1,1,0,0,0,23,16Z"/></svg>';
 
 // SVG X — o que foi fornecido
 const _svgClose =
-    __SVG_3__;
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512.021 512.021"><path d="M301.258,256.01L502.645,54.645c12.501-12.501,12.501-32.769,0-45.269c-12.501-12.501-32.769-12.501-45.269,0L256.01,210.762L54.645,9.376c-12.501-12.501-32.769-12.501-45.269,0s-12.501,32.769,0,45.269L210.762,256.01L9.376,457.376c-12.501,12.501-12.501,32.769,0,45.269s32.769,12.501,45.269,0L256.01,301.258l201.365,201.387c12.501,12.501,32.769,12.501,45.269,0c12.501-12.501,12.501-32.769,0-45.269L301.258,256.01z"/></svg>';
 
 class BrowserPage extends StatefulWidget {
   final SiteModel site;
@@ -290,7 +290,7 @@ class _BrowserPageState extends State<BrowserPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         SiteIconWidget(site: widget.site, size: 22, showShadow: false),
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2),
                         Text(
                           _shortLabel,
                           style: TextStyle(
@@ -685,7 +685,7 @@ class _DownloadSheetState extends State<_DownloadSheet> {
                 fit: BoxFit.cover,
                 placeholder: (_, __) => Container(height: 160,
                     color: AppTheme.current.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
-                    child: const Center(child: SizedBox(width: 20, height: 20,
+                    child: Center(child: SizedBox(width: 20, height: 20,
                         child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white24)))),
                 errorWidget: (_, __, ___) => Container(height: 80,
                     color: AppTheme.current.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
@@ -708,7 +708,7 @@ class _DownloadSheetState extends State<_DownloadSheet> {
             SvgPicture.string(isVideo ? _svgMenuDownloads : _svgMenuCopy,
                 width: 18, height: 18,
                 colorFilter: const ColorFilter.mode(Colors.white54, BlendMode.srcIn)),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Expanded(child: Text(
               'Baixar ${isVideo ? 'vídeo' : 'imagem'}',
               style: TextStyle(color: AppTheme.current.text, fontSize: 15, fontWeight: FontWeight.w600),
