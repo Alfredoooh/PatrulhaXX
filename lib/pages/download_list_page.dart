@@ -41,10 +41,10 @@ class DownloadListPage extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: AppTheme.of(context).statusBarBrightness,
+        statusBarIconBrightness: AppTheme.current.statusBarBrightness,
       ),
       child: Scaffold(
-        backgroundColor: AppTheme.of(context).bgFeed,
+        backgroundColor: AppTheme.current.bgFeed,
         body: ListenableBuilder(
           listenable: DownloadService.instance,
           builder: (context, _) {
@@ -72,7 +72,7 @@ class DownloadListPage extends StatelessWidget {
                   const SizedBox(width: 14),
                   Text('Downloads em curso',
                       style: TextStyle(
-                          color: AppTheme.of(context).text,
+                          color: AppTheme.current.text,
                           fontSize: 17,
                           fontWeight: FontWeight.w600)),
                   const Spacer(),
@@ -88,7 +88,7 @@ class DownloadListPage extends StatelessWidget {
                       child: Text(
                         active.length > 9 ? '9+' : '${active.length}',
                         style: TextStyle(
-                            color: AppTheme.of(context).text,
+                            color: AppTheme.current.text,
                             fontSize: 11,
                             fontWeight: FontWeight.w700),
                       ),
@@ -165,7 +165,7 @@ class _ActiveDownloadCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      color: AppTheme.of(context).text,
+                      color: AppTheme.current.text,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
                       height: 1.3)),
@@ -204,7 +204,7 @@ class _ActiveDownloadCard extends StatelessWidget {
                       const SizedBox(width: 5),
                       Text('Cancelado',
                           style: TextStyle(
-                              color: AppTheme.of(context).textHint,
+                              color: AppTheme.current.textHint,
                               fontSize: 11)),
                     ]);
                   }
@@ -230,7 +230,7 @@ class _ActiveDownloadCard extends StatelessWidget {
                               ? '${(p * 100).toStringAsFixed(0)}%'
                               : 'A iniciar...',
                           style: TextStyle(
-                              color: AppTheme.of(context).textHint,
+                              color: AppTheme.current.textHint,
                               fontSize: 10.5),
                         ),
                       ],
@@ -260,7 +260,7 @@ class _ActiveDownloadCard extends StatelessWidget {
   Widget _thumbPlaceholder() => Container(
         color: AppTheme.current.card,
         child: Center(
-          child: Icon(Icons.video_file_rounded, color: AppTheme.of(context).iconFaint, size: 28),
+          child: Icon(Icons.video_file_rounded, color: AppTheme.current.iconSub, size: 28),
         ),
       );
 }
@@ -294,7 +294,7 @@ class DownloadListBadge extends StatelessWidget {
                   child: Text(
                     count > 9 ? '9+' : '$count',
                     style: TextStyle(
-                        color: AppTheme.of(context).text,
+                        color: AppTheme.current.text,
                         fontSize: 9,
                         fontWeight: FontWeight.w700),
                   ),
