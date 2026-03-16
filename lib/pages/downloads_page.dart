@@ -29,25 +29,64 @@ const _kCard2   = Color(0xFF1A1A1A);
 
 // ─── ÍCONE DE VOLTAR (conforme enviado) ──────────────────────────────────────
 const _svgBack =
-    __SVG_0__;
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23'
+    'a1,1,0,0,0,1-1h0a1,1,0,0,0-1-1H2.55L6.17,7.38A1,1,0,0,0,6.17,6h0A1,1,0,0,0,'
+    '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/></svg>';
 
 const _svgSend =
-    __SVG_1__;
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="m4.034.282C2.981-.22,1.748-.037.893.749.054,1.521-.22,2.657.18,3.717'
+    'l4.528,8.288L.264,20.288c-.396,1.061-.121,2.196.719,2.966.524.479,1.19.734,'
+    '1.887.734.441,0,.895-.102,1.332-.312l19.769-11.678L4.034.282Zm-2.002,2.676'
+    'c-.114-.381.108-.64.214-.736.095-.087.433-.348.895-.149l15.185,8.928H6.438'
+    'L2.032,2.958Zm1.229,18.954c-.472.228-.829-.044-.928-.134-.105-.097-.329-.355'
+    '-.214-.737l4.324-8.041h11.898L3.261,21.912Z"/></svg>';
 
 const _svgQr =
-    __SVG_2__;
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M3,3h7v7H3V3Zm2,2v3h3V5H5Z"/>'
+    '<path d="M14,3h7v7h-7V3Zm2,2v3h3V5h-3Z"/>'
+    '<path d="M3,14h7v7H3v-7Zm2,2v3h3v-3H5Z"/>'
+    '<path d="M14,14h2v2h-2v-2Z"/><path d="M18,14h3v2h-3v-2Z"/>'
+    '<path d="M14,18h2v3h-2v-3Z"/><path d="M18,18h3v3h-3v-3Z"/>'
+    '</svg>';
 
 const _svgTrash =
-    __SVG_3__;
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M21,4H17.9A5.009,5.009,0,0,0,13,0H11A5.009,5.009,0,0,0,6.1,4H3'
+    'A1,1,0,0,0,3,6H4V19a5.006,5.006,0,0,0,5,5h6a5.006,5.006,0,0,0,5-5V6h1'
+    'a1,1,0,0,0,0-2ZM11,2h2a3.006,3.006,0,0,1,2.829,2H8.171A3.006,3.006,0,0,1,11,2Z'
+    'm7,17a3,3,0,0,1-3,3H9a3,3,0,0,1-3-3V6H18Z"/>'
+    '<path d="M10,18a1,1,0,0,0,1-1V11a1,1,0,0,0-2,0v6A1,1,0,0,0,10,18Z"/>'
+    '<path d="M14,18a1,1,0,0,0,1-1V11a1,1,0,0,0-2,0v6A1,1,0,0,0,14,18Z"/>'
+    '</svg>';
 
 const _svgWifi =
-    __SVG_4__;
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<circle cx="12" cy="20" r="2" fill="currentColor"/>'
+    '<path d="M12,13a8,8,0,0,0-5.657,2.343,1,1,0,1,0,1.414,1.414,6,6,0,0,1,8.486,0,1,1,0,1,0,1.414-1.414A8,8,0,0,0,12,13Z" fill="currentColor"/>'
+    '<path d="M12,8A13,13,0,0,0,2.808,11.808a1,1,0,1,0,1.414,1.414,11,11,0,0,1,15.556,0,1,1,0,0,0,1.414-1.414A13,13,0,0,0,12,8Z" fill="currentColor"/>'
+    '<path d="M23.536,4.05A18,18,0,0,0,.464,4.05,1,1,0,1,0,1.878,5.464a16,16,0,0,1,20.244,0A1,1,0,1,0,23.536,4.05Z" fill="currentColor"/>'
+    '</svg>';
 
 const _svgHotspot =
-    __SVG_5__;
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z"/>'
+    '<circle cx="12" cy="12" r="3"/>'
+    '<path d="M12,7a5,5,0,1,0,5,5A5,5,0,0,0,12,7Zm0,8a3,3,0,1,1,3-3A3,3,0,0,1,12,15Z" opacity=".4"/>'
+    '</svg>';
 
 const _svgScanner =
-    __SVG_6__;
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="m23,13H1c-.552,0-1-.448-1-1s.448-1,1-1h22c.552,0,1,.448,1,1s-.448,1-1,1Z'
+    'm-15,10c0-.552-.448-1-1-1h-2c-1.654,0-3-1.346-3-3v-2c0-.552-.448-1-1-1s-1,.448-1,1'
+    'v2c0,2.757,2.243,5,5,5h2c.552,0,1-.448,1-1Zm16-4v-2c0-.552-.448-1-1-1s-1,.448-1,1v2'
+    'c0,1.654-1.346,3-3,3h-2c-.552,0-1,.448-1,1s.448,1,1,1h2c2.757,0,5-2.243,5-5Z'
+    'm0-12v-2c0-2.757-2.243-5-5-5h-2c-.552,0-1,.448-1,1s.448,1,1,1h2c1.654,0,3,1.346,3,3'
+    'v2c0,.552.448,1,1,1s1-.448,1-1Zm-22,0v-2c0-1.654,1.346-3,3-3h2c.552,0,1-.448,1-1'
+    's-.448-1-1-1h-2C2.243,0,0,2.243,0,5v2c0,.552.448,1,1,1s1-.448,1-1Z"/>'
+    '</svg>';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DownloadsPage
@@ -670,7 +709,7 @@ class _FileBar extends StatelessWidget {
           Row(children: [
             Expanded(child: Text(p.fileName, overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500))),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Text(p.done
                 ? TransferService.formatBytes(p.totalBytes)
                 : '${TransferService.formatBytes(p.sentBytes)} · $speed',
@@ -881,7 +920,7 @@ class _Tile extends StatelessWidget {
                 child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 26))),
             if (selected) Container(color: _kPrimary.withOpacity(0.25),
                 alignment: Alignment.topRight, padding: const EdgeInsets.all(4),
-                child: const Icon(Icons.check_circle_rounded, color: _kPrimary, size: 20)),
+                child: Icon(Icons.check_circle_rounded, color: _kPrimary, size: 20)),
             if (selectMode && !selected) Positioned(top: 4, right: 4,
               child: Container(width: 18, height: 18,
                 decoration: BoxDecoration(shape: BoxShape.circle,
@@ -1035,7 +1074,7 @@ class _BigBtn extends StatelessWidget {
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             SvgPicture.string(svg, width: 27, height: 27,
                 colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(label, style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
             SizedBox(height: 2),
             Text(sub, style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26, fontSize: 10)),
