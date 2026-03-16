@@ -189,13 +189,13 @@ class _HomePageState extends State<HomePage>
     final navTotal   = _kNavH + safeBottom;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
+      value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: AppTheme.current.statusBarBrightness,
+        statusBarIconBrightness: AppTheme.current.statusBar,
       ),
       child: Scaffold(
         extendBody: false,
-        backgroundColor: AppTheme.current.bgFeed,
+        backgroundColor: AppTheme.current.bg,
         body: Column(children: [
           // ── Tabs — IndexedStack preserva estado do feed ───────────────
           Expanded(
@@ -473,7 +473,7 @@ class _BottomNav extends StatelessWidget {
   final int tab;
   final void Function(int) onTab;
   final double navH, safeBottom;
-  Color get _kBg => AppTheme.current.bgNav;
+  Color get _kBg => AppTheme.current.navBg;
 
   const _BottomNav({
     required this.tab, required this.onTab,
@@ -597,7 +597,7 @@ class _NavFeedPill extends StatelessWidget {
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           SvgPicture.string(_svgShortsActive, width: 22, height: 22),
           // Texto "Feed" SEMPRE visível
-          const SizedBox(width: 7),
+          SizedBox(width: 7),
           Text('Feed',
             style: TextStyle(
               color: (AppTheme.current.text).withOpacity(active ? 1.0 : 0.70),
@@ -749,7 +749,7 @@ class _NavDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
     return Drawer(
-      backgroundColor: AppTheme.current.bgNav,
+      backgroundColor: AppTheme.current.navBg,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(height: topPad + 20),
         Padding(
@@ -797,7 +797,7 @@ class _DrawerItem extends StatelessWidget {
   Widget build(BuildContext context) => ListTile(
     leading: Icon(icon, color: AppTheme.current.iconSub, size: 22),
     title: Text(label,
-        style: TextStyle(color: AppTheme.current.drawerText, fontSize: 14,
+        style: TextStyle(color: AppTheme.current.text, fontSize: 14,
             fontWeight: FontWeight.w500)),
     onTap: onTap,
     contentPadding: const EdgeInsets.symmetric(horizontal: 20),
@@ -998,12 +998,12 @@ class _SearchPageState extends State<_SearchPage> {
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
+      value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: AppTheme.current.statusBarBrightness,
+        statusBarIconBrightness: AppTheme.current.statusBar,
       ),
       child: Scaffold(
-        backgroundColor: AppTheme.current.bgFeed,
+        backgroundColor: AppTheme.current.bg,
         body: Column(children: [
           SizedBox(height: topPad + 12),
           // Barra de pesquisa
@@ -1027,7 +1027,7 @@ class _SearchPageState extends State<_SearchPage> {
                 child: Container(
                   height: 50,
                   decoration: BoxDecoration(
-                    color: AppTheme.current.bgInput,
+                    color: AppTheme.current.inputBg,
                     borderRadius: BorderRadius.circular(100),
                     border: Border.all(color: AppTheme.current.inputBorder),
                   ),
@@ -1072,7 +1072,7 @@ class _SearchPageState extends State<_SearchPage> {
                           ),
                           child: Text('Ir',
                               style: TextStyle(
-                                  color: AppTheme.current.bgFeed, fontSize: 13,
+                                  color: AppTheme.current.bg, fontSize: 13,
                                   fontWeight: FontWeight.w700)),
                         ),
                       )
@@ -1621,7 +1621,7 @@ class _ShortsTabState extends State<_ShortsTab>
 
     if (_loading) {
       return Container(
-        color: AppTheme.current.bgFeed,
+        color: AppTheme.current.bg,
         child: ListView(
           padding: EdgeInsets.only(top: topPad + 56),
           children: List.generate(5, (_) => _FeedCardSkeleton()),
@@ -1631,9 +1631,9 @@ class _ShortsTabState extends State<_ShortsTab>
 
     if (_error) {
       return Container(
-        color: AppTheme.current.bgFeed,
+        color: AppTheme.current.bg,
         child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.wifi_off_rounded, color: AppTheme.current.iconFaint, size: 48),
+          Icon(Icons.wifi_off_rounded, color: AppTheme.current.iconSub, size: 48),
           SizedBox(height: 16),
           Text('Sem ligação à internet', style: TextStyle(color: AppTheme.current.textSub, fontSize: 14)),
           const SizedBox(height: 20),
@@ -1644,7 +1644,7 @@ class _ShortsTabState extends State<_ShortsTab>
               decoration: BoxDecoration(
                 color: kPrimaryColor, borderRadius: BorderRadius.circular(100)),
               child: Text('Tentar novamente',
-                  style: TextStyle(color: AppTheme.current.bgFeed, fontWeight: FontWeight.w700)),
+                  style: TextStyle(color: AppTheme.current.bg, fontWeight: FontWeight.w700)),
             ),
           ),
         ])),
@@ -1721,7 +1721,7 @@ class _FeedAppBarState extends State<_FeedAppBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppTheme.current.bgFeed,
+      color: AppTheme.current.bg,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(height: widget.topPad),
         // Título + refresh
@@ -1873,9 +1873,9 @@ class _VideoCard extends StatelessWidget {
                   'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36',
                 },
                 errorBuilder: (_, __, ___) => Container(
-                  color: AppTheme.current.bgThumb,
+                  color: AppTheme.current.thumbBg,
                   child: Center(child: Icon(Icons.play_circle_outline_rounded,
-                      color: AppTheme.current.iconFaint, size: 40)),
+                      color: AppTheme.current.iconSub, size: 40)),
                 ),
                 loadingBuilder: (_, child, progress) {
                   if (progress == null) return child;
@@ -1888,7 +1888,7 @@ class _VideoCard extends StatelessWidget {
                         value: progress.expectedTotalBytes != null
                             ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
                             : null,
-                        color: AppTheme.current.iconFaint,
+                        color: AppTheme.current.iconSub,
                       ),
                     )),
                   );
@@ -1946,7 +1946,7 @@ class _VideoCard extends StatelessWidget {
                         fontWeight: FontWeight.w500, height: 1.3),
                     maxLines: 2, overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 3),
+                  SizedBox(height: 3),
                   Text(
                     '${video.sourceLabel}${video.views.isNotEmpty ? "  ·  ${video.views} vis." : ""}',
                     style: TextStyle(color: AppTheme.current.textSub, fontSize: 11.5),

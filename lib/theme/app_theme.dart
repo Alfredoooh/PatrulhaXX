@@ -58,6 +58,7 @@ class AppTheme {
 
   // ── Drawer ────────────────────────────────────────────────────────────────
   Color get drawerBg    => isDark ? const Color(0xFF111111) : Colors.white;
+  Color get drawerText  => text;
 
   // ── Status bar ────────────────────────────────────────────────────────────
   Brightness get statusBar => isDark ? Brightness.light : Brightness.dark;

@@ -84,7 +84,7 @@ class _PlayerSkeleton extends StatelessWidget {
           _Shimmer(width: w * 0.85, height: 16),
           const SizedBox(height: 6),
           _Shimmer(width: w * 0.55, height: 14),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           _Shimmer(width: 130, height: 34, radius: 100),
           SizedBox(height: 20),
           Divider(color: AppTheme.current.isDark ? const Color(0xFF1C1C1C) : const Color(0xFFDDDDDD), height: 1),
@@ -262,12 +262,12 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     // Sem vídeo seleccionado
     if (widget.embedUrl == null || video == null) {
       return AnnotatedRegion<SystemUiOverlayStyle>(
-        value: const SystemUiOverlayStyle(
+        value: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness: AppTheme.of(context).statusBarBrightness,
+          statusBarIconBrightness: AppTheme.current.statusBar,
         ),
         child: Container(
-          color: AppTheme.of(context).bgFeed,
+          color: AppTheme.current.bg,
           child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
             SvgPicture.string(svgExibicaoOutline, width: 52, height: 52,
                 colorFilter: const ColorFilter.mode(Colors.white24, BlendMode.srcIn)),
@@ -280,12 +280,12 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     }
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
+      value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: AppTheme.of(context).statusBarBrightness,
+        statusBarIconBrightness: AppTheme.current.statusBar,
       ),
       child: Scaffold(
-        backgroundColor: AppTheme.of(context).bgFeed,
+        backgroundColor: AppTheme.current.bg,
         body: Column(children: [
 
           // Status bar
@@ -342,7 +342,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                         child: Text(
                           video.title,
                           style: TextStyle(
-                            color: AppTheme.of(context).text,
+                            color: AppTheme.current.text,
                             fontSize: 14.5,
                             fontWeight: FontWeight.w600,
                             height: 1.3,
@@ -367,16 +367,16 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                                 const SizedBox(width: 15, height: 15),
                           ),
                         ),
-                        const SizedBox(width: 5),
+                        SizedBox(width: 5),
                         Text(video.sourceLabel,
                             style: TextStyle(
-                                color: AppTheme.of(context).textSub,
+                                color: AppTheme.current.textSub,
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w500)),
                         if (video.views.isNotEmpty)
                           Text('  ·  ${video.views} vis.',
                               style: TextStyle(
-                                  color: AppTheme.of(context).textHint,
+                                  color: AppTheme.current.textHint,
                                   fontSize: 11.5)),
                       ]),
 
@@ -389,20 +389,20 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
-                            color: AppTheme.of(context).bgCard2,
+                            color: AppTheme.current.cardAlt,
                             borderRadius: BorderRadius.circular(100),
                             border: Border.all(
-                                color: AppTheme.of(context).bgInput),
+                                color: AppTheme.current.inputBg),
                           ),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                             SvgPicture.string(_svgDl,
                                 width: 14, height: 14,
                                 colorFilter: ColorFilter.mode(
-                                    AppTheme.of(context).textSub, BlendMode.srcIn)),
-                            const SizedBox(width: 7),
+                                    AppTheme.current.textSub, BlendMode.srcIn)),
+                            SizedBox(width: 7),
                             Text('Descarregar',
                                 style: TextStyle(
-                                    color: AppTheme.of(context).textSub,
+                                    color: AppTheme.current.textSub,
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w500)),
                           ]),
@@ -411,12 +411,12 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 
                       SizedBox(height: 16),
                       Divider(
-                          color: AppTheme.of(context).divider, thickness: 1, height: 1),
-                      const SizedBox(height: 12),
+                          color: AppTheme.current.divider, thickness: 1, height: 1),
+                      SizedBox(height: 12),
 
                       Text('A seguir',
                           style: TextStyle(
-                              color: AppTheme.of(context).text,
+                              color: AppTheme.current.text,
                               fontSize: 13.5,
                               fontWeight: FontWeight.w600)),
                       const SizedBox(height: 10),
@@ -474,7 +474,7 @@ class _RelatedCard extends StatelessWidget {
                     color: AppTheme.current.card,
                     child: Center(
                       child: Icon(Icons.play_circle_outline_rounded,
-                          color: AppTheme.of(context).iconFaint, size: 28),
+                          color: AppTheme.current.iconSub, size: 28),
                     ),
                   ),
                   loadingBuilder: (_, child, p) => p == null
@@ -493,7 +493,7 @@ class _RelatedCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(3)),
                     child: Text(video.duration,
                         style: TextStyle(
-                            color: AppTheme.of(context).text,
+                            color: AppTheme.current.text,
                             fontSize: 10,
                             fontWeight: FontWeight.w600)),
                   ),
@@ -511,7 +511,7 @@ class _RelatedCard extends StatelessWidget {
                 Text(
                   video.title,
                   style: TextStyle(
-                    color: AppTheme.of(context).text,
+                    color: AppTheme.current.text,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w500,
                     height: 1.35,
@@ -535,7 +535,7 @@ class _RelatedCard extends StatelessWidget {
                     child: Text(
                       '${video.sourceLabel}${video.views.isNotEmpty ? "  ·  ${video.views} vis." : ""}',
                       style: TextStyle(
-                          color: AppTheme.of(context).textHint,
+                          color: AppTheme.current.textHint,
                           fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
