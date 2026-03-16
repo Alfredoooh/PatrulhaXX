@@ -432,7 +432,7 @@ class _SettingsPageState extends State<SettingsPage> {
             _section([
               // Switch tema claro/escuro
               _SwitchRow(
-                svg: '$theme_svg_light',
+                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
                 label: 'Tema claro',
                 sub: _isDark ? 'Tema escuro ativo' : 'Tema claro ativo',
                 value: !_isDark,
