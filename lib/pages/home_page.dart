@@ -331,9 +331,9 @@ class _MiniPlayerState extends State<_MiniPlayer>
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final isDark = t.isDark;
+    final isDark = AppTheme.current.isDark;
     final bg = isDark ? const Color(0xFF212121) : Colors.white;
-    final textColor = t.navActive;
+    final textColor = AppTheme.current.navActive;
     final subColor = isDark ? Colors.white54 : Colors.black45;
 
     return SlideTransition(
@@ -539,8 +539,8 @@ class _NavIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final isDark = t.isDark;
-    final color = active ? (t.navActive) : (t.navInactive);
+    final isDark = AppTheme.current.isDark;
+    final color = active ? (AppTheme.current.navActive) : (AppTheme.current.navInactive);
     final iconW = ColorFiltered(
       colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
       child: SvgPicture.string(active ? svgFilled : svgOutline, width: 22, height: 22),
@@ -590,7 +590,7 @@ class _NavFeedPill extends StatelessWidget {
           color: active ? Colors.white.withOpacity(0.13) : Colors.transparent,
           borderRadius: BorderRadius.circular(100),
           border: Border.all(
-            color: t.navBorder.withOpacity(active ? 0.0 : 1.0),
+            color: AppTheme.current.navBorder.withOpacity(active ? 0.0 : 1.0),
             width: 1.2,
           ),
         ),
@@ -1652,9 +1652,9 @@ class _ShortsTabState extends State<_ShortsTab>
     }
 
     final t = AppTheme.current;
-    final isDark = t.isDark;
+    final isDark = AppTheme.current.isDark;
     return Container(
-      color: t.bg,
+      color: AppTheme.current.bg,
       child: Column(children: [
         // ── AppBar Feed ────────────────────────────────────────────────
         _FeedAppBar(topPad: topPad, onRefresh: _fetch),
