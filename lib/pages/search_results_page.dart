@@ -10,8 +10,8 @@ import '../models/site_model.dart';
 import '../services/theme_service.dart';
 import 'browser_page.dart';
 import 'home_page.dart' show kPrimaryColor, FeedVideo, FeedFetcher,
-import '../theme/app_theme.dart';
     VideoSource, faviconForSource;
+import '../theme/app_theme.dart';
 
 // ─── Modelo original mantido para compatibilidade ────────────────────────────
 class _EpornerVideo {
