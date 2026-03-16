@@ -770,10 +770,10 @@ class _MiniSwitch extends StatelessWidget {
             width: _thumb,
             height: _thumb,
             margin: const EdgeInsets.all(_pad),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppTheme.current.isDark ? Colors.white : const Color(0xFF1C1C1E),
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(
                   color: Color(0x33000000),
                   blurRadius: 4,
