@@ -8,49 +8,22 @@ import '../services/favicon_service.dart';
 import '../services/download_service.dart';
 import '../widgets/site_icon_widget.dart';
 import '../services/theme_service.dart';
+import '../theme/app_theme.dart';
 
 
 // SVGs fornecidos pelo utilizador
 const _svgMenuCopy =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="m19,0h-6c-2.757,0-5,2.243-5,5v6c0,2.757,2.243,5,5,5h6c2.757,0,5-2.243,5-5v-6'
-    'c0-2.757-2.243-5-5-5Zm3,11c0,1.654-1.346,3-3,3h-6c-1.654,0-3-1.346-3-3v-6'
-    'c0-1.654,1.346-3,3-3h6c1.654,0,3,1.346,3,3v6Zm-6,8c0,2.757-2.243,5-5,5h-6'
-    'c-2.757,0-5-2.243-5-5v-6c0-2.757,2.243-5,5-5,.553,0,1,.448,1,1s-.447,1-1,1'
-    'c-1.654,0-3,1.346-3,3v6c0,1.654,1.346,3,3,3h6c1.654,0,3-1.346,3-3'
-    ',0-.552.447-1,1-1s1,.448,1,1Z"/>'
-    '</svg>';
+    __SVG_0__;
 
 const _svgMenuRefresh =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M12,0c-2.991,0-5.813,1.113-8,3.078V1c0-.553-.448-1-1-1s-1,.447-1,1V5'
-    'c0,1.103,.897,2,2,2h4c.552,0,1-.447,1-1s-.448-1-1-1h-3.13'
-    'c1.876-1.913,4.422-3,7.13-3,5.514,0,10,4.486,10,10s-4.486,10-10,10'
-    'c-5.21,0-9.492-3.908-9.959-9.09-.049-.549-.522-.953-1.086-.906'
-    'C.405,12.054,0,12.54,.049,13.09c.561,6.22,5.699,10.91,11.951,10.91'
-    ',6.617,0,12-5.383,12-12S18.617,0,12,0Z"/>'
-    '</svg>';
+    __SVG_1__;
 
 const _svgMenuDownloads =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M9.878,18.122a3,3,0,0,0,4.244,0l3.211-3.211A1,1,0,0,0,15.919,13.5'
-    'l-2.926,2.927L13,1a1,1,0,0,0-1-1h0a1,1,0,0,0-1,1l-.009,15.408'
-    'L8.081,13.5a1,1,0,0,0-1.414,1.415Z"/>'
-    '<path d="M23,16h0a1,1,0,0,0-1,1v4a1,1,0,0,1-1,1H3a1,1,0,0,1-1-1V17'
-    'a1,1,0,0,0-1-1H1a1,1,0,0,0-1,1v4a3,3,0,0,0,3,3H21a3,3,0,0,0,3-3V17'
-    'A1,1,0,0,0,23,16Z"/>'
-    '</svg>';
+    __SVG_2__;
 
 // SVG X — o que foi fornecido
 const _svgClose =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512.021 512.021">'
-    '<path d="M301.258,256.01L502.645,54.645c12.501-12.501,12.501-32.769,0-45.269'
-    'c-12.501-12.501-32.769-12.501-45.269,0L256.01,210.762L54.645,9.376'
-    'c-12.501-12.501-32.769-12.501-45.269,0s-12.501,32.769,0,45.269L210.762,256.01'
-    'L9.376,457.376c-12.501,12.501-12.501,32.769,0,45.269s32.769,12.501,45.269,0'
-    'L256.01,301.258l201.365,201.387c12.501,12.501,32.769,12.501,45.269,0'
-    'c12.501-12.501,12.501-32.769,0-45.269L301.258,256.01z"/>'
-    '</svg>';
+    __SVG_3__;
 
 class BrowserPage extends StatefulWidget {
   final SiteModel site;
@@ -282,15 +255,15 @@ class _BrowserPageState extends State<BrowserPage> {
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.light,
+          statusBarIconBrightness: AppTheme.current.statusBar,
         ),
         child: Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: AppTheme.current.bg,
           body: Column(children: [
 
             // ── AppBar estilo Facebook Browser — fundo escuro ────────
             Container(
-              color: const Color(0xFF1C1C1E),
+              color: AppTheme.current.appBar,
               padding: EdgeInsets.only(top: topPad),
               child: SizedBox(
                 height: 52,
@@ -306,7 +279,7 @@ class _BrowserPageState extends State<BrowserPage> {
                         _svgClose,
                         width: 16, height: 16,
                         colorFilter: const ColorFilter.mode(
-                            Colors.white, BlendMode.srcIn),
+                            AppTheme.current.icon, BlendMode.srcIn),
                       ),
                     ),
                   ),
@@ -321,7 +294,7 @@ class _BrowserPageState extends State<BrowserPage> {
                         Text(
                           _shortLabel,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.90),
+                            color: AppTheme.current.isDark ? Colors.white.withOpacity(0.90) : const Color(0xFF1C1C1E),
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
@@ -502,7 +475,7 @@ class _MenuBtnState extends State<_MenuBtn> {
             '<circle cx="12" cy="12" r="2.5"/>'
             '<circle cx="12" cy="21.5" r="2.5"/></svg>',
             width: 20, height: 20,
-            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+            colorFilter: ColorFilter.mode(AppTheme.current.icon, BlendMode.srcIn),
           ),
           if (count > 0)
             Positioned(
@@ -572,10 +545,10 @@ class _PopupMenuOverlayState extends State<_PopupMenuOverlay>
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         child: Row(children: [
           SvgPicture.string(svg, width: 18, height: 18,
-              colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
+              colorFilter: ColorFilter.mode(AppTheme.current.icon, BlendMode.srcIn)),
           const SizedBox(width: 12),
           Expanded(child: Text(label,
-              style: const TextStyle(color: Colors.white, fontSize: 14,
+              style: TextStyle(color: AppTheme.current.text, fontSize: 14,
                   fontWeight: FontWeight.w400))),
           if (badge != null)
             Container(
@@ -616,7 +589,7 @@ class _PopupMenuOverlayState extends State<_PopupMenuOverlay>
               child: Container(
                 width: 200,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2C2C2E),
+                  color: AppTheme.current.isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF0F0F5),
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: [
                     BoxShadow(color: Colors.black.withOpacity(0.5),
@@ -627,10 +600,10 @@ class _PopupMenuOverlayState extends State<_PopupMenuOverlay>
                   borderRadius: BorderRadius.circular(10),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     _item(_svgMenuRefresh, 'Recarregar', widget.onRefresh),
-                    Divider(height: 1, color: Colors.white.withOpacity(0.08)),
+                    Divider(height: 1, color: AppTheme.current.isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05)),
                     _item(_svgMenuCopy, 'Copiar link', widget.onCopy),
                     if (widget.activeDownloads > 0) ...[
-                      Divider(height: 1, color: Colors.white.withOpacity(0.08)),
+                      Divider(height: 1, color: AppTheme.current.isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05)),
                       _item(_svgMenuDownloads, 'Downloads', _dismiss,
                           badge: widget.activeDownloads > 9
                               ? '9+' : '${widget.activeDownloads}'),
@@ -691,14 +664,14 @@ class _DownloadSheetState extends State<_DownloadSheet> {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       decoration: BoxDecoration(
-          color: const Color(0xFF181818),
+          color: AppTheme.current.sheet,
           borderRadius: BorderRadius.circular(22)),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           // Handle
           Center(child: Container(width: 36, height: 4,
-              decoration: BoxDecoration(color: Colors.white12,
+              decoration: BoxDecoration(color: AppTheme.current.divider,
                   borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 16),
 
@@ -711,23 +684,23 @@ class _DownloadSheetState extends State<_DownloadSheet> {
                 height: 160, width: double.infinity,
                 fit: BoxFit.cover,
                 placeholder: (_, __) => Container(height: 160,
-                    color: Colors.white.withOpacity(0.05),
+                    color: AppTheme.current.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
                     child: const Center(child: SizedBox(width: 20, height: 20,
                         child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white24)))),
                 errorWidget: (_, __, ___) => Container(height: 80,
-                    color: Colors.white.withOpacity(0.05),
+                    color: AppTheme.current.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
                     child: Center(child: Icon(
                         isVideo ? Icons.videocam_outlined : Icons.image_outlined,
-                        color: Colors.white24, size: 32))),
+                        color: AppTheme.current.isDark ? Colors.white24 : Colors.black26, size: 32))),
               ),
             )
           else
             Container(height: 80, width: double.infinity,
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.04),
+              decoration: BoxDecoration(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03),
                   borderRadius: BorderRadius.circular(14)),
               child: Center(child: Icon(
                   isVideo ? Icons.videocam_outlined : Icons.image_outlined,
-                  color: Colors.white24, size: 32))),
+                  color: AppTheme.current.isDark ? Colors.white24 : Colors.black26, size: 32))),
 
           const SizedBox(height: 16),
 
@@ -738,9 +711,9 @@ class _DownloadSheetState extends State<_DownloadSheet> {
             const SizedBox(width: 8),
             Expanded(child: Text(
               'Baixar ${isVideo ? 'vídeo' : 'imagem'}',
-              style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+              style: TextStyle(color: AppTheme.current.text, fontSize: 15, fontWeight: FontWeight.w600),
             )),
-            Text('Privado', style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 11)),
+            Text('Privado', style: TextStyle(color: AppTheme.current.textHint, fontSize: 11)),
           ]),
 
           const SizedBox(height: 16),
@@ -774,10 +747,10 @@ class _DownloadSheetState extends State<_DownloadSheet> {
                   onTap: () => Navigator.pop(context),
                   child: Container(height: 48,
                     decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.07),
+                        color: AppTheme.current.isDark ? Colors.white.withOpacity(0.07) : Colors.black.withOpacity(0.04),
                         borderRadius: BorderRadius.circular(24)),
                     child: const Center(child: Text('Cancelar',
-                        style: TextStyle(color: Colors.white60, fontWeight: FontWeight.w500)))),
+                        style: TextStyle(color: AppTheme.current.isDark ? Colors.white60 : Colors.black54, fontWeight: FontWeight.w500)))),
                 ),
               ),
               const SizedBox(width: 12),
@@ -786,7 +759,7 @@ class _DownloadSheetState extends State<_DownloadSheet> {
                   onTap: _doDownload,
                   child: Container(height: 48,
                     decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppTheme.current.text,
                         borderRadius: BorderRadius.circular(24)),
                     child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                       SvgPicture.string(_svgMenuDownloads, width: 18, height: 18,
