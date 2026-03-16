@@ -253,7 +253,7 @@ class _BrowserPageState extends State<BrowserPage> {
         }
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: const SystemUiOverlayStyle(
+        value: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: AppTheme.current.statusBar,
         ),
@@ -278,7 +278,7 @@ class _BrowserPageState extends State<BrowserPage> {
                       child: SvgPicture.string(
                         _svgClose,
                         width: 16, height: 16,
-                        colorFilter: const ColorFilter.mode(
+                        colorFilter: ColorFilter.mode(
                             AppTheme.current.icon, BlendMode.srcIn),
                       ),
                     ),
@@ -546,7 +546,7 @@ class _PopupMenuOverlayState extends State<_PopupMenuOverlay>
         child: Row(children: [
           SvgPicture.string(svg, width: 18, height: 18,
               colorFilter: ColorFilter.mode(AppTheme.current.icon, BlendMode.srcIn)),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(child: Text(label,
               style: TextStyle(color: AppTheme.current.text, fontSize: 14,
                   fontWeight: FontWeight.w400))),
@@ -749,7 +749,7 @@ class _DownloadSheetState extends State<_DownloadSheet> {
                     decoration: BoxDecoration(
                         color: AppTheme.current.isDark ? Colors.white.withOpacity(0.07) : Colors.black.withOpacity(0.04),
                         borderRadius: BorderRadius.circular(24)),
-                    child: const Center(child: Text('Cancelar',
+                    child: Center(child: Text('Cancelar',
                         style: TextStyle(color: AppTheme.current.isDark ? Colors.white60 : Colors.black54, fontWeight: FontWeight.w500)))),
                 ),
               ),
