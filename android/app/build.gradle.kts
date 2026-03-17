@@ -7,17 +7,9 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// ── Keystore ──────────────────────────────────────────────────────────────────
-val keystorePropertiesFile = rootProject.file("key.properties")
-val keystoreProperties = Properties()
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-}
-
 android {
     namespace = "com.patrulha.xx"
     compileSdk = flutter.compileSdkVersion
-    // NDK fixo — evita mismatch de versão entre plugins nativos
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -38,8 +30,6 @@ android {
         versionName = flutter.versionName
         multiDexEnabled = true
 
-        // Inclui armeabi-v7a (32-bit) e arm64-v8a (64-bit)
-        // Evita crash em MediaTek e Snapdragon que só suportam uma das ABIs
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a")
         }
@@ -47,8 +37,6 @@ android {
 
     packaging {
         jniLibs {
-            // Evita crash de libs nativas duplicadas entre flutter_p2p_connection,
-            // mobile_scanner, flutter_inappwebview e video_player
             useLegacyPackaging = true
             pickFirsts += setOf(
                 "**/libflutter.so",
@@ -68,20 +56,16 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias     = keystoreProperties["keyAlias"] as String
-                keyPassword  = keystoreProperties["keyPassword"] as String
-                storeFile    = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-            }
+            storeFile    = file("debug.keystore")
+            storePassword = "android"
+            keyAlias     = "androiddebugkey"
+            keyPassword  = "android"
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName(
-                if (keystorePropertiesFile.exists()) "release" else "debug"
-            )
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
