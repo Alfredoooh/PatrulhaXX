@@ -74,14 +74,13 @@ class _SiteIconWidgetState extends State<SiteIconWidget> {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.white,
-        // Sombra SÓLIDA com a cor primária (sem gradiente)
         boxShadow: widget.showShadow
             ? [
                 BoxShadow(
-                  color: widget.site.primaryColor.withOpacity(0.3),
-                  blurRadius: 10,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 3),
+                  color: widget.site.primaryColor.withOpacity(0.35),
+                  blurRadius: 12,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 4),
                 ),
               ]
             : null,
@@ -93,7 +92,6 @@ class _SiteIconWidgetState extends State<SiteIconWidget> {
   Widget _fallback(double s) => Container(
         width: s,
         height: s,
-        // Cor SÓLIDA (sem gradiente)
         color: widget.site.primaryColor,
         child: Center(
           child: Text(
