@@ -8,21 +8,18 @@ workflows:
       vars:
         KEYSTORE_PATH: /tmp/nuxxx.jks
         KEY_ALIAS: nuxxx
+      # No painel do Codemagic em Environment variables adiciona:
+      # KEYSTORE_BASE64  → output do: base64 -w 0 nuxxx.jks
+      # KEYSTORE_PASSWORD → a password do keystore
+      # KEY_PASSWORD      → a password da key
 
     scripts:
       - name: Flutter packages
         script: flutter pub get
 
-      - name: Generate keystore
+      - name: Restaurar keystore
         script: |
-          keytool -genkey -v \
-            -keystore "$KEYSTORE_PATH" \
-            -alias "$KEY_ALIAS" \
-            -keyalg RSA -keysize 2048 \
-            -validity 36500 \
-            -storepass "$KEYSTORE_PASSWORD" \
-            -keypass "$KEY_PASSWORD" \
-            -dname "CN=nuxxx,OU=nuxxx,O=nuxxx,L=Luanda,S=Luanda,C=AO"
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
 
       - name: key.properties
         script: |
