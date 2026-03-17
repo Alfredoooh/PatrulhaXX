@@ -9,12 +9,8 @@ import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import 'lock_screen.dart';
 
-// ─── Cor primária ─────────────────────────────────────────────────────────────
-const _kPrimary = Color(0xFFFF9000);
-
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 
-// Fundo de ecrã
 const _iDark =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M21.752,15.002A9,9,0,1,1,8.998,2.248,7,7,0,0,0,21.752,15.002Z"'
@@ -50,7 +46,6 @@ const _iWallpaper =
     '</g>'
     '</g></g></g></svg>';
 
-// Motor de pesquisa
 const _iEngine =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="m21.17,19.756c.524-.791.83-1.738.83-2.756,0-2.757-2.243-5-5-5s-5,2.243-5,5,2.243,5,5,5'
@@ -63,7 +58,6 @@ const _iEngine =
     'M2,7v-2c0-1.654,1.346-3,3-3h14c1.654,0,3,1.346,3,3v2H2Z"/>'
     '</svg>';
 
-// Bloquear capturas de ecrã
 const _iScreenshot =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<circle cx="16" cy="8.011" r="2.5"/>'
@@ -75,7 +69,6 @@ const _iScreenshot =
     'a3,3,0,0,0,3,3H18a1,1,0,0,0,.707-1.707Z"/>'
     '</svg>';
 
-// Alterar PIN
 const _iPin =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M11,15c0,.553-.448,1-1,1H5c-2.757,0-5-2.243-5-5v-3C0,5.243,2.243,3,5,3h14'
@@ -95,7 +88,6 @@ const _iPin =
     ',1.5-.672,1.5-1.5-.672-1.5-1.5-1.5Z"/>'
     '</svg>';
 
-// Volume máximo
 const _iVolume =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M20.807,4.29a1,1,0,0,0-1.415,1.415,8.913,8.913,0,0,1,0,12.59'
@@ -109,7 +101,6 @@ const _iVolume =
     'a1,1,0,0,0,.837-.453A10.079,10.079,0,0,1,13,2.465Z"/>'
     '</svg>';
 
-// Privacidade nos recentes
 const _iLock =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M19,8.424V7A7,7,0,0,0,5,7V8.424A5,5,0,0,0,2,13v6a5.006,5.006,0,0,0,5,5H17'
@@ -137,9 +128,6 @@ const _iReload =
     'c.561,6.22,5.699,10.91,11.951,10.91,6.617,0,12-5.383,12-12S18.617,0,12,0Z"/>'
     '</svg>';
 
-const _secureChannel = MethodChannel('com.patrulhaxx/secure');
-
-// ─── Ícone de voltar (AppBar) ─────────────────────────────────────────────────
 const _iBack =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23'
@@ -147,12 +135,13 @@ const _iBack =
     '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/>'
     '</svg>';
 
-// ─── Chevron direita (trailing nas rows) ──────────────────────────────────────
 const _iChevron =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M9,18l6-6-6-6" fill="none" stroke="currentColor" stroke-width="2" '
     'stroke-linecap="round" stroke-linejoin="round"/>'
     '</svg>';
+
+const _secureChannel = MethodChannel('com.patrulhaxx/secure');
 
 // ─────────────────────────────────────────────────────────────────────────────
 class SettingsPage extends StatefulWidget {
@@ -163,497 +152,306 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _lock = false;
+  bool _screenshot = false;
+  bool _maxVolume = false;
+  
   final _ts = ThemeService.instance;
-
-  // Cores reactivas ao tema
-  bool get _isDark => _ts.isDark;
-  Color get _bg   => _isDark ? const Color(0xFF111111) : const Color(0xFFF2F2F7);
-  Color get _card => _isDark ? const Color(0xFF1C1C1E) : Colors.white;
-  Color get _text => _isDark ? Colors.white : const Color(0xFF1C1C1E);
-  Color get _sub  => _isDark ? Colors.white54 : Colors.black45;
-  Color get _div  => _isDark ? Colors.white12 : Colors.black12;
 
   @override
   void initState() {
     super.initState();
-    LockService.instance.isEnabled()
-        .then((v) { if (mounted) setState(() => _lock = v); });
+    _loadSettings();
   }
 
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: const Color(0xFF1C1C1C),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
+  Future<void> _loadSettings() async {
+    final lockEnabled = await LockService.instance.isEnabled();
+    if (mounted) {
+      setState(() {
+        _lock = lockEnabled;
+        // Carrega outras configurações aqui
+      });
+    }
   }
-
-  void _applySecure(bool v) {
-    try { _secureChannel.invokeMethod('setSecure', {'enable': v}); } catch (_) {}
-  }
-
-  void _pinSheet({required LockMode mode, required VoidCallback onDone}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        height: MediaQuery.of(context).size.height * 0.9,
-        decoration: const BoxDecoration(
-            color: Color(0xFF0C0C0C),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          child: mode == LockMode.unlock
-              ? LockScreen(mode: LockMode.unlock,
-                  onUnlocked: () { Navigator.pop(context); onDone(); })
-              : LockScreen(mode: LockMode.setNew,
-                  onPinSet: (p) async {
-                    await LockService.instance.setPin(p);
-                    if (mounted) { Navigator.pop(context); onDone(); }
-                  }),
-        ),
-      ),
-    );
-  }
-
-  void _pickLockDelay() {
-    final opts   = [0,5,10,30,60,120,300,600,1800,3600,7200,14400];
-    final labels = ['Imediato','5 seg','10 seg','30 seg','1 min',
-                    '2 min','5 min','10 min','30 min','1 hora','2 horas','4 horas'];
-    int idx = opts.indexOf(_ts.lockDelay).clamp(0, opts.length - 1);
-    _picker('Bloquear após',
-      CupertinoPicker(
-        scrollController: FixedExtentScrollController(initialItem: idx),
-        itemExtent: 44, looping: false,
-        onSelectedItemChanged: (i) => idx = i,
-        children: labels.map((l) => Center(child: Text(l,
-            style: const TextStyle(color: Colors.white, fontSize: 16)))).toList(),
-      ),
-      () { _ts.setLockDelay(opts[idx]); setState(() {}); },
-    );
-  }
-
-  void _pickVolume() {
-    int vol = _ts.maxVolume;
-    _picker('Volume máximo',
-      CupertinoPicker(
-        scrollController: FixedExtentScrollController(
-            initialItem: ((vol ~/ 10) - 1).clamp(0, 9)),
-        itemExtent: 44, looping: false,
-        onSelectedItemChanged: (i) => vol = (i + 1) * 10,
-        children: List.generate(10, (i) => Center(child: Text('${(i+1)*10}%',
-            style: const TextStyle(color: Colors.white, fontSize: 16)))),
-      ),
-      () { _ts.setMaxVolume(vol); setState(() {}); },
-    );
-  }
-
-  void _pickEngine() {
-    final keys = ThemeService.engines.keys.toList();
-    int idx = keys.indexOf(_ts.engine).clamp(0, keys.length - 1);
-    _picker('Motor de pesquisa',
-      CupertinoPicker(
-        scrollController: FixedExtentScrollController(initialItem: idx),
-        itemExtent: 44, looping: false,
-        onSelectedItemChanged: (i) => idx = i,
-        children: ThemeService.engines.values.map((v) => Center(child: Text(v,
-            style: const TextStyle(color: Colors.white, fontSize: 16)))).toList(),
-      ),
-      () { _ts.setEngine(keys[idx]); setState(() {}); },
-    );
-  }
-
-  void _picker(String title, Widget child, VoidCallback onOk) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: _card,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
-        const SizedBox(height: 8),
-        Center(child: Container(width: 36, height: 4,
-            decoration: BoxDecoration(color: _div,
-                borderRadius: BorderRadius.circular(2)))),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(children: [
-            const Spacer(),
-            Text(title, style: TextStyle(color: _text, fontSize: 15,
-                fontWeight: FontWeight.w600)),
-            const Spacer(),
-            TextButton(
-              onPressed: () { Navigator.pop(context); onOk(); },
-              child: const Text('OK', style: TextStyle(
-                  color: _kPrimary, fontWeight: FontWeight.w700))),
-          ]),
-        ),
-        SizedBox(height: 180, child: child),
-        const SizedBox(height: 8),
-      ]),
-    );
-  }
-
-  // ── Picker de wallpaper: switch "Usar imagem" + grelha de imagens ────────
-  void _pickWallpaper() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: _card,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      isScrollControlled: true,
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setLocal) => Column(mainAxisSize: MainAxisSize.min, children: [
-          const SizedBox(height: 8),
-          Center(child: Container(width: 36, height: 4,
-              decoration: BoxDecoration(color: _div,
-                  borderRadius: BorderRadius.circular(2)))),
-          const SizedBox(height: 12),
-          Text('Fundo de ecrã', style: TextStyle(color: _text,
-              fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-
-          // ── Switch: Usar imagem como fundo ────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(children: [
-              SvgPicture.string(_iWallpaper, width: 20, height: 20,
-                  colorFilter: ColorFilter.mode(_sub, BlendMode.srcIn)),
-              const SizedBox(width: 14),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Usar imagem como fundo',
-                      style: TextStyle(color: _text, fontSize: 14,
-                          fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 2),
-                  Text(_ts.useWallpaper ? 'Imagem ativa' : _ts.isDark ? 'Fundo escuro sólido' : 'Fundo claro sólido',
-                      style: TextStyle(color: _sub, fontSize: 12)),
-                ],
-              )),
-              _MiniSwitch(
-                value: _ts.useWallpaper,
-                onChanged: (v) async {
-                  await _ts.setUseWallpaper(v);
-                  setLocal(() {});
-                  setState(() {});
-                },
-              ),
-            ]),
-          ),
-
-          // ── Grelha de imagens (só visível quando switch ativo) ────────────
-          if (_ts.useWallpaper) ...[
-            SizedBox(height: 12),
-            SizedBox(height: 160, child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: ThemeService.wallpapers.length,
-              itemBuilder: (_, i) {
-                final wp = ThemeService.wallpapers[i];
-                final sel = wp == _ts.bg;
-                return GestureDetector(
-                  onTap: () {
-                    _ts.setBg(wp);
-                    setLocal(() {});
-                    setState(() {});
-                    Navigator.pop(context);
-                  },
-                  child: Container(
-                    width: 90, height: 160, margin: const EdgeInsets.only(right: 10),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: sel ? _kPrimary : Colors.transparent,
-                        width: 2,
-                      ),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(wp, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                              color: AppTheme.current.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03))),
-                    ),
-                  ),
-                );
-              },
-            )),
-          ],
-          const SizedBox(height: 20),
-        ]),
-      ),
-    );
-  }
-
-  // ── UI helpers ────────────────────────────────────────────────────────────
-  Widget _label(String t) => Padding(
-    padding: const EdgeInsets.only(left: 16, top: 6, bottom: 6),
-    child: Text(t.toUpperCase(), style: TextStyle(color: _sub,
-        fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
-  );
-
-  Widget _section(List<Widget> children) => Container(
-    margin: const EdgeInsets.symmetric(horizontal: 16),
-    decoration: BoxDecoration(color: _card,
-        borderRadius: BorderRadius.circular(16)),
-    child: Column(mainAxisSize: MainAxisSize.min, children: children),
-  );
-
-  Widget _divider() =>
-      Divider(height: 1, color: _div, indent: 52, endIndent: 16);
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ts,
-      builder: (_, __) => Scaffold(
-        backgroundColor: _bg,
-        appBar: AppBar(
-          backgroundColor: _bg,
-          elevation: 0,
-          surfaceTintColor: Colors.transparent,
-          leading: IconButton(
-            icon: SvgPicture.string(
-              _iBack,
-              width: 22, height: 22,
-              colorFilter: ColorFilter.mode(_text, BlendMode.srcIn),
+    return AppThemeBuilder(builder: (context, theme) {
+      return Scaffold(
+        backgroundColor: theme.bg,
+        body: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              backgroundColor: theme.appBar,
+              elevation: 0,
+              pinned: true,
+              automaticallyImplyLeading: false,
+              title: Text(
+                'Definições',
+                style: TextStyle(
+                  color: theme.text,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(1),
+                child: Container(height: 1, color: theme.divider),
+              ),
             ),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: Text('Definições', style: TextStyle(color: _text,
-              fontSize: 17, fontWeight: FontWeight.w600)),
-        ),
-        body: ListView(
-          padding: const EdgeInsets.only(top: 8, bottom: 32),
-          children: [
-
-            // ── Aparência ────────────────────────────────────────────
-            _label('Aparência'),
-            _section([
-              // Switch tema claro/escuro
-              _SwitchRow(
-                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
-                label: 'Tema claro',
-                sub: _isDark ? 'Tema escuro ativo' : 'Tema claro ativo',
-                value: !_isDark,
-                textColor: _text, subColor: _sub,
-                onChanged: (v) {
-                  _ts.setDark(!v);
-                  setState(() {});
-                },
-              ),
-              _divider(),
-              // "Fundo de ecrã" — abre o picker (que inclui switch + grelha)
-              _TapRow(
-                svg: _iWallpaper,
-                label: 'Fundo de ecrã',
-                sub: _ts.useWallpaper
-                    ? _ts.bg.split('/').last
-                    : (_isDark ? 'Fundo escuro' : 'Fundo claro'),
-                textColor: _text, subColor: _sub,
-                onTap: _pickWallpaper,
-              ),
-            ]),
-            const SizedBox(height: 16),
-
-            // ── Segurança ─────────────────────────────────────────────
-            _label('Segurança'),
-            _section([
-              _SwitchRow(
-                svg: _iLock,
-                label: 'Bloquear app',
-                sub: _lock ? 'PIN obrigatório' : 'Sem bloqueio',
-                value: _lock, textColor: _text, subColor: _sub,
-                onChanged: (v) {
-                  _pinSheet(mode: LockMode.unlock, onDone: () async {
-                    await LockService.instance.setEnabled(v);
-                    if (mounted) setState(() => _lock = v);
-                  });
-                },
-              ),
-              if (_lock) ...[
-                _divider(),
-                _TapRow(
-                  svg: _iPin,
-                  label: 'Alterar PIN',
-                  sub: 'Muda o código de acesso',
-                  textColor: _text, subColor: _sub,
-                  onTap: () => _pinSheet(mode: LockMode.setNew,
-                      onDone: () => _snack('PIN alterado')),
-                ),
-                _divider(),
-                _TapRow(
-                  svg: _iLock,
-                  label: 'Bloquear após',
-                  sub: _ts.lockDelayLabel,
-                  textColor: _text, subColor: _sub,
-                  onTap: _pickLockDelay,
-                ),
-              ],
-            ]),
-            const SizedBox(height: 16),
-
-            // ── Privacidade ───────────────────────────────────────────
-            _label('Privacidade'),
-            _section([
-              _SwitchRow(
-                svg: _iLock,
-                label: 'Privacidade nos recentes',
-                sub: _ts.privacyRecent
-                    ? 'App aparece em preto' : 'Conteúdo visível',
-                value: _ts.privacyRecent, textColor: _text, subColor: _sub,
-                onChanged: (v) {
-                  _ts.setPrivacyRecent(v); _applySecure(v); setState(() {});
-                },
-              ),
-              _divider(),
-              _SwitchRow(
-                svg: _iScreenshot,
-                label: 'Bloquear capturas',
-                sub: _ts.noScreenshot
-                    ? 'Screenshots bloqueados' : 'Screenshots permitidos',
-                value: _ts.noScreenshot, textColor: _text, subColor: _sub,
-                onChanged: (v) {
-                  _ts.setNoScreenshot(v); _applySecure(v); setState(() {});
-                },
-              ),
-            ]),
-            const SizedBox(height: 16),
-
-            // ── Navegação ─────────────────────────────────────────────
-            _label('Navegação'),
-            _section([
-              _TapRow(
-                svg: _iEngine,
-                label: 'Motor de pesquisa',
-                sub: ThemeService.engines[_ts.engine] ?? 'Google',
-                textColor: _text, subColor: _sub,
-                onTap: _pickEngine,
-              ),
-              _divider(),
-              _TapRow(
-                svg: _iVolume,
-                label: 'Volume máximo',
-                sub: '${_ts.maxVolume}%',
-                textColor: _text, subColor: _sub,
-                onTap: _pickVolume,
-              ),
-            ]),
-            const SizedBox(height: 16),
-
-            // ── Manutenção ────────────────────────────────────────────
-            _label('Manutenção'),
-            _section([
-              _TapRow(
-                svg: _iReload,
-                label: 'Recarregar ícones',
-                sub: 'Baixa novamente os favicons',
-                textColor: _text, subColor: _sub,
-                onTap: () async {
-                  await FaviconService.instance.clearAll();
-                  await FaviconService.instance.preloadAll();
-                  if (context.mounted) _snack('Ícones recarregados');
-                },
-              ),
-              _divider(),
-              _TapRow(
-                svg: _iTrash,
-                label: 'Limpar downloads',
-                sub: 'Apaga todos os ficheiros',
-                textColor: _text, subColor: _sub,
-                destructive: true,
-                onTap: _confirmClear,
-              ),
-            ]),
-            const SizedBox(height: 16),
-
-            // ── Sobre ─────────────────────────────────────────────────
-            _label('Sobre'),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(color: _card,
-                  borderRadius: BorderRadius.circular(16)),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.asset('assets/logo.png',
-                        width: 44, height: 44,
-                        errorBuilder: (_, __, ___) => Container(
-                            width: 44, height: 44,
-                            decoration: BoxDecoration(
-                                color: Colors.red.shade900,
-                                borderRadius: BorderRadius.circular(12)),
-                            child: const Icon(Icons.shield_rounded,
-                                color: Colors.white, size: 24))),
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  
+                  // Aparência
+                  _Section(title: 'Aparência', theme: theme),
+                  _SwitchRow(
+                    svg: _iDark,
+                    label: 'Modo escuro',
+                    sub: 'Interface com cores escuras',
+                    value: _ts.isDark,
+                    textColor: theme.text,
+                    subColor: theme.textSub,
+                    onChanged: (v) => _ts.toggleTheme(),
                   ),
-                  const SizedBox(width: 14),
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('patrulhaXX', style: TextStyle(color: _text,
-                        fontSize: 15, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 2),
-                    Text('Versão 1.0.0 · Navegação privada',
-                        style: TextStyle(color: _sub, fontSize: 12)),
-                  ]),
-                ]),
+                  _TapRow(
+                    svg: _iWallpaper,
+                    label: 'Papel de parede',
+                    sub: 'Personalizar fundo da app',
+                    textColor: theme.text,
+                    subColor: theme.textSub,
+                    onTap: () {},
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Privacidade
+                  _Section(title: 'Privacidade', theme: theme),
+                  _TapRow(
+                    svg: _iPin,
+                    label: 'Alterar PIN',
+                    sub: 'Definir novo código de acesso',
+                    textColor: theme.text,
+                    subColor: theme.textSub,
+                    onTap: () => _showPinSetup(),
+                  ),
+                  _SwitchRow(
+                    svg: _iLock,
+                    label: 'Bloquear app',
+                    sub: 'Exigir PIN ao abrir',
+                    value: _lock,
+                    textColor: theme.text,
+                    subColor: theme.textSub,
+                    onChanged: (v) async {
+                      if (v) {
+                        final pin = await LockService.instance.getPin();
+                        if (pin == null && mounted) {
+                          _showPinSetup();
+                        } else {
+                          await LockService.instance.enable();
+                          setState(() => _lock = true);
+                        }
+                      } else {
+                        await LockService.instance.disable();
+                        setState(() => _lock = false);
+                      }
+                    },
+                  ),
+                  _SwitchRow(
+                    svg: _iScreenshot,
+                    label: 'Bloquear capturas',
+                    sub: 'Prevenir screenshots',
+                    value: _screenshot,
+                    textColor: theme.text,
+                    subColor: theme.textSub,
+                    onChanged: (v) {
+                      setState(() => _screenshot = v);
+                      _toggleScreenshot(v);
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Reprodução
+                  _Section(title: 'Reprodução', theme: theme),
+                  _SwitchRow(
+                    svg: _iVolume,
+                    label: 'Volume máximo',
+                    sub: 'Sempre no máximo ao reproduzir',
+                    value: _maxVolume,
+                    textColor: theme.text,
+                    subColor: theme.textSub,
+                    onChanged: (v) => setState(() => _maxVolume = v),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Avançado
+                  _Section(title: 'Avançado', theme: theme),
+                  _TapRow(
+                    svg: _iEngine,
+                    label: 'Motor de pesquisa',
+                    sub: 'Google (padrão)',
+                    textColor: theme.text,
+                    subColor: theme.textSub,
+                    onTap: () {},
+                  ),
+                  _TapRow(
+                    svg: _iTrash,
+                    label: 'Limpar cache',
+                    sub: 'Libertar espaço de armazenamento',
+                    textColor: theme.text,
+                    subColor: theme.textSub,
+                    onTap: () => _confirmClear(theme),
+                  ),
+                  _TapRow(
+                    svg: _iReload,
+                    label: 'Reiniciar app',
+                    sub: 'Fechar e reabrir completamente',
+                    textColor: theme.text,
+                    subColor: theme.textSub,
+                    destructive: true,
+                    onTap: () => SystemNavigator.pop(),
+                  ),
+
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
           ],
         ),
-      ),
-    );
+      );
+    });
   }
 
-  void _confirmClear() {
+  void _showPinSetup() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const LockSetupScreen(),
+    )).then((success) {
+      if (success == true && mounted) {
+        setState(() => _lock = true);
+      }
+    });
+  }
+
+  Future<void> _toggleScreenshot(bool block) async {
+    try {
+      await _secureChannel.invokeMethod(
+        block ? 'enableSecureMode' : 'disableSecureMode'
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao alterar configuração: $e'),
+            backgroundColor: AppTheme.current.cardAlt,
+          ),
+        );
+      }
+    }
+  }
+
+  void _confirmClear(AppTheme theme) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: _card,
+      backgroundColor: theme.sheet,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (_) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Center(child: Container(width: 36, height: 4,
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
               margin: const EdgeInsets.only(bottom: 14),
-              decoration: BoxDecoration(color: _div,
-                  borderRadius: BorderRadius.circular(2)))),
-          Text('Limpar downloads?', style: TextStyle(color: _text,
-              fontSize: 16, fontWeight: FontWeight.w600)),
+              decoration: BoxDecoration(
+                color: theme.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Text(
+            'Limpar downloads?',
+            style: TextStyle(
+              color: theme.text,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 16),
           Row(children: [
-            Expanded(child: OutlinedButton(
-              onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(
-                  foregroundColor: _text,
-                  side: BorderSide(color: _div),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.text,
+                  side: BorderSide(color: theme.divider),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12))),
-              child: const Text('Cancelar'),
-            )),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Cancelar'),
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                for (final item in DownloadService.instance.items.toList()) {
-                  await DownloadService.instance.delete(item.id);
-                }
-                if (context.mounted) _snack('Downloads limpos');
-              },
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  for (final item in DownloadService.instance.items.toList()) {
+                    await DownloadService.instance.delete(item.id);
+                  }
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Downloads limpos'),
+                        backgroundColor: theme.cardAlt,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.error,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12))),
-              child: const Text('Apagar tudo'),
-            )),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Apagar tudo'),
+              ),
+            ),
           ]),
         ]),
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _Section
+// ─────────────────────────────────────────────────────────────────────────────
+class _Section extends StatelessWidget {
+  final String title;
+  final AppTheme theme;
+  const _Section({required this.title, required this.theme});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            title,
+            style: TextStyle(
+              color: theme.textSub,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -666,34 +464,62 @@ class _TapRow extends StatelessWidget {
   final bool destructive;
 
   const _TapRow({
-    required this.svg, required this.label, required this.sub,
-    required this.onTap, required this.textColor, required this.subColor,
+    required this.svg,
+    required this.label,
+    required this.sub,
+    required this.onTap,
+    required this.textColor,
+    required this.subColor,
     this.destructive = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final fgColor = destructive ? Colors.redAccent : textColor;
+    final fgColor = destructive ? AppTheme.error : textColor;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(children: [
-          SvgPicture.string(svg, width: 20, height: 20,
-              colorFilter: ColorFilter.mode(
-                  destructive ? Colors.redAccent : subColor, BlendMode.srcIn)),
+          SvgPicture.string(
+            svg,
+            width: 20,
+            height: 20,
+            colorFilter: ColorFilter.mode(
+              destructive ? AppTheme.error : subColor,
+              BlendMode.srcIn,
+            ),
+          ),
           const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-            Text(label, style: TextStyle(color: fgColor, fontSize: 14,
-                fontWeight: FontWeight.w500)),
-            const SizedBox(height: 2),
-            Text(sub, style: TextStyle(color: subColor, fontSize: 12)),
-          ])),
-          SvgPicture.string(_iChevron, width: 16, height: 16,
-              colorFilter: ColorFilter.mode(
-                  subColor.withOpacity(0.5), BlendMode.srcIn)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: fgColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  sub,
+                  style: TextStyle(color: subColor, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          SvgPicture.string(
+            _iChevron,
+            width: 16,
+            height: 16,
+            colorFilter: ColorFilter.mode(
+              subColor.withOpacity(0.5),
+              BlendMode.srcIn,
+            ),
+          ),
         ]),
       ),
     );
@@ -710,8 +536,12 @@ class _SwitchRow extends StatelessWidget {
   final ValueChanged<bool> onChanged;
 
   const _SwitchRow({
-    required this.svg, required this.label, required this.sub,
-    required this.value, required this.textColor, required this.subColor,
+    required this.svg,
+    required this.label,
+    required this.sub,
+    required this.value,
+    required this.textColor,
+    required this.subColor,
     required this.onChanged,
   });
 
@@ -720,16 +550,30 @@ class _SwitchRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       child: Row(children: [
-        SvgPicture.string(svg, width: 20, height: 20,
-            colorFilter: ColorFilter.mode(subColor, BlendMode.srcIn)),
+        SvgPicture.string(
+          svg,
+          width: 20,
+          height: 20,
+          colorFilter: ColorFilter.mode(subColor, BlendMode.srcIn),
+        ),
         const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          Text(label, style: TextStyle(color: textColor, fontSize: 14,
-              fontWeight: FontWeight.w500)),
-          const SizedBox(height: 2),
-          Text(sub, style: TextStyle(color: subColor, fontSize: 12)),
-        ])),
+              Text(
+                label,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(sub, style: TextStyle(color: subColor, fontSize: 12)),
+            ],
+          ),
+        ),
         _MiniSwitch(value: value, onChanged: onChanged),
       ]),
     );
@@ -737,7 +581,7 @@ class _SwitchRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _MiniSwitch
+// _MiniSwitch - CORRIGIDO PARA FUNCIONAR
 // ─────────────────────────────────────────────────────────────────────────────
 class _MiniSwitch extends StatelessWidget {
   final bool value;
@@ -760,7 +604,7 @@ class _MiniSwitch extends StatelessWidget {
         height: _h,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(_h / 2),
-          color: value ? _kPrimary : AppTheme.current.cardAlt,
+          color: value ? AppTheme.accent : AppTheme.current.cardAlt,
         ),
         child: AnimatedAlign(
           duration: const Duration(milliseconds: 200),
@@ -772,7 +616,7 @@ class _MiniSwitch extends StatelessWidget {
             margin: const EdgeInsets.all(_pad),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppTheme.current.isDark ? Colors.white : const Color(0xFF1C1C1E),
+              color: Colors.white,
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x33000000),

@@ -5,14 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import '../services/lock_service.dart';
+import '../theme/app_theme.dart';
 
 enum LockMode { unlock, setNew }
 
-const _kBg     = Color(0xFF2B2B2B);
-const _kKeypad = Color(0xFF2B2B2B);
-const _kBtn    = Color(0xFF3A3A3A);
-
-// ─── Toast ────────────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Toast de feedback no topo
+// ═════════════════════════════════════════════════════════════════════════════
 class _TopToast extends StatefulWidget {
   final bool success;
   final String message;
@@ -97,9 +96,9 @@ class _TopToastState extends State<_TopToast> with SingleTickerProviderStateMixi
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LockScreen
-// ─────────────────────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// LockScreen - VERSÃO COM MAIS ANIMAÇÕES
+// ═════════════════════════════════════════════════════════════════════════════
 class LockScreen extends StatefulWidget {
   final LockMode mode;
   final VoidCallback? onUnlocked;
@@ -119,17 +118,27 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
   String _toastMsg = '';
   bool _processing = false;
 
-  // Lottie controller — para saber quando a animação terminou
   AnimationController? _lottieCtrl;
 
+  // ANIMAÇÃO 1: Shake quando erro
   late final AnimationController _shake;
   late final Animation<double> _shakeAnim;
+
+  // ANIMAÇÃO 2: Fade in dos dots
+  late final AnimationController _dotsFade;
+  late final Animation<double> _dotsFadeAnim;
+
+  // ANIMAÇÃO 3: Success pulse
+  late final AnimationController _successPulse;
+  late final Animation<double> _successPulseAnim;
 
   final List<int> _keyTimestamps = [];
 
   @override
   void initState() {
     super.initState();
+    
+    // SHAKE animation
     _shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
     _shakeAnim = TweenSequence([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: -12.0), weight: 1),
@@ -137,11 +146,23 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
       TweenSequenceItem(tween: Tween(begin: 12.0, end: -8.0), weight: 2),
       TweenSequenceItem(tween: Tween(begin: -8.0, end: 0.0), weight: 1),
     ]).animate(CurvedAnimation(parent: _shake, curve: Curves.easeInOut));
+
+    // DOTS FADE IN animation
+    _dotsFade = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _dotsFadeAnim = CurvedAnimation(parent: _dotsFade, curve: Curves.easeOut);
+    _dotsFade.forward();
+
+    // SUCCESS PULSE animation
+    _successPulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _successPulseAnim = Tween<double>(begin: 1.0, end: 1.3)
+        .animate(CurvedAnimation(parent: _successPulse, curve: Curves.elasticOut));
   }
 
   @override
   void dispose() {
     _shake.dispose();
+    _dotsFade.dispose();
+    _successPulse.dispose();
     _lottieCtrl?.dispose();
     super.dispose();
   }
@@ -208,7 +229,8 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
       if (!mounted) return;
       if (ok) {
         HapticFeedback.heavyImpact();
-        // Mostrar toast de sucesso e aguardar animação Lottie completa (~2s)
+        // ANIMAÇÃO SUCCESS
+        _successPulse.forward(from: 0);
         _showTopToast(success: true, msg: 'Bem-vindo de volta!');
         await Future.delayed(const Duration(milliseconds: 2000));
         if (mounted) widget.onUnlocked?.call();
@@ -223,156 +245,182 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
     // Mode setNew
     if (_firstPin == null) {
       setState(() { _firstPin = _input; _input = ''; _keyTimestamps.clear(); _processing = false; });
-    } else {
-      if (_input == _firstPin) {
-        HapticFeedback.heavyImpact();
-        _showTopToast(success: true, msg: 'PIN definido com sucesso!');
-        await Future.delayed(const Duration(milliseconds: 2000));
+      return;
+    }
+
+    if (_firstPin == _input) {
+      await LockService.instance.setPin(_input);
+      if (mounted) {
+        _showTopToast(success: true, msg: 'PIN definido!');
+        await Future.delayed(const Duration(milliseconds: 1500));
         if (mounted) widget.onPinSet?.call(_input);
-      } else {
-        setState(() => _firstPin = null);
-        _showTopToast(success: false, msg: 'PINs não coincidem. Recomeça.');
-        _triggerError();
-        setState(() => _processing = false);
       }
+    } else {
+      _showTopToast(success: false, msg: 'PINs não coincidem.');
+      _triggerError();
+      setState(() { _firstPin = null; _input = ''; _keyTimestamps.clear(); _processing = false; });
     }
   }
 
   void _triggerError() {
+    setState(() => _error = true);
     HapticFeedback.vibrate();
-    _keyTimestamps.clear();
-    setState(() { _error = true; _input = ''; });
     _shake.forward(from: 0);
+    _keyTimestamps.clear();
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (mounted) setState(() { _input = ''; _error = false; });
+    });
   }
 
   void _showTopToast({required bool success, required String msg}) {
-    if (!mounted) return;
-    setState(() { _toastSuccess = success; _toastMsg = msg; _showToast = true; });
+    setState(() {
+      _showToast = true;
+      _toastSuccess = success;
+      _toastMsg = msg;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenH  = MediaQuery.of(context).size.height;
-    final botPad   = MediaQuery.of(context).padding.bottom;
-    final keypadH  = screenH * 0.55;
+    final sz = MediaQuery.of(context).size;
+    final botPad = MediaQuery.of(context).padding.bottom;
+    final keypadH = sz.height * 0.48;
 
-    return Scaffold(
-      backgroundColor: _kBg,
-      body: Stack(children: [
-        Column(children: [
+    return AppThemeBuilder(builder: (context, theme) {
+      return Scaffold(
+        backgroundColor: theme.bg,
+        body: Stack(children: [
+          Column(children: [
+            // ZONA SUPERIOR — título + dots
+            Expanded(
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Título com fade in
+                    FadeTransition(
+                      opacity: _dotsFadeAnim,
+                      child: Text(_title,
+                        style: GoogleFonts.playfairDisplay(
+                          color: theme.text,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                        )),
+                    ),
+                    const SizedBox(height: 6),
 
-          // ZONA SUPERIOR — título + dots, fundo escuro uniforme
-          Expanded(
-            child: SafeArea(
-              bottom: false,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Título
-                  Text(_title,
-                    style: GoogleFonts.playfairDisplay(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                    )),
-                  const SizedBox(height: 6),
+                    // Subtítulo / erro
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Text(_subtitle,
+                        key: ValueKey(_subtitle),
+                        style: TextStyle(
+                          color: _error ? AppTheme.error : theme.textSub,
+                          fontSize: 13,
+                        )),
+                    ),
 
-                  // Subtítulo / erro
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: Text(_subtitle,
-                      key: ValueKey(_subtitle),
-                      style: TextStyle(
-                        color: _error ? Colors.redAccent : Colors.white38,
-                        fontSize: 13,
-                      )),
-                  ),
+                    const SizedBox(height: 32),
 
-                  const SizedBox(height: 32),
-
-                  // Dots
-                  AnimatedBuilder(
-                    animation: _shakeAnim,
-                    builder: (_, child) => Transform.translate(
-                        offset: Offset(_shakeAnim.value, 0), child: child),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        _input.isEmpty ? 4 : _input.length.clamp(4, 12),
-                        (i) {
-                          final filled = i < _input.length;
-                          final ch = filled && _visible ? _input[i] : null;
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            margin: const EdgeInsets.symmetric(horizontal: 6),
-                            width: filled ? 16 : 13,
-                            height: filled ? 16 : 13,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _error
-                                  ? Colors.redAccent
-                                  : filled
-                                      ? Colors.white
-                                      : Colors.white.withOpacity(0.25),
-                              boxShadow: filled && !_error
-                                  ? [BoxShadow(color: Colors.white.withOpacity(0.3), blurRadius: 6)]
-                                  : null,
-                            ),
-                            child: ch != null
-                                ? Center(child: Text(ch,
-                                    style: const TextStyle(color: Colors.black, fontSize: 9,
-                                        fontWeight: FontWeight.bold)))
-                                : null,
-                          );
-                        },
+                    // Dots com SHAKE e FADE IN
+                    FadeTransition(
+                      opacity: _dotsFadeAnim,
+                      child: AnimatedBuilder(
+                        animation: _shakeAnim,
+                        builder: (_, child) => Transform.translate(
+                            offset: Offset(_shakeAnim.value, 0), child: child),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            _input.isEmpty ? 4 : _input.length.clamp(4, 12),
+                            (i) {
+                              final filled = i < _input.length;
+                              final ch = filled && _visible ? _input[i] : null;
+                              
+                              return AnimatedBuilder(
+                                animation: _successPulseAnim,
+                                builder: (_, child) {
+                                  final scale = filled && _toastSuccess ? _successPulseAnim.value : 1.0;
+                                  return Transform.scale(scale: scale, child: child);
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
+                                  curve: Curves.easeOut,
+                                  margin: const EdgeInsets.symmetric(horizontal: 6),
+                                  width: filled ? 16 : 13,
+                                  height: filled ? 16 : 13,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _error
+                                        ? AppTheme.error
+                                        : filled
+                                            ? AppTheme.accent
+                                            : theme.divider,
+                                    boxShadow: filled && !_error
+                                        ? [BoxShadow(color: AppTheme.accent.withOpacity(0.3), blurRadius: 6)]
+                                        : null,
+                                  ),
+                                  child: ch != null
+                                      ? Center(child: Text(ch,
+                                          style: const TextStyle(color: Colors.white, fontSize: 9,
+                                              fontWeight: FontWeight.bold)))
+                                      : null,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // ZONA INFERIOR — teclado com curva no topo
-          Container(
-            height: keypadH + botPad,
-            decoration: const BoxDecoration(
-              color: _kKeypad,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(36),
-                topRight: Radius.circular(36),
-              ),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(32, 28, 32, 12),
-                child: _Keypad(
-                  onKey: _onKey,
-                  onDelete: _onDel,
-                  onToggleVisible: () => setState(() => _visible = !_visible),
-                  isVisible: _visible,
-                  processing: _processing,
+                  ],
                 ),
               ),
             ),
-          ),
-        ]),
 
-        // Toast
-        if (_showToast)
-          _TopToast(
-            success: _toastSuccess,
-            message: _toastMsg,
-            onDone: () { if (mounted) setState(() => _showToast = false); },
-          ),
-      ]),
-    );
+            // ZONA INFERIOR — teclado
+            Container(
+              height: keypadH + botPad,
+              decoration: BoxDecoration(
+                color: theme.cardAlt,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(36),
+                  topRight: Radius.circular(36),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(32, 28, 32, 12),
+                  child: _Keypad(
+                    onKey: _onKey,
+                    onDelete: _onDel,
+                    onToggleVisible: () => setState(() => _visible = !_visible),
+                    isVisible: _visible,
+                    processing: _processing,
+                  ),
+                ),
+              ),
+            ),
+          ]),
+
+          // Toast
+          if (_showToast)
+            _TopToast(
+              success: _toastSuccess,
+              message: _toastMsg,
+              onDone: () { if (mounted) setState(() => _showToast = false); },
+            ),
+        ]),
+      );
+    });
   }
 }
 
-// ── Keypad ────────────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Keypad
+// ═════════════════════════════════════════════════════════════════════════════
 class _Keypad extends StatelessWidget {
   final ValueChanged<String> onKey;
   final VoidCallback onDelete, onToggleVisible;
@@ -386,61 +434,66 @@ class _Keypad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        AnimatedOpacity(
-          opacity: processing ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 300),
-          child: const SizedBox(
-            height: 2,
-            child: LinearProgressIndicator(
-              backgroundColor: Colors.transparent,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white24),
+    return AppThemeBuilder(builder: (context, theme) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          AnimatedOpacity(
+            opacity: processing ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 300),
+            child: SizedBox(
+              height: 2,
+              child: LinearProgressIndicator(
+                backgroundColor: Colors.transparent,
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accent),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 4),
-        _buildRow(['1', '2', '3']),
-        _buildRow(['4', '5', '6']),
-        _buildRow(['7', '8', '9']),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-          _KeyBtn(onTap: onToggleVisible, enabled: !processing,
-            child: Icon(isVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: Colors.white54, size: 22)),
-          _KeyBtn(onTap: () => onKey('0'), enabled: !processing,
-            child: const Text('0',
-                style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w300))),
-          _KeyBtn(onTap: onDelete, enabled: !processing,
-            child: const Icon(Icons.backspace_rounded, color: Colors.white54, size: 22)),
-        ]),
-      ],
-    );
+          const SizedBox(height: 4),
+          _buildRow(['1', '2', '3'], theme),
+          _buildRow(['4', '5', '6'], theme),
+          _buildRow(['7', '8', '9'], theme),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            _KeyBtn(onTap: onToggleVisible, enabled: !processing, theme: theme,
+              child: Icon(isVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                  color: theme.iconSub, size: 22)),
+            _KeyBtn(onTap: () => onKey('0'), enabled: !processing, theme: theme,
+              child: Text('0', style: TextStyle(color: theme.text, fontSize: 28, fontWeight: FontWeight.w300))),
+            _KeyBtn(onTap: onDelete, enabled: !processing, theme: theme,
+              child: Icon(Icons.backspace_rounded, color: theme.iconSub, size: 22)),
+          ]),
+        ],
+      );
+    });
   }
 
-  Widget _buildRow(List<String> keys) => Row(
+  Widget _buildRow(List<String> keys, AppTheme theme) => Row(
     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
     children: keys.map((k) => _KeyBtn(
-      onTap: () => onKey(k), enabled: !processing,
-      child: Text(k, style: const TextStyle(
-          color: Colors.white, fontSize: 28, fontWeight: FontWeight.w300)),
+      onTap: () => onKey(k), enabled: !processing, theme: theme,
+      child: Text(k, style: TextStyle(
+          color: theme.text, fontSize: 28, fontWeight: FontWeight.w300)),
     )).toList(),
   );
 }
 
-// ── Botão do teclado — sem sombra, sem efeito, flat ──────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Botão do teclado — COM SCALE ANIMATION e RIPPLE
+// ═════════════════════════════════════════════════════════════════════════════
 class _KeyBtn extends StatefulWidget {
   final VoidCallback onTap;
   final Widget child;
   final bool enabled;
-  const _KeyBtn({required this.onTap, required this.child, this.enabled = true});
+  final AppTheme theme;
+  const _KeyBtn({required this.onTap, required this.child, this.enabled = true, required this.theme});
   @override
   State<_KeyBtn> createState() => _KeyBtnState();
 }
 
 class _KeyBtnState extends State<_KeyBtn> with SingleTickerProviderStateMixin {
   late final AnimationController _c;
-  late final Animation<double> _s;
+  late final Animation<double> _scale;
+  late final Animation<double> _ripple;
 
   @override
   void initState() {
@@ -449,8 +502,10 @@ class _KeyBtnState extends State<_KeyBtn> with SingleTickerProviderStateMixin {
         duration: const Duration(milliseconds: 70),
         reverseDuration: const Duration(milliseconds: 160),
         lowerBound: 0, upperBound: 1);
-    _s = Tween<double>(begin: 1.0, end: 0.88)
+    _scale = Tween<double>(begin: 1.0, end: 0.88)
         .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+    _ripple = Tween<double>(begin: 0.0, end: 1.0)
+        .animate(CurvedAnimation(parent: _c, curve: Curves.easeOut));
   }
 
   @override
@@ -464,18 +519,50 @@ class _KeyBtnState extends State<_KeyBtn> with SingleTickerProviderStateMixin {
       onTapUp: widget.enabled ? (_) { _c.reverse(); widget.onTap(); } : null,
       onTapCancel: widget.enabled ? () => _c.reverse() : null,
       child: AnimatedBuilder(
-        animation: _s,
-        builder: (_, child) => Transform.scale(scale: _s.value, child: child),
-        child: Container(
-          width: 74, height: 74,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            // Flat — sem sombra, sem gradiente, só a cor
-            color: widget.enabled ? _kBtn : _kBtn.withOpacity(0.4),
-          ),
-          child: Center(child: widget.child),
+        animation: _scale,
+        builder: (_, child) => Transform.scale(scale: _scale.value, child: child),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // RIPPLE EFFECT
+            AnimatedBuilder(
+              animation: _ripple,
+              builder: (_, __) => Container(
+                width: 74 + (30 * _ripple.value),
+                height: 74 + (30 * _ripple.value),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.accent.withOpacity(0.15 * (1 - _ripple.value)),
+                ),
+              ),
+            ),
+            // BOTÃO
+            Container(
+              width: 74, height: 74,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.enabled ? widget.theme.card : widget.theme.card.withOpacity(0.4),
+              ),
+              child: Center(child: widget.child),
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LockSetupScreen - Tela para configurar PIN
+// ═════════════════════════════════════════════════════════════════════════════
+class LockSetupScreen extends StatelessWidget {
+  const LockSetupScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return LockScreen(
+      mode: LockMode.setNew,
+      onPinSet: (pin) => Navigator.pop(context, true),
     );
   }
 }

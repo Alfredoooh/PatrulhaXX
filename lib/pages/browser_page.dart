@@ -294,7 +294,7 @@ class _BrowserPageState extends State<BrowserPage> {
                         Text(
                           _shortLabel,
                           style: TextStyle(
-                            color: AppTheme.current.isDark ? Colors.white.withOpacity(0.90) : const Color(0xFF1C1C1E),
+                            color: AppTheme.current.isDark ? Colors.white.withOpacity(0.90) : const AppTheme.current.card,
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
