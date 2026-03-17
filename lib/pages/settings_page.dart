@@ -336,8 +336,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _toggleScreenshot(bool block) async {
     try {
-      await _secureChannel.invokeMethod('setSecure', {'enable': block}); // FIXED
-      );
+      await _secureChannel.invokeMethod('setSecure', {'enable': block});
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

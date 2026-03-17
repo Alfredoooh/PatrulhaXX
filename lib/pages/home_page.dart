@@ -384,7 +384,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ? 'Modo Claro'
                         : 'Modo Escuro',
                     onTap: () {
-                      ThemeService.instance.toggleTheme();
+                      ThemeService.instance.setDark(!ThemeService.instance.isDark);
                     },
                   ),
                 ],
