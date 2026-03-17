@@ -17,7 +17,8 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.patrulha.xx"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // NDK fixo — evita mismatch de versão entre plugins nativos
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -36,6 +37,33 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
+
+        // Inclui armeabi-v7a (32-bit) e arm64-v8a (64-bit)
+        // Evita crash em MediaTek e Snapdragon que só suportam uma das ABIs
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // Evita crash de libs nativas duplicadas entre flutter_p2p_connection,
+            // mobile_scanner, flutter_inappwebview e video_player
+            useLegacyPackaging = true
+            pickFirsts += setOf(
+                "**/libflutter.so",
+                "**/libc++_shared.so",
+            )
+        }
+        resources {
+            excludes += setOf(
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt",
+                "META-INF/*.kotlin_module",
+            )
+        }
     }
 
     signingConfigs {
