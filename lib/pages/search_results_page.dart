@@ -232,7 +232,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                   : ListView.builder(
                       padding: const EdgeInsets.only(top: 8),
                       itemCount: _videos.length,
-                      itemBuilder: (context, i) => _VideoCard(video: _videos[i]),
+                      itemBuilder: (context, i) => _VideoCard(video: _videos[i], isFirst: i == 0),
                     ),
             ),
           ],
@@ -245,7 +245,8 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
 // ─── Card de vídeo estilo YouTube ─────────────────────────────────────────────
 class _VideoCard extends StatelessWidget {
   final VideoInfo video;
-  const _VideoCard({required this.video});
+  final bool isFirst;
+  const _VideoCard({required this.video, this.isFirst = false});
 
   @override
   Widget build(BuildContext context) {
@@ -367,7 +368,7 @@ class _VideoCard extends StatelessWidget {
           ),
 
           // "As pessoas também viram este vídeo"
-          if (_videos.indexOf(video) == 0)
+          if (isFirst)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               child: Text(

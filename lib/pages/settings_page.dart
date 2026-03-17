@@ -212,7 +212,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     value: _ts.isDark,
                     textColor: theme.text,
                     subColor: theme.textSub,
-                    onChanged: (v) => _ts.toggleTheme(),
+                    onChanged: (v) => _ts.setDark(v),
                   ),
                   _TapRow(
                     svg: _iWallpaper,
@@ -248,11 +248,11 @@ class _SettingsPageState extends State<SettingsPage> {
                         if (pin == null && mounted) {
                           _showPinSetup();
                         } else {
-                          await LockService.instance.enable();
+                          await LockService.instance.setEnabled(true);
                           setState(() => _lock = true);
                         }
                       } else {
-                        await LockService.instance.disable();
+                        await LockService.instance.setEnabled(false);
                         setState(() => _lock = false);
                       }
                     },
@@ -336,8 +336,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _toggleScreenshot(bool block) async {
     try {
-      await _secureChannel.invokeMethod(
-        block ? 'enableSecureMode' : 'disableSecureMode'
+      await _secureChannel.invokeMethod('setSecure', {'enable': block}); // FIXED
       );
     } catch (e) {
       if (mounted) {

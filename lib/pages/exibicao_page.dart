@@ -251,7 +251,7 @@ class ExibicaoPageState extends State<ExibicaoPage>
       }
       await DownloadService.instance.startDownload(
         url: src,
-        filename: '${video.title}.mp4',
+        title: '${video.title}.mp4',
         headers: {'User-Agent': 'Mozilla/5.0'},
       );
       if (!mounted) return;
