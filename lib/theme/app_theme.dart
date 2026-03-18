@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/theme_service.dart';
 
-// ────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // AppTheme — sistema de cores YouTube completo (dark + light)
 // Uso:  final t = AppTheme.current;
 // ─────────────────────────────────────────────────────────────────────────────
@@ -371,7 +371,7 @@ class AppTheme {
     end: Alignment.bottomCenter,
   );
 
-  // ── MaterialTheme builder ─────────────────────────────────────────────────
+  // ── MaterialTheme builder ──────────────────────────────────────────────────
   ThemeData get themeData => ThemeData(
     brightness: isDark ? Brightness.dark : Brightness.light,
     useMaterial3: true,
@@ -439,14 +439,6 @@ class AppTheme {
     drawerTheme: DrawerThemeData(
       backgroundColor: drawerBg,
       elevation: 0,
-    ),
-    cardTheme: CardTheme(
-      color: card,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: borderSoft),
-      ),
     ),
     dividerTheme: DividerThemeData(
       color: divider,
@@ -532,11 +524,6 @@ class AppTheme {
         side: BorderSide(color: popupBorder),
       ),
     ),
-    dialogTheme: DialogTheme(
-      backgroundColor: dialogBg,
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: sheet,
       dragHandleColor: sheetHandle,
@@ -545,6 +532,7 @@ class AppTheme {
       ),
     ),
   );
+
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
