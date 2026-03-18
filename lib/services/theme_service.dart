@@ -9,13 +9,21 @@ class ThemeService extends ChangeNotifier {
 
   String _bg            = 'assets/images/background.png';
   bool   _dark          = true;
-  bool   _useWallpaper  = false;   // false = fundo preto sólido, true = imagem
+  bool   _useWallpaper  = false;
   String _engine        = 'google';
   int    _lockDelay     = 0;
   bool   _privacyRecent = true;
   bool   _noScreenshot  = true;
   int    _maxVolume     = 100;
   Color? _wallpaperColor;
+
+  // ── Feed preferences ───────────────────────────────────────────────────────
+  int    _feedPageSize  = 20;   // itens por página no feed
+  bool   _feedAutoplay  = false; // autoplay ao entrar no tab Exibição
+  Set<String> _feedSources = {  // fontes activas no feed
+    'eporner', 'pornhub', 'redtube', 'youporn',
+    'xvideos', 'xhamster', 'spankbang',
+  };
 
   String get bg             => _bg;
   bool   get isDark         => _dark;
@@ -26,6 +34,9 @@ class ThemeService extends ChangeNotifier {
   bool   get noScreenshot   => _noScreenshot;
   int    get maxVolume      => _maxVolume;
   Color? get wallpaperColor => _wallpaperColor;
+  int    get feedPageSize   => _feedPageSize;
+  bool   get feedAutoplay   => _feedAutoplay;
+  Set<String> get feedSources => Set.unmodifiable(_feedSources);
 
   static const List<String> wallpapers = [
     'assets/images/background.png',
@@ -49,35 +60,74 @@ class ThemeService extends ChangeNotifier {
     'brave':      'Brave',
   };
 
+  // Todas as fontes de feed disponíveis (id → label)
+  static const Map<String, String> availableFeedSources = {
+    'eporner':   'EPorner',
+    'pornhub':   'PornHub',
+    'redtube':   'RedTube',
+    'youporn':   'YouPorn',
+    'xvideos':   'XVideos',
+    'xhamster':  'xHamster',
+    'spankbang': 'SpankBang',
+    'bravotube': 'BravoTube',
+    'drtuber':   'DrTuber',
+    'txxx':      'TXXX',
+  };
+
   Future<void> init() async {
-    _p             = await SharedPreferences.getInstance();
-    _bg            = _p.getString('bg')          ?? wallpapers.first;
-    _dark          = _p.getBool('dark')           ?? true;
-    _useWallpaper  = _p.getBool('use_wallpaper')  ?? false;
-    _engine        = _p.getString('engine')       ?? 'google';
-    _lockDelay     = _p.getInt('lock_delay')      ?? 0;
-    _privacyRecent = _p.getBool('priv_recent')    ?? true;
-    _noScreenshot  = _p.getBool('no_ss')          ?? true;
-    _maxVolume     = _p.getInt('max_vol')         ?? 100;
+    _p              = await SharedPreferences.getInstance();
+    _bg             = _p.getString('bg')           ?? wallpapers.first;
+    _dark           = _p.getBool('dark')            ?? true;
+    _useWallpaper   = _p.getBool('use_wallpaper')   ?? false;
+    _engine         = _p.getString('engine')        ?? 'google';
+    _lockDelay      = _p.getInt('lock_delay')       ?? 0;
+    _privacyRecent  = _p.getBool('priv_recent')     ?? true;
+    _noScreenshot   = _p.getBool('no_ss')           ?? true;
+    _maxVolume      = _p.getInt('max_vol')          ?? 100;
+    _feedPageSize   = _p.getInt('feed_page_size')   ?? 20;
+    _feedAutoplay   = _p.getBool('feed_autoplay')   ?? false;
+
     final savedColor = _p.getInt('wallpaper_color');
     if (savedColor != null) _wallpaperColor = Color(savedColor);
+
+    final savedSources = _p.getStringList('feed_sources');
+    if (savedSources != null && savedSources.isNotEmpty) {
+      _feedSources = savedSources.toSet();
+    }
+
     notifyListeners();
   }
 
-  Future<void> setBg(String v)             async { _bg = v;             await _p.setString('bg', v);               notifyListeners(); }
-  Future<void> setDark(bool v)             async { _dark = v;           await _p.setBool('dark', v);               notifyListeners(); }
-  Future<void> setUseWallpaper(bool v)     async { _useWallpaper = v;   await _p.setBool('use_wallpaper', v);      notifyListeners(); }
-  Future<void> setEngine(String v)         async { _engine = v;         await _p.setString('engine', v);           notifyListeners(); }
-  Future<void> setLockDelay(int v)         async { _lockDelay = v;      await _p.setInt('lock_delay', v);          notifyListeners(); }
-  Future<void> setPrivacyRecent(bool v)    async { _privacyRecent = v;  await _p.setBool('priv_recent', v);        notifyListeners(); }
-  Future<void> setNoScreenshot(bool v)     async { _noScreenshot = v;   await _p.setBool('no_ss', v);              notifyListeners(); }
-  Future<void> setMaxVolume(int v)         async { _maxVolume = v.clamp(10,100); await _p.setInt('max_vol', _maxVolume); notifyListeners(); }
+  Future<void> setBg(String v)              async { _bg = v;             await _p.setString('bg', v);               notifyListeners(); }
+  Future<void> setDark(bool v)              async { _dark = v;           await _p.setBool('dark', v);               notifyListeners(); }
+  Future<void> setUseWallpaper(bool v)      async { _useWallpaper = v;   await _p.setBool('use_wallpaper', v);      notifyListeners(); }
+  Future<void> setEngine(String v)          async { _engine = v;         await _p.setString('engine', v);           notifyListeners(); }
+  Future<void> setLockDelay(int v)          async { _lockDelay = v;      await _p.setInt('lock_delay', v);          notifyListeners(); }
+  Future<void> setPrivacyRecent(bool v)     async { _privacyRecent = v;  await _p.setBool('priv_recent', v);        notifyListeners(); }
+  Future<void> setNoScreenshot(bool v)      async { _noScreenshot = v;   await _p.setBool('no_ss', v);              notifyListeners(); }
+  Future<void> setMaxVolume(int v)          async { _maxVolume = v.clamp(10, 100); await _p.setInt('max_vol', _maxVolume); notifyListeners(); }
+  Future<void> setFeedPageSize(int v)       async { _feedPageSize = v.clamp(10, 60); await _p.setInt('feed_page_size', _feedPageSize); notifyListeners(); }
+  Future<void> setFeedAutoplay(bool v)      async { _feedAutoplay = v;   await _p.setBool('feed_autoplay', v);      notifyListeners(); }
 
   Future<void> setWallpaperColor(Color c) async {
     _wallpaperColor = c;
     await _p.setInt('wallpaper_color', c.value);
     notifyListeners();
   }
+
+  /// Activa/desactiva uma fonte de feed
+  Future<void> toggleFeedSource(String sourceId) async {
+    if (_feedSources.contains(sourceId)) {
+      // Garante pelo menos 1 fonte activa
+      if (_feedSources.length > 1) _feedSources.remove(sourceId);
+    } else {
+      _feedSources.add(sourceId);
+    }
+    await _p.setStringList('feed_sources', _feedSources.toList());
+    notifyListeners();
+  }
+
+  bool isFeedSourceActive(String sourceId) => _feedSources.contains(sourceId);
 
   String searchUrl(String q) {
     final e = Uri.encodeComponent(q);

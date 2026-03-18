@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
@@ -18,7 +19,7 @@ class FeedItem {
     required this.thumb,
     required this.url,
     this.duration = '',
-    this.views = '',
+    this.views    = '',
     required this.source,
     this.type = 'video',
   });
@@ -28,14 +29,27 @@ class FeedService {
   static final FeedService instance = FeedService._();
   FeedService._();
 
-  List<FeedItem> _items = [];
-  bool _loaded = false;
+  List<FeedItem> _items  = [];
+  bool           _loaded = false;
   List<FeedItem> get items => _items;
 
   static const _ua =
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-      '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+      'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
+      '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
 
+  // Termos de pesquisa para variar resultados
+  static const _terms = [
+    '', 'amateur', 'teen', 'milf', 'blonde', 'brunette', 'asian',
+    'latina', 'hot', 'sexy', 'beautiful', 'young', 'wild', 'homemade',
+    'big', 'lesbian', 'college', 'mature', 'ebony', 'babe',
+  ];
+
+  static String _rndTerm() => _terms[Random().nextInt(_terms.length)];
+  static int    _rndPage(int max) => Random().nextInt(max) + 1;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // load — carrega todas as fontes em paralelo, mistura e baralha
+  // ─────────────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> load({bool force = false}) async {
     if (_loaded && !force) return _items;
 
@@ -44,50 +58,67 @@ class FeedService {
       _fetchEporner(),
       _fetchPornHub(),
       _fetchXVideos(),
+      _fetchXHamster(),
+      _fetchYouPorn(),
+      _fetchSpankBang(),
+      _fetchBravoTube(),
+      _fetchDrTuber(),
+      _fetchTXXX(),
+      _fetchGotPorn(),
       _fetchPornDig(),
       _fetchBlogs(),
     ]);
 
-    final all = results.expand((e) => e).toList()
+    // Intercala as fontes em vez de concatenar
+    final lists = results.where((l) => l.isNotEmpty).toList();
+    final all   = <FeedItem>[];
+    if (lists.isNotEmpty) {
+      final maxLen = lists.map((l) => l.length).reduce((a, b) => a > b ? a : b);
+      for (int i = 0; i < maxLen; i++) {
+        for (final list in lists) {
+          if (i < list.length) all.add(list[i]);
+        }
+      }
+    }
+    all
       ..removeWhere((f) => f.url.isEmpty)
-      ..shuffle();
+      ..shuffle(Random(DateTime.now().millisecondsSinceEpoch));
 
-    _items = all;
+    _items  = all;
     _loaded = all.isNotEmpty;
     return _items;
   }
 
-  /// Pesquisa local nos itens já carregados
+  // Pesquisa local nos itens já carregados
   List<FeedItem> search(String query) {
     if (query.trim().isEmpty) return _items;
     final q = query.toLowerCase();
-    return _items.where((i) =>
-        i.title.toLowerCase().contains(q) ||
-        i.source.toLowerCase().contains(q)).toList();
+    return _items
+        .where((i) =>
+            i.title.toLowerCase().contains(q) ||
+            i.source.toLowerCase().contains(q))
+        .toList();
   }
 
-  // ── RedTube JSON API (confirmado a funcionar) ─────────────────────────────
-  // Documentação: https://api.redtube.com/
+  // ── RedTube JSON API ───────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchRedTube() async {
-    final endpoints = [
-      'https://api.redtube.com/?data=redtube.Videos.searchVideos'
-          '&output=json&search=&thumbsize=big&count=60&ordering=newest',
-      'https://api.redtube.com/?data=redtube.Videos.searchVideos'
-          '&output=json&search=&thumbsize=big&count=60&ordering=mostviewed',
-      'https://api.redtube.com/?data=redtube.Videos.searchVideos'
-          '&output=json&search=&thumbsize=big&count=60&ordering=hottest',
-    ];
-    final items = <FeedItem>[];
-    for (final url in endpoints) {
+    final orders = ['newest', 'mostviewed', 'hottest', 'rating'];
+    final items  = <FeedItem>[];
+    for (final order in orders) {
       try {
-        final res = await http.get(Uri.parse(url),
-            headers: {'User-Agent': _ua})
-            .timeout(const Duration(seconds: 14));
+        final term = _rndTerm();
+        final res  = await http.get(
+          Uri.parse('https://api.redtube.com/?data=redtube.Videos.searchVideos'
+              '&output=json&search=${Uri.encodeComponent(term)}'
+              '&thumbsize=big&count=30&ordering=$order'
+              '&page=${_rndPage(20)}'),
+          headers: {'User-Agent': _ua},
+        ).timeout(const Duration(seconds: 14));
         if (res.statusCode != 200) continue;
-        final json = jsonDecode(res.body) as Map<String, dynamic>;
+        final json   = jsonDecode(res.body) as Map<String, dynamic>;
         final videos = json['videos'] as List? ?? [];
         for (final v in videos) {
-          final vm = (v as Map)['video'] as Map<String, dynamic>? ?? {};
+          final vm    = (v as Map)['video'] as Map<String, dynamic>? ?? {};
           final thumb = vm['thumb'] as String? ?? '';
           final vUrl  = vm['url']   as String? ?? '';
           if (thumb.isEmpty || vUrl.isEmpty) continue;
@@ -106,29 +137,24 @@ class FeedService {
     return items;
   }
 
-  // ── EPorner API v2 JSON (confirmado: https://github.com/eporner/API) ──────
-  // Endpoint real: https://www.eporner.com/api/v2/video/search/
-  // Parâmetros: per_page, page, order, format=json, thumbsize
-  // order: latest | top-weekly | top-monthly | top-alltime
+  // ── EPorner API v2 ─────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchEporner() async {
-    final endpoints = [
-      'https://www.eporner.com/api/v2/video/search/'
-          '?per_page=60&page=1&order=latest&format=json&thumbsize=big',
-      'https://www.eporner.com/api/v2/video/search/'
-          '?per_page=60&page=1&order=top-weekly&format=json&thumbsize=big',
-    ];
-    final items = <FeedItem>[];
-    for (final url in endpoints) {
+    final orders = ['latest', 'top-weekly', 'top-monthly', 'top-alltime', 'most-viewed'];
+    final items  = <FeedItem>[];
+    for (final order in orders.take(3)) {
       try {
-        final res = await http.get(Uri.parse(url),
-            headers: {'User-Agent': _ua})
-            .timeout(const Duration(seconds: 14));
+        final term = _rndTerm();
+        final res  = await http.get(
+          Uri.parse('https://www.eporner.com/api/v2/video/search/'
+              '?per_page=30&page=${_rndPage(40)}&order=$order&format=json'
+              '&thumbsize=big&query=${Uri.encodeComponent(term)}'),
+          headers: {'User-Agent': _ua},
+        ).timeout(const Duration(seconds: 14));
         if (res.statusCode != 200) continue;
-        final json = jsonDecode(res.body) as Map<String, dynamic>;
+        final json   = jsonDecode(res.body) as Map<String, dynamic>;
         final videos = json['videos'] as List? ?? [];
         for (final v in videos) {
-          final vm = v as Map<String, dynamic>;
-          // thumbs é array de {src, size}
+          final vm        = v as Map<String, dynamic>;
           final thumbList = vm['thumbs'] as List?;
           final thumb = thumbList != null && thumbList.isNotEmpty
               ? (thumbList.last['src'] as String? ?? '')
@@ -137,11 +163,11 @@ class FeedService {
           if (thumb.isEmpty || vUrl.isEmpty) continue;
           items.add(FeedItem(
             id:       'ep_${vm['id'] ?? items.length}',
-            title:    vm['title']       as String? ?? 'Vídeo',
+            title:    vm['title']      as String? ?? 'Vídeo',
             thumb:    thumb,
             url:      vUrl.startsWith('http') ? vUrl : 'https://www.eporner.com$vUrl',
-            duration: vm['length_min']  as String? ?? '',
-            views:    vm['views']       as String? ?? '',
+            duration: vm['length_min'] as String? ?? '',
+            views:    vm['views']      as String? ?? '',
             source:   'EPorner',
           ));
         }
@@ -150,11 +176,55 @@ class FeedService {
     return items;
   }
 
-  // ── PornHub RSS Webmasters (confirmado) ───────────────────────────────────
-  // URL: https://www.pornhub.com/video/webmasterss
+  // ── PornHub WebMasters API JSON ────────────────────────────────────────────
   Future<List<FeedItem>> _fetchPornHub() async {
+    final orders = ['newest', 'mostviewed', 'rating', 'featured'];
+    final items  = <FeedItem>[];
+    for (final order in orders.take(2)) {
+      try {
+        final term = _rndTerm();
+        final res  = await http.get(
+          Uri.parse('https://www.pornhub.com/webmasters/search'
+              '?search=${Uri.encodeComponent(term)}'
+              '&ordering=$order&page=${_rndPage(30)}'
+              '&thumbsize=medium&format=json'),
+          headers: {'User-Agent': _ua},
+        ).timeout(const Duration(seconds: 14));
+        if (res.statusCode != 200) continue;
+        final data   = jsonDecode(res.body) as Map<String, dynamic>;
+        final videos = data['videos'] as List? ?? data['video'] as List? ?? [];
+        for (final v in videos) {
+          final vm    = v as Map<String, dynamic>;
+          final viewkey = vm['video_id'] as String? ?? vm['viewkey'] as String? ?? '';
+          if (viewkey.isEmpty) continue;
+          String thumb = '';
+          final thumbs = vm['thumbs'] as List?;
+          if (thumbs != null && thumbs.isNotEmpty) {
+            thumb = (thumbs.first['src'] ?? thumbs.first['url'] ?? '') as String;
+          }
+          if (thumb.isEmpty) thumb = vm['default_thumb'] as String? ?? '';
+          if (thumb.isEmpty) continue;
+          items.add(FeedItem(
+            id:       'ph_$viewkey',
+            title:    vm['title']    as String? ?? 'Vídeo',
+            thumb:    thumb,
+            url:      'https://www.pornhub.com/view_video.php?viewkey=$viewkey',
+            duration: vm['duration'] as String? ?? '',
+            views:    vm['views']    as String? ?? '',
+            source:   'PornHub',
+          ));
+        }
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  // ── XVideos RSS + API ──────────────────────────────────────────────────────
+  Future<List<FeedItem>> _fetchXVideos() async {
     final endpoints = [
-      'https://www.pornhub.com/video/webmasterss',
+      'https://www.xvideos.com/feeds/rss-new/0',
+      'https://www.xvideos.com/feeds/rss-most-viewed-alltime/0',
+      'https://www.xvideos.com/feeds/rss-new/straight/0',
     ];
     final items = <FeedItem>[];
     for (final url in endpoints) {
@@ -162,6 +232,108 @@ class FeedService {
         final res = await http.get(Uri.parse(url),
             headers: {'User-Agent': _ua})
             .timeout(const Duration(seconds: 14));
+        if (res.statusCode != 200) continue;
+        final doc = XmlDocument.parse(res.body);
+        for (final item in doc.findAllElements('item')) {
+          final link  = _xml(item, 'link');
+          final title = _xml(item, 'title');
+          final thumb =
+              item.findElements('enclosure').firstOrNull?.getAttribute('url') ?? '';
+          if (link.isEmpty) continue;
+          items.add(FeedItem(
+            id:     'xv_${link.hashCode}',
+            title:  title.isEmpty ? 'Vídeo' : title,
+            thumb:  thumb,
+            url:    link,
+            source: 'XVideos',
+          ));
+        }
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  // ── xHamster API JSON ──────────────────────────────────────────────────────
+  Future<List<FeedItem>> _fetchXHamster() async {
+    final items = <FeedItem>[];
+    try {
+      final term = _rndTerm();
+      final res  = await http.get(
+        Uri.parse('https://xhamster.com/api/front/search'
+            '?q=${Uri.encodeComponent(term)}'
+            '&page=${_rndPage(20)}&sectionName=video'),
+        headers: {
+          'User-Agent': _ua,
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      ).timeout(const Duration(seconds: 14));
+      if (res.statusCode != 200) return items;
+      final data  = jsonDecode(res.body) as Map<String, dynamic>;
+      final models = (data['data']?['videos']?['models'] as List?) ?? [];
+      for (final v in models) {
+        final vm    = v as Map<String, dynamic>;
+        final id    = (vm['id'] ?? '').toString();
+        final thumb = vm['thumbUrl'] as String? ?? vm['thumb'] as String? ?? '';
+        final url   = vm['pageURL'] as String? ?? vm['url'] as String? ?? '';
+        if (id.isEmpty || thumb.isEmpty || url.isEmpty) continue;
+        items.add(FeedItem(
+          id:       'xh_$id',
+          title:    vm['title'] as String? ?? 'Vídeo',
+          thumb:    thumb,
+          url:      url,
+          duration: vm['duration']?.toString() ?? '',
+          views:    _fmtViews(vm['views']),
+          source:   'xHamster',
+        ));
+      }
+    } catch (_) {}
+    return items;
+  }
+
+  // ── YouPorn API JSON ───────────────────────────────────────────────────────
+  Future<List<FeedItem>> _fetchYouPorn() async {
+    final items = <FeedItem>[];
+    try {
+      final res = await http.get(
+        Uri.parse('https://www.youporn.com/api/video/search/'
+            '?is_top=1&page=${_rndPage(15)}&per_page=30'),
+        headers: {'User-Agent': _ua, 'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 12));
+      if (res.statusCode != 200) return items;
+      final data   = jsonDecode(res.body);
+      final videos = (data['videos'] ?? data['data'] ?? data) as List? ?? [];
+      for (final v in videos) {
+        final vm    = v as Map<String, dynamic>;
+        final id    = (vm['id'] ?? vm['video_id'] ?? '').toString();
+        final thumb = vm['thumb'] as String? ?? vm['default_thumb'] as String? ?? '';
+        if (id.isEmpty || id == '0' || thumb.isEmpty) continue;
+        items.add(FeedItem(
+          id:       'yp_$id',
+          title:    vm['title'] as String? ?? 'Vídeo',
+          thumb:    thumb,
+          url:      'https://www.youporn.com/watch/$id/',
+          duration: vm['duration'] as String? ?? '',
+          views:    _fmtViews(vm['views']),
+          source:   'YouPorn',
+        ));
+      }
+    } catch (_) {}
+    return items;
+  }
+
+  // ── SpankBang RSS ──────────────────────────────────────────────────────────
+  Future<List<FeedItem>> _fetchSpankBang() async {
+    final endpoints = [
+      'https://spankbang.com/rss/',
+      'https://spankbang.com/rss/trending/',
+    ];
+    final items = <FeedItem>[];
+    for (final url in endpoints) {
+      try {
+        final res = await http.get(Uri.parse(url),
+            headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
         if (res.statusCode != 200) continue;
         final doc = XmlDocument.parse(res.body);
         for (final item in doc.findAllElements('item')) {
@@ -174,9 +346,11 @@ class FeedService {
           ]);
           if (link.isEmpty) continue;
           items.add(FeedItem(
-            id:     'ph_${link.hashCode}',
+            id:     'sb_${link.hashCode}',
             title:  title.isEmpty ? 'Vídeo' : title,
-            thumb:  thumb, url: link, source: 'PornHub',
+            thumb:  thumb,
+            url:    link,
+            source: 'SpankBang',
           ));
         }
       } catch (_) {}
@@ -184,32 +358,35 @@ class FeedService {
     return items;
   }
 
-  // ── XVideos RSS (confirmado) ──────────────────────────────────────────────
-  // URLs: https://www.xvideos.com/feeds/rss-new/0
-  //       https://www.xvideos.com/feeds/rss-most-viewed-alltime/0
-  Future<List<FeedItem>> _fetchXVideos() async {
+  // ── BravoTube RSS ──────────────────────────────────────────────────────────
+  Future<List<FeedItem>> _fetchBravoTube() async {
     final endpoints = [
-      'https://www.xvideos.com/feeds/rss-new/0',
-      'https://www.xvideos.com/feeds/rss-most-viewed-alltime/0',
-      'https://www.xvideos.com/feeds/rss-new/gay/0',
+      'https://www.bravotube.net/rss/new/',
+      'https://www.bravotube.net/rss/popular/',
     ];
     final items = <FeedItem>[];
     for (final url in endpoints) {
       try {
         final res = await http.get(Uri.parse(url),
             headers: {'User-Agent': _ua})
-            .timeout(const Duration(seconds: 14));
+            .timeout(const Duration(seconds: 12));
         if (res.statusCode != 200) continue;
         final doc = XmlDocument.parse(res.body);
         for (final item in doc.findAllElements('item')) {
           final link  = _xml(item, 'link');
           final title = _xml(item, 'title');
-          final thumb = item.findElements('enclosure').firstOrNull?.getAttribute('url') ?? '';
+          final thumb = _firstOf([
+            item.findElements('media:content').firstOrNull?.getAttribute('url'),
+            item.findElements('media:thumbnail').firstOrNull?.getAttribute('url'),
+            item.findElements('enclosure').firstOrNull?.getAttribute('url'),
+          ]);
           if (link.isEmpty) continue;
           items.add(FeedItem(
-            id:     'xv_${link.hashCode}',
+            id:     'bt_${link.hashCode}',
             title:  title.isEmpty ? 'Vídeo' : title,
-            thumb:  thumb, url: link, source: 'XVideos',
+            thumb:  thumb,
+            url:    link,
+            source: 'BravoTube',
           ));
         }
       } catch (_) {}
@@ -217,7 +394,113 @@ class FeedService {
     return items;
   }
 
-  // ── PornDig RSS (confirmado: https://www.porndig.com/rss) ─────────────────
+  // ── DrTuber RSS ────────────────────────────────────────────────────────────
+  Future<List<FeedItem>> _fetchDrTuber() async {
+    final endpoints = [
+      'https://www.drtuber.com/rss/latest',
+      'https://www.drtuber.com/rss/popular',
+    ];
+    final items = <FeedItem>[];
+    for (final url in endpoints) {
+      try {
+        final res = await http.get(Uri.parse(url),
+            headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (res.statusCode != 200) continue;
+        final doc = XmlDocument.parse(res.body);
+        for (final item in doc.findAllElements('item')) {
+          final link  = _xml(item, 'link');
+          final title = _xml(item, 'title');
+          final thumb = _firstOf([
+            item.findElements('media:thumbnail').firstOrNull?.getAttribute('url'),
+            item.findElements('media:content').firstOrNull?.getAttribute('url'),
+            item.findElements('enclosure').firstOrNull?.getAttribute('url'),
+          ]);
+          if (link.isEmpty) continue;
+          items.add(FeedItem(
+            id:     'dt_${link.hashCode}',
+            title:  title.isEmpty ? 'Vídeo' : title,
+            thumb:  thumb,
+            url:    link,
+            source: 'DrTuber',
+          ));
+        }
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  // ── TXXX RSS ───────────────────────────────────────────────────────────────
+  Future<List<FeedItem>> _fetchTXXX() async {
+    final endpoints = [
+      'https://www.txxx.com/rss/new/',
+      'https://www.txxx.com/rss/popular/',
+    ];
+    final items = <FeedItem>[];
+    for (final url in endpoints) {
+      try {
+        final res = await http.get(Uri.parse(url),
+            headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (res.statusCode != 200) continue;
+        final doc = XmlDocument.parse(res.body);
+        for (final item in doc.findAllElements('item')) {
+          final link  = _xml(item, 'link');
+          final title = _xml(item, 'title');
+          final thumb = _firstOf([
+            item.findElements('media:content').firstOrNull?.getAttribute('url'),
+            item.findElements('enclosure').firstOrNull?.getAttribute('url'),
+          ]);
+          if (link.isEmpty) continue;
+          items.add(FeedItem(
+            id:     'tx_${link.hashCode}',
+            title:  title.isEmpty ? 'Vídeo' : title,
+            thumb:  thumb,
+            url:    link,
+            source: 'TXXX',
+          ));
+        }
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  // ── GotPorn RSS ────────────────────────────────────────────────────────────
+  Future<List<FeedItem>> _fetchGotPorn() async {
+    final endpoints = [
+      'https://www.gotporn.com/rss/latest',
+      'https://www.gotporn.com/rss/popular',
+    ];
+    final items = <FeedItem>[];
+    for (final url in endpoints) {
+      try {
+        final res = await http.get(Uri.parse(url),
+            headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (res.statusCode != 200) continue;
+        final doc = XmlDocument.parse(res.body);
+        for (final item in doc.findAllElements('item')) {
+          final link  = _xml(item, 'link');
+          final title = _xml(item, 'title');
+          final thumb = _firstOf([
+            item.findElements('media:thumbnail').firstOrNull?.getAttribute('url'),
+            item.findElements('enclosure').firstOrNull?.getAttribute('url'),
+          ]);
+          if (link.isEmpty) continue;
+          items.add(FeedItem(
+            id:     'gp_${link.hashCode}',
+            title:  title.isEmpty ? 'Vídeo' : title,
+            thumb:  thumb,
+            url:    link,
+            source: 'GotPorn',
+          ));
+        }
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  // ── PornDig RSS ────────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchPornDig() async {
     final endpoints = [
       'https://www.porndig.com/rss',
@@ -228,7 +511,7 @@ class FeedService {
       try {
         final res = await http.get(Uri.parse(url),
             headers: {'User-Agent': _ua})
-            .timeout(const Duration(seconds: 14));
+            .timeout(const Duration(seconds: 12));
         if (res.statusCode != 200) continue;
         final doc = XmlDocument.parse(res.body);
         for (final item in doc.findAllElements('item')) {
@@ -243,7 +526,9 @@ class FeedService {
           items.add(FeedItem(
             id:     'pd_${link.hashCode}',
             title:  title.isEmpty ? 'Vídeo' : title,
-            thumb:  thumb, url: link, source: 'PornDig',
+            thumb:  thumb,
+            url:    link,
+            source: 'PornDig',
           ));
         }
         if (items.isNotEmpty) break;
@@ -252,20 +537,19 @@ class FeedService {
     return items;
   }
 
-  // ── Blogs da indústria adulta (confirmados no feedspot.com) ───────────────
-  // Todos os feeds confirmados em: https://rss.feedspot.com/adult_industry_rss_feeds/
+  // ── Blogs da indústria adulta ──────────────────────────────────────────────
   Future<List<FeedItem>> _fetchBlogs() async {
     final sources = <String, String>{
-      'https://ainews.xxx/feed/':                  'AINews.xxx',
-      'https://rogreviews.com/feed':               'RogReviews',
-      'https://theporndude.com/blog/feed':         'ThePornDude',
-      'https://therealpornwikileaks.com/feed':     'TRPWL',
-      'https://lukeisback.com/feed':               'LukeIsBack',
-      'https://adultfyi.com/feed':                 'AdultFYI',
-      'https://mikesouth.com/feed':                'MikeSouth',
-      'https://ynot.com/feed':                     'YNotMasters',
-      'https://xbiz.com/rss/all.xml':              'XBIZ',
-      'https://queermenow.net/blog/feed':          'QueerMeNow',
+      'https://ainews.xxx/feed/':              'AINews.xxx',
+      'https://rogreviews.com/feed':           'RogReviews',
+      'https://theporndude.com/blog/feed':     'ThePornDude',
+      'https://therealpornwikileaks.com/feed': 'TRPWL',
+      'https://lukeisback.com/feed':           'LukeIsBack',
+      'https://adultfyi.com/feed':             'AdultFYI',
+      'https://mikesouth.com/feed':            'MikeSouth',
+      'https://ynot.com/feed':                 'YNotMasters',
+      'https://xbiz.com/rss/all.xml':          'XBIZ',
+      'https://queermenow.net/blog/feed':      'QueerMeNow',
     };
     final items = <FeedItem>[];
     for (final entry in sources.entries) {
@@ -287,8 +571,10 @@ class FeedService {
           items.add(FeedItem(
             id:     '${entry.value}_${link.hashCode}',
             title:  title.isEmpty ? 'Artigo' : title,
-            thumb:  thumb, url: link,
-            source: entry.value, type: 'article',
+            thumb:  thumb,
+            url:    link,
+            source: entry.value,
+            type:   'article',
           ));
         }
       } catch (_) {}
@@ -305,5 +591,12 @@ class FeedService {
   String _xml(XmlElement el, String tag) {
     try { return el.findElements(tag).first.innerText.trim(); }
     catch (_) { return ''; }
+  }
+
+  static String _fmtViews(dynamic v) {
+    final n = int.tryParse(v?.toString() ?? '') ?? 0;
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000)    return '${(n / 1000).toStringAsFixed(0)}k';
+    return n > 0 ? '$n' : '';
   }
 }

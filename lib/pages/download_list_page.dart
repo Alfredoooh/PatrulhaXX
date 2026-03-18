@@ -5,7 +5,6 @@ import '../services/download_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 
-// SVGs fornecidos pelo utilizador
 const _svgDownload =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">'
     '<g><path d="M210.731,386.603c24.986,25.002,65.508,25.015,90.51,0.029'
@@ -27,68 +26,79 @@ const _svgMoreVert =
     '<circle cx="12" cy="12" r="2.5"/>'
     '<circle cx="12" cy="21.5" r="2.5"/></svg>';
 
+// SVG back igual ao settings/search
+const _svgBack =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23'
+    'a1,1,0,0,0,1-1h0a1,1,0,0,0-1-1H2.55L6.17,7.38A1,1,0,0,0,6.17,6h0A1,1,0,0,0,'
+    '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/>'
+    '</svg>';
+
 // ─────────────────────────────────────────────────────────────────────────────
-// DownloadListPage — downloads em curso
-// Badge no ícone de entrada com contagem de activos
+// DownloadListPage
 // ─────────────────────────────────────────────────────────────────────────────
 class DownloadListPage extends StatelessWidget {
   const DownloadListPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final t      = AppTheme.current;
     final topPad = MediaQuery.of(context).padding.top;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: AppTheme.current.statusBar,
+        statusBarIconBrightness: t.statusBar,
       ),
       child: Scaffold(
-        backgroundColor: AppTheme.current.bg,
+        backgroundColor: t.bg,
         body: ListenableBuilder(
           listenable: DownloadService.instance,
           builder: (context, _) {
             final active = DownloadService.instance.activeList;
+            final t = AppTheme.current;
 
             return Column(children: [
               SizedBox(height: topPad),
 
-              // AppBar
+              // ── AppBar ─────────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
                 child: Row(children: [
+                  // Botão voltar — SVG consistente com o resto do app
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 38, height: 38,
-                      decoration: BoxDecoration(
-                        color: AppTheme.current.isDark ? Colors.white.withOpacity(0.07) : Colors.black.withOpacity(0.04),
-                        shape: BoxShape.circle,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 14),
+                      child: SvgPicture.string(
+                        _svgBack,
+                        width: 20, height: 20,
+                        colorFilter:
+                            ColorFilter.mode(t.icon, BlendMode.srcIn),
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white, size: 16),
                     ),
                   ),
-                  SizedBox(width: 14),
-                  Text('Downloads em curso',
-                      style: TextStyle(
-                          color: AppTheme.current.text,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600)),
+                  Text(
+                    'Downloads em curso',
+                    style: TextStyle(
+                        color: t.text,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600),
+                  ),
                   const Spacer(),
-                  // Badge com contagem
+                  // Badge contagem
                   if (active.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF3B30),
+                        color: AppTheme.ytRed,
                         borderRadius: BorderRadius.circular(100),
                       ),
                       child: Text(
                         active.length > 9 ? '9+' : '${active.length}',
-                        style: TextStyle(
-                            color: AppTheme.current.text,
+                        style: const TextStyle(
+                            color: Colors.white,
                             fontSize: 11,
                             fontWeight: FontWeight.w700),
                       ),
@@ -96,9 +106,9 @@ class DownloadListPage extends StatelessWidget {
                 ]),
               ),
 
-              Divider(color: AppTheme.current.isDark ? const Color(0xFF1C1C1C) : const Color(0xFFDDDDDD), height: 1),
+              Divider(color: t.divider, height: 1),
 
-              // Lista de activos
+              // ── Lista ──────────────────────────────────────────────
               Expanded(
                 child: active.isEmpty
                     ? Center(
@@ -107,12 +117,12 @@ class DownloadListPage extends StatelessWidget {
                           children: [
                             SvgPicture.string(_svgDownload,
                                 width: 48, height: 48,
-                                colorFilter: const ColorFilter.mode(
-                                    Colors.white24, BlendMode.srcIn)),
-                            SizedBox(height: 14),
+                                colorFilter: ColorFilter.mode(
+                                    t.emptyIcon, BlendMode.srcIn)),
+                            const SizedBox(height: 14),
                             Text('Nenhum download em curso',
                                 style: TextStyle(
-                                    color: AppTheme.current.isDark ? Colors.white38 : Colors.black38, fontSize: 13.5)),
+                                    color: t.emptyText, fontSize: 13.5)),
                           ],
                         ),
                       )
@@ -138,19 +148,23 @@ class _ActiveDownloadCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppTheme.current;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-        // Thumbnail ou placeholder
+        // Thumbnail
         ClipRRect(
           borderRadius: BorderRadius.circular(6),
           child: SizedBox(
             width: 120, height: 68,
             child: item.thumbUrl != null
-                ? Image.network(item.thumbUrl!, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _thumbPlaceholder())
-                : _thumbPlaceholder(),
+                ? Image.network(
+                    item.thumbUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _thumbPlaceholder(t),
+                  )
+                : _thumbPlaceholder(t),
           ),
         ),
 
@@ -160,18 +174,19 @@ class _ActiveDownloadCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Título
-              Text(item.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      color: AppTheme.current.text,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
-                      height: 1.3)),
+              Text(
+                item.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: t.text,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.3),
+              ),
               const SizedBox(height: 6),
 
-              // Barra de progresso
+              // Progresso
               ValueListenableBuilder<DownloadStatus>(
                 valueListenable: item.status,
                 builder: (_, status, __) {
@@ -179,33 +194,30 @@ class _ActiveDownloadCard extends StatelessWidget {
                     return Row(children: [
                       const Icon(Icons.check_circle_rounded,
                           color: Color(0xFF34C759), size: 14),
-                      SizedBox(width: 5),
+                      const SizedBox(width: 5),
                       Text('Concluído',
-                          style: TextStyle(
-                              color: AppTheme.current.isDark ? Colors.white.withOpacity(0.50) : Colors.black45,
-                              fontSize: 11)),
+                          style:
+                              TextStyle(color: t.textSecondary, fontSize: 11)),
                     ]);
                   }
                   if (status == DownloadStatus.error) {
                     return Row(children: [
-                      const Icon(Icons.error_rounded,
-                          color: Color(0xFFFF3B30), size: 14),
-                      SizedBox(width: 5),
+                      Icon(Icons.error_rounded,
+                          color: AppTheme.error, size: 14),
+                      const SizedBox(width: 5),
                       Text('Erro',
-                          style: TextStyle(
-                              color: AppTheme.current.isDark ? Colors.white.withOpacity(0.50) : Colors.black45,
-                              fontSize: 11)),
+                          style:
+                              TextStyle(color: t.textSecondary, fontSize: 11)),
                     ]);
                   }
                   if (status == DownloadStatus.cancelled) {
                     return Row(children: [
                       Icon(Icons.cancel_rounded,
-                          color: AppTheme.current.isDark ? Colors.white.withOpacity(0.30) : Colors.black26, size: 14),
-                      SizedBox(width: 5),
+                          color: t.iconTertiary, size: 14),
+                      const SizedBox(width: 5),
                       Text('Cancelado',
                           style: TextStyle(
-                              color: AppTheme.current.textHint,
-                              fontSize: 11)),
+                              color: t.textTertiary, fontSize: 11)),
                     ]);
                   }
                   // downloading
@@ -219,9 +231,8 @@ class _ActiveDownloadCard extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: p > 0 ? p : null,
                             minHeight: 3,
-                            backgroundColor: Colors.white12,
-                            valueColor: const AlwaysStoppedAnimation(
-                                Color(0xFFFF9000)),
+                            backgroundColor: t.divider,
+                            valueColor: AlwaysStoppedAnimation(AppTheme.ytRed),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -230,8 +241,7 @@ class _ActiveDownloadCard extends StatelessWidget {
                               ? '${(p * 100).toStringAsFixed(0)}%'
                               : 'A iniciar...',
                           style: TextStyle(
-                              color: AppTheme.current.textHint,
-                              fontSize: 10.5),
+                              color: t.textTertiary, fontSize: 10.5),
                         ),
                       ],
                     ),
@@ -250,24 +260,23 @@ class _ActiveDownloadCard extends StatelessWidget {
             child: SvgPicture.string(_svgMoreVert,
                 width: 18, height: 18,
                 colorFilter: ColorFilter.mode(
-                    Colors.white.withOpacity(0.35), BlendMode.srcIn)),
+                    AppTheme.current.iconTertiary, BlendMode.srcIn)),
           ),
         ),
       ]),
     );
   }
 
-  Widget _thumbPlaceholder() => Container(
-        color: AppTheme.current.card,
+  Widget _thumbPlaceholder(AppTheme t) => Container(
+        color: t.card,
         child: Center(
-          child: Icon(Icons.video_file_rounded, color: AppTheme.current.iconSub, size: 28),
+          child: Icon(Icons.video_file_rounded, color: t.iconSub, size: 28),
         ),
       );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Widget de badge para usar no botão de acesso à lista
-// Uso: DownloadListBadge(child: Icon(...))
+// DownloadListBadge
 // ─────────────────────────────────────────────────────────────────────────────
 class DownloadListBadge extends StatelessWidget {
   final Widget child;
@@ -287,14 +296,14 @@ class DownloadListBadge extends StatelessWidget {
               child: Container(
                 width: 16, height: 16,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFF3B30),
+                  color: AppTheme.ytRed,
                   shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: Text(
                     count > 9 ? '9+' : '$count',
-                    style: TextStyle(
-                        color: AppTheme.current.text,
+                    style: const TextStyle(
+                        color: Colors.white,
                         fontSize: 9,
                         fontWeight: FontWeight.w700),
                   ),

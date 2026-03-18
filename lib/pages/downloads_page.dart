@@ -14,20 +14,7 @@ import '../theme/app_theme.dart';
 import '../services/transfer_service.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-const _kPrimary = Color(0xFFFF9000);
-
-// ── Cores reactivas ao tema ───────────────────────────────────────────────────
-Color get _bg   => AppTheme.current.isDark ? const Color(0xFF111111) : const Color(0xFFF2F2F7);
-Color get _card => AppTheme.current.card;
-Color get _textPrimary => AppTheme.current.text;
-Color get _textSub     => AppTheme.current.isDark ? Colors.white54 : Colors.black45;
-Color get _divider     => AppTheme.current.isDark ? Colors.white12 : Colors.black12;
-
-
-const _kBg      = Color(0xFF111111);
-const _kCard2   = Color(0xFF1A1A1A);
-
-// ─── ÍCONE DE VOLTAR (conforme enviado) ──────────────────────────────────────
+// ─── SVGs ─────────────────────────────────────────────────────────────────────
 const _svgBack =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23'
@@ -102,40 +89,41 @@ class _DownloadsPageState extends State<DownloadsPage> {
   bool _selectMode = false;
   final Set<String> _selected = {};
 
+  AppTheme get _t => AppTheme.current;
+
   @override
   Widget build(BuildContext context) {
+    final t = _t;
     final items = _svc.items;
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: t.bg,
       appBar: AppBar(
-        backgroundColor: _bg,
+        backgroundColor: t.appBar,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: SvgPicture.string(_svgBack, width: 20, height: 20,
-              colorFilter: _selectMode
-                  ? const ColorFilter.mode(Colors.white, BlendMode.srcIn)
-                  : const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
+              colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn)),
           onPressed: _selectMode
               ? () => setState(() { _selectMode = false; _selected.clear(); })
               : () => Navigator.pop(context),
         ),
         title: Text(
           _selectMode ? '${_selected.length} selecionados' : 'Downloads',
-          style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+          style: TextStyle(color: t.text, fontSize: 17, fontWeight: FontWeight.w600),
         ),
         actions: _selectMode
             ? [
                 if (_selected.isNotEmpty) ...[
-                  _ABtn(svg: _svgSend, color: Colors.white, onTap: _openSendSheet),
-                  _ABtn(svg: _svgTrash, color: Colors.redAccent, onTap: _deleteSelected),
+                  _ABtn(svg: _svgSend, color: t.icon, onTap: _openSendSheet),
+                  _ABtn(svg: _svgTrash, color: AppTheme.error, onTap: _deleteSelected),
                   const SizedBox(width: 4),
                 ],
               ]
             : [
-                _ABtn(svg: _svgSend, color: Colors.white.withOpacity(0.6),
+                _ABtn(svg: _svgSend, color: t.iconSub,
                     onTap: () => setState(() => _selectMode = true)),
-                _ABtn(svg: _svgQr, color: Colors.white.withOpacity(0.6),
+                _ABtn(svg: _svgQr, color: t.iconSub,
                     onTap: _openReceiveSheet),
                 const SizedBox(width: 4),
               ],
@@ -167,19 +155,23 @@ class _DownloadsPageState extends State<DownloadsPage> {
                   MaterialPageRoute(builder: (_) => _Viewer(item: items[i])));
             }
           },
-          onLongPress: () => setState(() { _selectMode = true; _selected.add(items[i].id); }),
+          onLongPress: () =>
+              setState(() { _selectMode = true; _selected.add(items[i].id); }),
         ),
       );
 
-  Widget _emptyState() => Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          SvgPicture.string(_svgQr, width: 48, height: 48,
-              colorFilter: ColorFilter.mode(Colors.white.withOpacity(0.12), BlendMode.srcIn)),
-          const SizedBox(height: 14),
-          Text('Sem downloads',
-              style: TextStyle(color: Colors.white.withOpacity(0.28), fontSize: 15)),
-        ]),
-      );
+  Widget _emptyState() {
+    final t = _t;
+    return Center(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        SvgPicture.string(_svgQr, width: 48, height: 48,
+            colorFilter: ColorFilter.mode(t.emptyIcon, BlendMode.srcIn)),
+        const SizedBox(height: 14),
+        Text('Sem downloads',
+            style: TextStyle(color: t.emptyText, fontSize: 15)),
+      ]),
+    );
+  }
 
   Future<void> _deleteSelected() async {
     for (final id in _selected.toList()) await _svc.delete(id);
@@ -197,7 +189,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
 
   void _showSheet(Widget child) => showModalBottomSheet(
         context: context,
-        backgroundColor: _card,
+        backgroundColor: _t.sheet,
         isScrollControlled: true,
         shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
@@ -206,15 +198,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _SendSheet  —  EMISSOR
-//
-// FLUXO:
-//   1. Abre sheet → mostra campo de código + botão de câmera
-//   2a. Escaneia QR  → parse do payload → liga → envia
-//   2b. Digita código de 6 chars → parse → liga → envia
-//   3. Conectando → spinner
-//   4. Enviando → progresso
-//   5. Done | Error
+// _SendSheet — EMISSOR
 // ─────────────────────────────────────────────────────────────────────────────
 class _SendSheet extends StatefulWidget {
   final List<DownloadedItem> items;
@@ -224,7 +208,6 @@ class _SendSheet extends StatefulWidget {
 }
 
 class _SendSheetState extends State<_SendSheet> {
-  // enter | scan | connecting | sending | done | error
   String _phase = 'enter';
   final _ssidCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
@@ -242,16 +225,16 @@ class _SendSheetState extends State<_SendSheet> {
     super.dispose();
   }
 
-  // Chamado após QR scan — payload "pxx:SSID:PASSWORD"
   void _handleQr(String raw) {
     final parsed = TransferService.parseQrPayload(raw);
     if (parsed != null) {
       _connectAndSend(parsed.ssid, parsed.password);
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('QR inválido. Tenta inserir manualmente.'),
-      backgroundColor: Colors.redAccent,
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('QR inválido. Tenta inserir manualmente.',
+          style: TextStyle(color: AppTheme.current.toastText)),
+      backgroundColor: AppTheme.error,
       behavior: SnackBarBehavior.floating,
     ));
     setState(() => _phase = 'enter');
@@ -261,9 +244,10 @@ class _SendSheetState extends State<_SendSheet> {
     final ssid = _ssidCtrl.text.trim();
     final pass = _passCtrl.text.trim();
     if (ssid.isEmpty || pass.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Preenche o nome da rede e a password.'),
-        backgroundColor: Colors.redAccent,
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Preenche o nome da rede e a password.',
+            style: TextStyle(color: AppTheme.current.toastText)),
+        backgroundColor: AppTheme.error,
         behavior: SnackBarBehavior.floating,
       ));
       return;
@@ -274,10 +258,12 @@ class _SendSheetState extends State<_SendSheet> {
 
   Future<void> _connectAndSend(String ssid, String password) async {
     setState(() => _phase = 'connecting');
-    final ok = await TransferService.instance.connectToReceiver(ssid: ssid, password: password);
+    final ok = await TransferService.instance
+        .connectToReceiver(ssid: ssid, password: password);
     if (!ok) {
       setState(() {
-        _errMsg = 'Não foi possível ligar ao dispositivo do recetor.\nConfirma que o recetor está ativo e tenta de novo.';
+        _errMsg = 'Não foi possível ligar ao dispositivo do recetor.\n'
+            'Confirma que o recetor está ativo e tenta de novo.';
         _phase = 'error';
       });
       return;
@@ -288,15 +274,21 @@ class _SendSheetState extends State<_SendSheet> {
   void _startSend() {
     final files = widget.items.map((item) {
       final f = File(item.localPath);
-      return TransferFile(name: item.name, localPath: item.localPath,
-          type: item.type, sizeBytes: f.existsSync() ? f.lengthSync() : 0);
+      return TransferFile(
+          name: item.name,
+          localPath: item.localPath,
+          type: item.type,
+          sizeBytes: f.existsSync() ? f.lengthSync() : 0);
     }).toList();
     setState(() { _phase = 'sending'; _t0 = DateTime.now(); });
     _sub = TransferService.instance.sendFiles(files: files).listen((p) {
       if (!mounted) return;
       setState(() => _prog = p);
       if (p.error) {
-        setState(() { _errMsg = p.errorMsg ?? 'Erro ao enviar "${p.fileName}"'; _phase = 'error'; });
+        setState(() {
+          _errMsg = p.errorMsg ?? 'Erro ao enviar "${p.fileName}"';
+          _phase = 'error';
+        });
       } else if (p.done) {
         _filesDone++;
         if (_filesDone >= files.length) setState(() => _phase = 'done');
@@ -313,86 +305,93 @@ class _SendSheetState extends State<_SendSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppTheme.current;
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         _handle(),
 
-        // ── Scan directo — sem campos manuais ─────────────────────
         if (_phase == 'enter') ...[
-          const _T('Aponta para o QR'),
-          _sub2('Aponta a câmera para o QR que aparece no dispositivo do recetor'),
+          _T('Aponta para o QR', t),
+          _sub2('Aponta a câmera para o QR que aparece no dispositivo do recetor', t),
           const SizedBox(height: 16),
           _RealViewfinder(
-            onScanned: (ssid, pass) => _connectAndSend(ssid, pass),
-          ),
+              onScanned: (ssid, pass) => _connectAndSend(ssid, pass)),
           const SizedBox(height: 8),
           _GhostBtn(label: 'Cancelar', onTap: () => Navigator.pop(context)),
           const SizedBox(height: 16),
         ],
 
-        // fase 'scan' removida — agora entra directo no scanner
-
-
-        // ── A ligar ───────────────────────────────────────────────────
         if (_phase == 'connecting') ...[
           const SizedBox(height: 32),
           SvgPicture.string(_svgHotspot, width: 32, height: 32,
-              colorFilter: const ColorFilter.mode(_kPrimary, BlendMode.srcIn)),
+              colorFilter: ColorFilter.mode(AppTheme.ytRed, BlendMode.srcIn)),
           const SizedBox(height: 14),
-          const _T('A ligar…'),
-          _sub2('A estabelecer ligação ao recetor'),
+          _T('A ligar…', t),
+          _sub2('A estabelecer ligação ao recetor', t),
           const SizedBox(height: 28),
-          const CircularProgressIndicator(color: _kPrimary, strokeWidth: 1.5),
+          CircularProgressIndicator(color: AppTheme.ytRed, strokeWidth: 1.5),
           const SizedBox(height: 32),
         ],
 
-        // ── A enviar ──────────────────────────────────────────────────
         if (_phase == 'sending') ...[
           const SizedBox(height: 16),
           SvgPicture.string(_svgWifi, width: 28, height: 28,
-              colorFilter: const ColorFilter.mode(_kPrimary, BlendMode.srcIn)),
+              colorFilter: ColorFilter.mode(AppTheme.ytRed, BlendMode.srcIn)),
           const SizedBox(height: 12),
-          const _T('A enviar…'),
+          _T('A enviar…', t),
           if (_prog != null) ...[
             const SizedBox(height: 4),
-            _sub2('${_prog!.fileName}  ·  $_speed'),
+            _sub2('${_prog!.fileName}  ·  $_speed', t),
             const SizedBox(height: 16),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ClipRRect(borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(value: _prog!.fraction, minHeight: 5,
-                    backgroundColor: Colors.white12,
-                    valueColor: const AlwaysStoppedAnimation<Color>(_kPrimary)))),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: _prog!.fraction,
+                  minHeight: 5,
+                  backgroundColor: t.divider,
+                  valueColor: AlwaysStoppedAnimation(AppTheme.ytRed),
+                ),
+              ),
+            ),
             const SizedBox(height: 6),
-            _sub2('${TransferService.formatBytes(_prog!.sentBytes)} / '
-                '${TransferService.formatBytes(_prog!.totalBytes)}'),
+            _sub2(
+                '${TransferService.formatBytes(_prog!.sentBytes)} / '
+                '${TransferService.formatBytes(_prog!.totalBytes)}',
+                t),
           ],
           const SizedBox(height: 24),
         ],
 
-        // ── Concluído ─────────────────────────────────────────────────
         if (_phase == 'done') ...[
           const SizedBox(height: 20),
           _SuccessIcon(),
           const SizedBox(height: 12),
-          const _T('Enviado!'),
-          _sub2('${widget.items.length} ficheiro(s) transferido(s)'),
+          _T('Enviado!', t),
+          _sub2('${widget.items.length} ficheiro(s) transferido(s)', t),
           const SizedBox(height: 24),
           _GhostBtn(label: 'Fechar', onTap: () => Navigator.pop(context)),
           const SizedBox(height: 24),
         ],
 
-        // ── Erro ──────────────────────────────────────────────────────
         if (_phase == 'error') ...[
           const SizedBox(height: 20),
-          const Icon(Icons.wifi_off_rounded, color: Colors.redAccent, size: 40),
+          Icon(Icons.wifi_off_rounded, color: AppTheme.error, size: 40),
           const SizedBox(height: 12),
-          const _T('Falha na ligação'),
-          _sub2(_errMsg),
+          _T('Falha na ligação', t),
+          _sub2(_errMsg, t),
           const SizedBox(height: 20),
-          _PrimaryBtn(label: 'Tentar novamente',
+          _PrimaryBtn(
+              label: 'Tentar novamente',
               onTap: () => setState(() {
-                _phase = 'enter'; _filesDone = 0; _prog = null; _errMsg = ''; })),
+                    _phase = 'enter';
+                    _filesDone = 0;
+                    _prog = null;
+                    _errMsg = '';
+                  })),
           const SizedBox(height: 8),
           _GhostBtn(label: 'Cancelar', onTap: () => Navigator.pop(context)),
           const SizedBox(height: 16),
@@ -403,14 +402,7 @@ class _SendSheetState extends State<_SendSheet> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _ReceiveSheet  —  RECETOR
-//
-// FLUXO:
-//   1. Ativa hotspot Wi-Fi Direct via TransferService
-//   2. Gera código de 6 chars a partir do SSID
-//   3. Mostra QR (payload completo) + código em texto grande + SSID/pass colapsado
-//   4. À espera do emissor → mostra progresso quando começa a receber
-//   5. Done
+// _ReceiveSheet — RECETOR
 // ─────────────────────────────────────────────────────────────────────────────
 class _ReceiveSheet extends StatefulWidget {
   final VoidCallback onDone;
@@ -462,7 +454,11 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
     try {
       final result = await TransferService.instance.startReceiver();
       if (!mounted) return;
-      setState(() { _ssid = result.ssid; _password = result.password; _ready = true; });
+      setState(() {
+        _ssid = result.ssid;
+        _password = result.password;
+        _ready = true;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _errMsg = e.toString());
@@ -489,122 +485,138 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppTheme.current;
     final h = MediaQuery.of(context).size.height;
     return SizedBox(
       height: h * 0.88,
       child: Column(children: [
         _handle(),
 
-        // ── A iniciar ─────────────────────────────────────────────────
         if (!_ready && _errMsg.isEmpty)
-          Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            SvgPicture.string(_svgHotspot, width: 36, height: 36,
-                colorFilter: ColorFilter.mode(Colors.white.withOpacity(0.2), BlendMode.srcIn)),
-            SizedBox(height: 16),
-            Text('A ativar hotspot…',
-                style: TextStyle(color: AppTheme.current.isDark ? Colors.white38 : Colors.black38, fontSize: 14)),
-            const SizedBox(height: 20),
-            const CircularProgressIndicator(color: _kPrimary, strokeWidth: 1.5),
-          ]))
+          Expanded(
+            child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+              SvgPicture.string(_svgHotspot, width: 36, height: 36,
+                  colorFilter: ColorFilter.mode(t.emptyIcon, BlendMode.srcIn)),
+              const SizedBox(height: 16),
+              Text('A ativar hotspot…',
+                  style: TextStyle(color: t.emptyText, fontSize: 14)),
+              const SizedBox(height: 20),
+              CircularProgressIndicator(color: AppTheme.ytRed, strokeWidth: 1.5),
+            ]),
+          )
 
-        // ── Erro ──────────────────────────────────────────────────────
         else if (_errMsg.isNotEmpty)
-          Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            const Icon(Icons.wifi_off_rounded, color: Colors.redAccent, size: 42),
-            const SizedBox(height: 12),
-            const _T('Permissão necessária'),
-            const SizedBox(height: 8),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(_errMsg, textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12))),
-            const SizedBox(height: 24),
-            _PrimaryBtn(label: 'Tentar novamente', onTap: () {
-              setState(() { _errMsg = ''; _ready = false; });
-              _start();
-            }),
-            const SizedBox(height: 8),
-            _GhostBtn(label: 'Fechar', onTap: () => Navigator.pop(context)),
-          ]))
+          Expanded(
+            child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+              Icon(Icons.wifi_off_rounded, color: AppTheme.error, size: 42),
+              const SizedBox(height: 12),
+              _T('Permissão necessária', t),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(_errMsg,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: t.textTertiary, fontSize: 12)),
+              ),
+              const SizedBox(height: 24),
+              _PrimaryBtn(label: 'Tentar novamente', onTap: () {
+                setState(() { _errMsg = ''; _ready = false; });
+                _start();
+              }),
+              const SizedBox(height: 8),
+              _GhostBtn(
+                  label: 'Fechar', onTap: () => Navigator.pop(context)),
+            ]),
+          )
 
-        // ── Concluído ─────────────────────────────────────────────────
         else if (_allDone) ...[
           const Spacer(),
           _SuccessIcon(),
           const SizedBox(height: 14),
-          const _T('Transferência completa!'),
-          _sub2('${_files.length} ficheiro(s) guardado(s) no app'),
+          _T('Transferência completa!', t),
+          _sub2('${_files.length} ficheiro(s) guardado(s) no app', t),
           const Spacer(),
-          Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 36),
-            child: _GhostBtn(label: 'Fechar', onTap: () => Navigator.pop(context))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 36),
+            child: _GhostBtn(
+                label: 'Fechar', onTap: () => Navigator.pop(context)),
+          ),
         ]
 
-        // ── Pronto — QR + código + progresso ──────────────────────────
         else ...[
-          const _T('Pronto para receber'),
-          _sub2('Mostra este código ou QR ao emissor'),
+          _T('Pronto para receber', t),
+          _sub2('Mostra este código ou QR ao emissor', t),
           const SizedBox(height: 16),
 
-          // ── QR + SSID + password ──────────────────────────────────
           if (!_receiving)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 decoration: BoxDecoration(
-                  color: AppTheme.current.isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
+                  color: t.cardAlt,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  border: Border.all(color: t.borderSoft),
                 ),
                 child: Column(children: [
-                  // QR no topo — escaneia e liga sem digitar nada
                   _QrDisplay(payload: _qrPayload),
                   const SizedBox(height: 8),
                   Text('Escaneia com o outro app',
-                      style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12)),
-
-                  SizedBox(height: 16),
-                  Divider(color: AppTheme.current.isDark ? Colors.white12 : Colors.black12, height: 1),
+                      style: TextStyle(color: t.textTertiary, fontSize: 12)),
                   const SizedBox(height: 16),
-
-                  // SSID + password visíveis para inserção manual
+                  Divider(color: t.divider, height: 1),
+                  const SizedBox(height: 16),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Ou insere manualmente no outro app:',
-                            style: TextStyle(
-                                color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26, fontSize: 11)),
-                        const SizedBox(height: 10),
-                        _NetworkInfo(ssid: _ssid, password: _password),
-                      ],
-                    ),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text('Ou insere manualmente no outro app:',
+                          style: TextStyle(
+                              color: t.textTertiary, fontSize: 11)),
+                      const SizedBox(height: 10),
+                      _NetworkInfo(ssid: _ssid, password: _password),
+                    ]),
                   ),
                 ]),
               ),
             ),
 
-          // ── A receber — progresso ──────────────────────────────────
           if (_receiving)
-            Expanded(child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              children: _files.map((f) => _FileBar(p: f, speed: _speed)).toList(),
-            ))
+            Expanded(
+              child: ListView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                children:
+                    _files.map((f) => _FileBar(p: f, speed: _speed)).toList(),
+              ),
+            )
           else ...[
             const SizedBox(height: 14),
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              SizedBox(width: 12, height: 12,
-                child: CircularProgressIndicator(strokeWidth: 1.5,
-                    color: Colors.white.withOpacity(0.22))),
+              SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                    strokeWidth: 1.5, color: AppTheme.current.emptyIcon),
+              ),
               const SizedBox(width: 10),
               Text('À espera do emissor…',
-                  style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 13)),
+                  style: TextStyle(
+                      color: AppTheme.current.textTertiary, fontSize: 13)),
             ]),
           ],
 
           const Spacer(),
-          Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 36),
-            child: _GhostBtn(label: 'Cancelar', onTap: () => Navigator.pop(context))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 36),
+            child: _GhostBtn(
+                label: 'Cancelar', onTap: () => Navigator.pop(context)),
+          ),
         ],
       ]),
     );
@@ -612,7 +624,7 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _NetworkInfo  —  SSID + password colapsável (usado dentro do _ReceiveSheet)
+// _NetworkInfo
 // ─────────────────────────────────────────────────────────────────────────────
 class _NetworkInfo extends StatefulWidget {
   final String ssid, password;
@@ -628,73 +640,86 @@ class _NetworkInfoState extends State<_NetworkInfo> {
 
   void _copy(String text, bool isSsid) async {
     await Clipboard.setData(ClipboardData(text: text));
-    setState(() { if (isSsid) _copiedSsid = true; else _copiedPass = true; });
+    setState(() {
+      if (isSsid) _copiedSsid = true;
+      else _copiedPass = true;
+    });
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) setState(() { _copiedSsid = false; _copiedPass = false; });
   }
 
-  Widget _row(String label, String value, bool isSsid, bool copied) => Row(children: [
-    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26, fontSize: 11)),
-      const SizedBox(height: 2),
-      Text(
-        isSsid ? value : (_showPass ? value : '••••••••'),
-        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-        overflow: TextOverflow.ellipsis,
-      ),
-    ])),
-    if (!isSsid)
+  Widget _row(String label, String value, bool isSsid, bool copied) {
+    final t = AppTheme.current;
+    return Row(children: [
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: TextStyle(color: t.textTertiary, fontSize: 11)),
+        const SizedBox(height: 2),
+        Text(
+          isSsid ? value : (_showPass ? value : '••••••••'),
+          style: TextStyle(color: t.text, fontSize: 13, fontWeight: FontWeight.w500),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ])),
+      if (!isSsid)
+        GestureDetector(
+          onTap: () => setState(() => _showPass = !_showPass),
+          child: Icon(
+              _showPass ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+              color: t.iconSub, size: 16),
+        ),
+      const SizedBox(width: 8),
       GestureDetector(
-        onTap: () => setState(() => _showPass = !_showPass),
-        child: Icon(_showPass ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-            color: AppTheme.current.thumbIcon, size: 16),
+        onTap: () => _copy(value, isSsid),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: copied
+              ? Icon(Icons.check_rounded,
+                  key: const ValueKey('ok'), color: AppTheme.ytRed, size: 16)
+              : Icon(Icons.copy_rounded,
+                  key: const ValueKey('cp'), color: t.iconTertiary, size: 14),
+        ),
       ),
-    const SizedBox(width: 8),
-    GestureDetector(
-      onTap: () => _copy(value, isSsid),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: copied
-            ? const Icon(Icons.check_rounded, key: ValueKey('ok'), color: _kPrimary, size: 16)
-            : Icon(Icons.copy_rounded, key: const ValueKey('cp'),
-                color: Colors.white.withOpacity(0.3), size: 14),
-      ),
-    ),
-  ]);
+    ]);
+  }
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    decoration: BoxDecoration(
-      color: AppTheme.current.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: Column(children: [
-      _row('Rede (SSID)', widget.ssid, true, _copiedSsid),
-      const SizedBox(height: 10),
-      _row('Password', widget.password, false, _copiedPass),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: t.bgSecondary,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(children: [
+        _row('Rede (SSID)', widget.ssid, true, _copiedSsid),
+        const SizedBox(height: 10),
+        _row('Password', widget.password, false, _copiedPass),
+      ]),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _QrDisplay  —  QR real via qr_flutter
+// _QrDisplay
 // ─────────────────────────────────────────────────────────────────────────────
 class _QrDisplay extends StatelessWidget {
   final String payload;
   const _QrDisplay({required this.payload});
   @override
   Widget build(BuildContext context) => Container(
-    width: 160,
-    height: 160,
-    color: AppTheme.current.text,
-    padding: const EdgeInsets.all(8),
-    child: QrImageView(
-      data: payload,
-      version: QrVersions.auto,
-      size: 144,
-    ),
-  );
+        width: 160,
+        height: 160,
+        color: Colors.white, // QR precisa sempre de fundo branco
+        padding: const EdgeInsets.all(8),
+        child: QrImageView(
+          data: payload,
+          version: QrVersions.auto,
+          size: 144,
+          foregroundColor: Colors.black,
+          backgroundColor: Colors.white,
+        ),
+      );
 }
 
 // ─── Barra de progresso por ficheiro ──────────────────────────────────────────
@@ -703,29 +728,43 @@ class _FileBar extends StatelessWidget {
   final String speed;
   const _FileBar({required this.p, required this.speed});
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(child: Text(p.fileName, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500))),
-            SizedBox(width: 8),
-            Text(p.done
-                ? TransferService.formatBytes(p.totalBytes)
-                : '${TransferService.formatBytes(p.sentBytes)} · $speed',
-                style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26, fontSize: 11)),
-          ]),
-          const SizedBox(height: 6),
-          ClipRRect(borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(value: p.fraction, minHeight: 4,
-                backgroundColor: Colors.white12,
-                valueColor: AlwaysStoppedAnimation(
-                    p.done ? _kPrimary : _kPrimary.withOpacity(0.7)))),
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+              child: Text(p.fileName,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: t.text,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500))),
+          const SizedBox(width: 8),
+          Text(
+              p.done
+                  ? TransferService.formatBytes(p.totalBytes)
+                  : '${TransferService.formatBytes(p.sentBytes)} · $speed',
+              style: TextStyle(color: t.textTertiary, fontSize: 11)),
         ]),
-      );
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            value: p.fraction,
+            minHeight: 4,
+            backgroundColor: t.divider,
+            valueColor: AlwaysStoppedAnimation(
+                p.done ? AppTheme.ytRed : AppTheme.ytRed.withOpacity(0.7)),
+          ),
+        ),
+      ]),
+    );
+  }
 }
 
-// ─── _RealViewfinder — câmera real com MobileScanner ─────────────────────────
+// ─── _RealViewfinder ──────────────────────────────────────────────────────────
 class _RealViewfinder extends StatefulWidget {
   final void Function(String ssid, String pass) onScanned;
   const _RealViewfinder({required this.onScanned});
@@ -759,39 +798,32 @@ class _RealViewfinderState extends State<_RealViewfinder> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppTheme.current;
     return Container(
       height: 280,
       margin: const EdgeInsets.symmetric(horizontal: 24),
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _kPrimary.withOpacity(0.5), width: 1.5),
+        border: Border.all(color: AppTheme.ytRed.withOpacity(0.5), width: 1.5),
       ),
       child: Stack(children: [
-        // Câmera real
-        MobileScanner(
-          controller: _ctrl,
-          onDetect: _onDetect,
-        ),
-        // Overlay com moldura de cantos
+        MobileScanner(controller: _ctrl, onDetect: _onDetect),
         CustomPaint(
-          painter: _ScanOverlayPainter(),
-          child: const SizedBox.expand(),
-        ),
-        // Linha de scan animada
+            painter: _ScanOverlayPainter(),
+            child: const SizedBox.expand()),
         const _ScanLine(),
-        // Hint em baixo
         Positioned(
           bottom: 16, left: 0, right: 0,
           child: Center(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: AppTheme.current.isDark ? Colors.black54 : Colors.white70,
+                color: t.overlay,
                 borderRadius: BorderRadius.circular(100),
               ),
               child: Text('Aponta para o QR do recetor',
-                  style: TextStyle(color: AppTheme.current.iconSub, fontSize: 12)),
+                  style: TextStyle(color: t.iconSub, fontSize: 12)),
             ),
           ),
         ),
@@ -800,12 +832,11 @@ class _RealViewfinderState extends State<_RealViewfinder> {
   }
 }
 
-// Overlay com cantos laranja
 class _ScanOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = _kPrimary
+      ..color = AppTheme.ytRed
       ..strokeWidth = 3.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -813,16 +844,11 @@ class _ScanOverlayPainter extends CustomPainter {
     const len = 28.0;
     const r = 6.0;
     final corners = [
-      // top-left
       [Offset(r, len), Offset(r, r), Offset(len, r)],
-      // top-right
       [Offset(size.width - r, len), Offset(size.width - r, r), Offset(size.width - len, r)],
-      // bottom-left
       [Offset(r, size.height - len), Offset(r, size.height - r), Offset(len, size.height - r)],
-      // bottom-right
       [Offset(size.width - r, size.height - len), Offset(size.width - r, size.height - r), Offset(size.width - len, size.height - r)],
     ];
-
     for (final pts in corners) {
       final path = Path()
         ..moveTo(pts[0].dx, pts[0].dy)
@@ -836,7 +862,6 @@ class _ScanOverlayPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// Linha de scan animada
 class _ScanLine extends StatefulWidget {
   const _ScanLine();
   @override
@@ -851,8 +876,8 @@ class _ScanLineState extends State<_ScanLine>
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 1800));
+    _c = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1800));
     _anim = Tween<double>(begin: 0.05, end: 0.95)
         .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
     _c.repeat(reverse: true);
@@ -872,9 +897,9 @@ class _ScanLineState extends State<_ScanLine>
           height: 2,
           decoration: BoxDecoration(
             gradient: LinearGradient(colors: [
-              _kPrimary.withOpacity(0),
-              _kPrimary,
-              _kPrimary.withOpacity(0),
+              AppTheme.ytRed.withOpacity(0),
+              AppTheme.ytRed,
+              AppTheme.ytRed.withOpacity(0),
             ]),
             borderRadius: BorderRadius.circular(1),
           ),
@@ -884,11 +909,11 @@ class _ScanLineState extends State<_ScanLine>
   }
 }
 
-// Manter _CP para compatibilidade (já não usado mas evita erros de compilação)
 class _CP extends CustomPainter {
   @override
   void paint(Canvas c, Size s) {}
-  @override bool shouldRepaint(covariant CustomPainter o) => false;
+  @override
+  bool shouldRepaint(covariant CustomPainter o) => false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -898,33 +923,65 @@ class _Tile extends StatelessWidget {
   final DownloadedItem item;
   final bool selected, selectMode;
   final VoidCallback onTap, onLongPress;
-  const _Tile({required this.item, required this.selected,
-      required this.selectMode, required this.onTap, required this.onLongPress});
+  const _Tile({
+    required this.item, required this.selected,
+    required this.selectMode, required this.onTap, required this.onLongPress,
+  });
 
-  double get _ratio { final h = item.id.hashCode.abs() % 3; if (h == 0) return 3/4; if (h == 1) return 2/3; return 1; }
+  double get _ratio {
+    final h = item.id.hashCode.abs() % 3;
+    if (h == 0) return 3 / 4;
+    if (h == 1) return 2 / 3;
+    return 1;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppTheme.current;
     final isVideo = item.type == 'video';
     final file = File(item.localPath);
     return GestureDetector(
-      onTap: onTap, onLongPress: onLongPress,
-      child: ClipRRect(borderRadius: BorderRadius.circular(4),
-        child: AspectRatio(aspectRatio: isVideo ? 9/16 : _ratio,
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: AspectRatio(
+          aspectRatio: isVideo ? 9 / 16 : _ratio,
           child: Stack(fit: StackFit.expand, children: [
-            Container(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03)),
-            if (!isVideo && file.existsSync()) Image.file(file, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03))),
-            if (isVideo) Center(child: Container(width: 42, height: 42,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.black.withOpacity(0.55)),
-                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 26))),
-            if (selected) Container(color: _kPrimary.withOpacity(0.25),
-                alignment: Alignment.topRight, padding: const EdgeInsets.all(4),
-                child: Icon(Icons.check_circle_rounded, color: _kPrimary, size: 20)),
-            if (selectMode && !selected) Positioned(top: 4, right: 4,
-              child: Container(width: 18, height: 18,
-                decoration: BoxDecoration(shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.current.isDark ? Colors.white54 : Colors.black45, width: 1.5), color: Colors.black38))),
+            Container(color: t.thumbBg),
+            if (!isVideo && file.existsSync())
+              Image.file(file, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(color: t.thumbBg)),
+            if (isVideo)
+              Center(
+                child: Container(
+                  width: 42, height: 42,
+                  decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withOpacity(0.55)),
+                  child: const Icon(Icons.play_arrow_rounded,
+                      color: Colors.white, size: 26),
+                ),
+              ),
+            if (selected)
+              Container(
+                color: AppTheme.ytRed.withOpacity(0.25),
+                alignment: Alignment.topRight,
+                padding: const EdgeInsets.all(4),
+                child: Icon(Icons.check_circle_rounded,
+                    color: AppTheme.ytRed, size: 20),
+              ),
+            if (selectMode && !selected)
+              Positioned(
+                top: 4, right: 4,
+                child: Container(
+                  width: 18, height: 18,
+                  decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: t.border, width: 1.5),
+                      color: Colors.black38),
+                ),
+              ),
           ]),
         ),
       ),
@@ -965,10 +1022,10 @@ class _ViewerState extends State<_Viewer> {
         allowFullScreen: true,
         aspectRatio: _vpc!.value.aspectRatio,
         materialProgressColors: ChewieProgressColors(
-          playedColor: _kPrimary,
-          handleColor: _kPrimary,
-          backgroundColor: Colors.white12,
-          bufferedColor: Colors.white24,
+          playedColor: AppTheme.ytRed,
+          handleColor: AppTheme.ytRed,
+          backgroundColor: AppTheme.current.divider,
+          bufferedColor: AppTheme.current.textTertiary,
         ),
       );
       if (mounted) setState(() => _ready = true);
@@ -986,36 +1043,49 @@ class _ViewerState extends State<_Viewer> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppTheme.current;
     final isVideo = widget.item.type == 'video';
     final file = File(widget.item.localPath);
     return Scaffold(
-      backgroundColor: AppTheme.current.bg,
+      backgroundColor: t.bg,
       appBar: AppBar(
-        backgroundColor: AppTheme.current.bg, elevation: 0, surfaceTintColor: Colors.transparent,
+        backgroundColor: t.appBar,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: SvgPicture.string(_svgBack, width: 20, height: 20,
-              colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
+              colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(widget.item.name, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white, fontSize: 13)),
+        title: Text(widget.item.name,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: t.text, fontSize: 13)),
       ),
       body: isVideo
           ? _error
-              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.videocam_off_rounded, color: Colors.white.withOpacity(0.18), size: 64),
-                  SizedBox(height: 12),
-                  Text('Não foi possível reproduzir',
-                      style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26)),
-                ]))
+              ? Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.videocam_off_rounded,
+                        color: t.emptyIcon, size: 64),
+                    const SizedBox(height: 12),
+                    Text('Não foi possível reproduzir',
+                        style: TextStyle(color: t.emptyText)),
+                  ]),
+                )
               : !_ready
-                  ? const Center(child: CircularProgressIndicator(color: _kPrimary, strokeWidth: 1.5))
+                  ? Center(
+                      child: CircularProgressIndicator(
+                          color: AppTheme.ytRed, strokeWidth: 1.5))
                   : Chewie(controller: _chewie!)
           : Center(
-              child: InteractiveViewer(child: Image.file(file,
-                  errorBuilder: (_, __, ___) =>
-                      Icon(Icons.broken_image_outlined,
-                          color: Colors.white.withOpacity(0.18), size: 64)))),
+              child: InteractiveViewer(
+                child: Image.file(file,
+                    errorBuilder: (_, __, ___) => Icon(
+                        Icons.broken_image_outlined,
+                        color: t.emptyIcon,
+                        size: 64)),
+              ),
+            ),
     );
   }
 }
@@ -1024,88 +1094,143 @@ class _ViewerState extends State<_Viewer> {
 // Widgets comuns
 // ─────────────────────────────────────────────────────────────────────────────
 Widget _handle() => Column(children: [
-      SizedBox(height: 10),
-      Center(child: Container(width: 36, height: 4,
-          decoration: BoxDecoration(color: AppTheme.current.isDark ? Colors.white12 : Colors.black12, borderRadius: BorderRadius.circular(2)))),
+      const SizedBox(height: 10),
+      Center(
+        child: Container(
+          width: 36, height: 4,
+          decoration: BoxDecoration(
+            color: AppTheme.current.sheetHandle,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ),
       const SizedBox(height: 14),
     ]);
 
-Widget _sub2(String t) => Padding(
+Widget _sub2(String text, AppTheme t) => Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Text(t, textAlign: TextAlign.center,
-          style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.38) : Colors.black38, fontSize: 13)));
+      child: Text(text,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: t.textTertiary, fontSize: 13)));
 
 class _T extends StatelessWidget {
   final String text;
-  const _T(this.text);
+  final AppTheme t;
+  const _T(this.text, this.t);
   @override
   Widget build(BuildContext context) => Text(text,
-      style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700));
+      style: TextStyle(
+          color: t.text, fontSize: 17, fontWeight: FontWeight.w700));
 }
 
 class _SuccessIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         width: 58, height: 58,
-        decoration: const BoxDecoration(color: Color(0x22FF9000), shape: BoxShape.circle),
-        child: const Icon(Icons.check_rounded, color: _kPrimary, size: 32));
+        decoration: BoxDecoration(
+          color: AppTheme.ytRed.withOpacity(0.13),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(Icons.check_rounded, color: AppTheme.ytRed, size: 32),
+      );
 }
 
 class _ABtn extends StatelessWidget {
-  final String svg; final Color color; final VoidCallback onTap;
+  final String svg;
+  final Color color;
+  final VoidCallback onTap;
   const _ABtn({required this.svg, required this.color, required this.onTap});
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap, behavior: HitTestBehavior.opaque,
-        child: Padding(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
           child: SvgPicture.string(svg, width: 20, height: 20,
-              colorFilter: ColorFilter.mode(color, BlendMode.srcIn))));
+              colorFilter: ColorFilter.mode(color, BlendMode.srcIn)),
+        ),
+      );
 }
 
 class _BigBtn extends StatelessWidget {
-  final String svg, label, sub; final VoidCallback onTap;
-  const _BigBtn({required this.svg, required this.label, required this.sub, required this.onTap});
+  final String svg, label, sub;
+  final VoidCallback onTap;
+  const _BigBtn(
+      {required this.svg, required this.label, required this.sub, required this.onTap});
   @override
-  Widget build(BuildContext context) => GestureDetector(onTap: onTap,
-        child: Container(height: 108,
-          decoration: BoxDecoration(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.07) : Colors.black.withOpacity(0.04),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05))),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            SvgPicture.string(svg, width: 27, height: 27,
-                colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
-            SizedBox(height: 8),
-            Text(label, style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-            SizedBox(height: 2),
-            Text(sub, style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26, fontSize: 10)),
-          ])));
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 108,
+        decoration: BoxDecoration(
+          color: t.btnGhost,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: t.borderSoft),
+        ),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          SvgPicture.string(svg, width: 27, height: 27,
+              colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn)),
+          const SizedBox(height: 8),
+          Text(label,
+              style: TextStyle(
+                  color: t.text, fontSize: 13, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 2),
+          Text(sub, style: TextStyle(color: t.textTertiary, fontSize: 10)),
+        ]),
+      ),
+    );
+  }
 }
 
 class _PrimaryBtn extends StatelessWidget {
-  final String label; final VoidCallback onTap;
+  final String label;
+  final VoidCallback onTap;
   const _PrimaryBtn({required this.label, required this.onTap});
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: GestureDetector(onTap: onTap,
-          child: Container(height: 50,
-            decoration: BoxDecoration(color: _kPrimary, borderRadius: BorderRadius.circular(14)),
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            height: 50,
+            decoration: BoxDecoration(
+                color: AppTheme.ytRed,
+                borderRadius: BorderRadius.circular(14)),
             alignment: Alignment.center,
-            child: Text(label, style: TextStyle(color: AppTheme.current.bg, fontSize: 15, fontWeight: FontWeight.w700)))));
+            child: Text(label,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700)),
+          ),
+        ),
+      );
 }
 
 class _GhostBtn extends StatelessWidget {
-  final String label; final VoidCallback onTap;
+  final String label;
+  final VoidCallback onTap;
   const _GhostBtn({required this.label, required this.onTap});
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: GestureDetector(onTap: onTap,
-          child: Container(height: 48,
-            decoration: BoxDecoration(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.07) : Colors.black.withOpacity(0.04),
-                borderRadius: BorderRadius.circular(14)),
-            alignment: Alignment.center,
-            child: Text(label, style: TextStyle(color: AppTheme.current.isDark ? Colors.white54 : Colors.black45, fontSize: 14)))));
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+              color: t.btnGhost, borderRadius: BorderRadius.circular(14)),
+          alignment: Alignment.center,
+          child: Text(label,
+              style: TextStyle(color: t.textSecondary, fontSize: 14)),
+        ),
+      ),
+    );
+  }
 }
 
 class _BackBtn extends StatelessWidget {
@@ -1115,7 +1240,8 @@ class _BackBtn extends StatelessWidget {
   Widget build(BuildContext context) => TextButton(
         onPressed: onTap,
         child: Text('← Voltar',
-            style: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.35) : Colors.black26, fontSize: 13)));
+            style: TextStyle(
+                color: AppTheme.current.textTertiary, fontSize: 13)));
 }
 
 class _Field extends StatelessWidget {
@@ -1124,22 +1250,37 @@ class _Field extends StatelessWidget {
   final bool autofocus;
   final bool obscure;
   final VoidCallback onDone;
-  const _Field({required this.ctrl, required this.hint,
-      this.autofocus = false, this.obscure = false, required this.onDone});
+  const _Field({
+    required this.ctrl,
+    required this.hint,
+    this.autofocus = false,
+    this.obscure = false,
+    required this.onDone,
+  });
   @override
-  Widget build(BuildContext context) => TextField(
-        controller: ctrl, autofocus: autofocus, obscureText: obscure,
-        style: const TextStyle(color: Colors.white, fontSize: 15),
-        textInputAction: obscure ? TextInputAction.done : TextInputAction.next,
-        onSubmitted: (_) => onDone(),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: AppTheme.current.isDark ? Colors.white.withOpacity(0.25) : Colors.black12, fontSize: 13),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.07),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: _kPrimary, width: 1.5)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ));
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return TextField(
+      controller: ctrl,
+      autofocus: autofocus,
+      obscureText: obscure,
+      style: TextStyle(color: t.text, fontSize: 15),
+      textInputAction: obscure ? TextInputAction.done : TextInputAction.next,
+      onSubmitted: (_) => onDone(),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: t.inputHint, fontSize: 13),
+        filled: true,
+        fillColor: t.inputBg,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppTheme.ytRed, width: 1.5)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+    );
+  }
 }

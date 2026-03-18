@@ -5,24 +5,26 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import '../services/lock_service.dart';
+import '../theme/app_theme.dart';
 
 enum LockMode { unlock, setNew }
-
-const _kBg     = Color(0xFF2B2B2B);
-const _kKeypad = Color(0xFF2B2B2B);
-const _kBtn    = Color(0xFF3A3A3A);
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 class _TopToast extends StatefulWidget {
   final bool success;
   final String message;
   final VoidCallback onDone;
-  const _TopToast({required this.success, required this.message, required this.onDone});
+  const _TopToast({
+    required this.success,
+    required this.message,
+    required this.onDone,
+  });
   @override
   State<_TopToast> createState() => _TopToastState();
 }
 
-class _TopToastState extends State<_TopToast> with SingleTickerProviderStateMixin {
+class _TopToastState extends State<_TopToast>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c;
   late final Animation<Offset> _slide;
   late final Animation<double> _fade;
@@ -30,9 +32,11 @@ class _TopToastState extends State<_TopToast> with SingleTickerProviderStateMixi
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
-    _slide = Tween<Offset>(begin: const Offset(0, -1.5), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
+    _c = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 420));
+    _slide =
+        Tween<Offset>(begin: const Offset(0, -1.5), end: Offset.zero).animate(
+            CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
     _fade = CurvedAnimation(parent: _c, curve: Curves.easeOut);
     _c.forward();
     Future.delayed(const Duration(milliseconds: 2600), _dismiss);
@@ -50,8 +54,11 @@ class _TopToastState extends State<_TopToast> with SingleTickerProviderStateMixi
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
+    // Toast sempre com estilo iOS pill — fundo branco translúcido, texto escuro
     return Positioned(
-      top: topPad + 10, left: 20, right: 20,
+      top: topPad + 10,
+      left: 20,
+      right: 20,
       child: SlideTransition(
         position: _slide,
         child: FadeTransition(
@@ -61,31 +68,46 @@ class _TopToastState extends State<_TopToast> with SingleTickerProviderStateMixi
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.72),
                   borderRadius: BorderRadius.circular(100),
-                  border: Border.all(color: Colors.white.withOpacity(0.5), width: 0.5),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15),
-                      blurRadius: 20, offset: const Offset(0, 5))],
+                  border: Border.all(
+                      color: Colors.white.withOpacity(0.5), width: 0.5),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 5))
+                  ],
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Container(
-                    width: 34, height: 34,
-                    decoration: const BoxDecoration(color: Color(0xFFEEEEEE), shape: BoxShape.circle),
+                    width: 34,
+                    height: 34,
+                    decoration: const BoxDecoration(
+                        color: Color(0xFFEEEEEE), shape: BoxShape.circle),
                     child: Lottie.asset(
                       widget.success
                           ? 'assets/lottie/tick_mark.json'
                           : 'assets/lottie/wrong_feedback.json',
-                      repeat: false, fit: BoxFit.contain,
+                      repeat: false,
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(widget.message,
-                      style: TextStyle(color: Colors.black.withOpacity(0.80),
-                          fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -0.1),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                    child: Text(
+                      widget.message,
+                      style: TextStyle(
+                          color: Colors.black.withOpacity(0.80),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.1),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ]),
               ),
@@ -104,38 +126,48 @@ class LockScreen extends StatefulWidget {
   final LockMode mode;
   final VoidCallback? onUnlocked;
   final ValueChanged<String>? onPinSet;
-  const LockScreen({super.key, this.mode = LockMode.unlock, this.onUnlocked, this.onPinSet});
+  const LockScreen({
+    super.key,
+    this.mode = LockMode.unlock,
+    this.onUnlocked,
+    this.onPinSet,
+  });
   @override
   State<LockScreen> createState() => _LockScreenState();
 }
 
 class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
-  String _input = '';
+  String  _input       = '';
   String? _firstPin;
-  bool _error = false;
-  bool _visible = false;
-  bool _showToast = false;
-  bool _toastSuccess = false;
-  String _toastMsg = '';
-  bool _processing = false;
+  bool    _error       = false;
+  bool    _visible     = false;
+  bool    _showToast   = false;
+  bool    _toastSuccess = false;
+  String  _toastMsg    = '';
+  bool    _processing  = false;
 
-  // Lottie controller — para saber quando a animação terminou
   AnimationController? _lottieCtrl;
 
   late final AnimationController _shake;
-  late final Animation<double> _shakeAnim;
+  late final Animation<double>   _shakeAnim;
 
   final List<int> _keyTimestamps = [];
+
+  // Cores fixas do ecrã de bloqueio — sempre escuro independente do tema
+  static const Color _kBg     = Color(0xFF1C1C1E);
+  static const Color _kKeypad = Color(0xFF2C2C2E);
+  static const Color _kBtn    = Color(0xFF3A3A3A);
 
   @override
   void initState() {
     super.initState();
-    _shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
+    _shake = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 420));
     _shakeAnim = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: -12.0), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: -12.0, end: 12.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 12.0, end: -8.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: -8.0, end: 0.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 0.0,   end: -12.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -12.0, end: 12.0),  weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 12.0,  end: -8.0),  weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -8.0,  end: 0.0),   weight: 1),
     ]).animate(CurvedAnimation(parent: _shake, curve: Curves.easeInOut));
   }
 
@@ -158,7 +190,9 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
           : 'PINs não coincidem. Começa de novo.';
     }
     if (widget.mode == LockMode.unlock) return '';
-    return _firstPin == null ? 'Define um PIN (mínimo 4 dígitos)' : 'Repete o PIN';
+    return _firstPin == null
+        ? 'Define um PIN (mínimo 4 dígitos)'
+        : 'Repete o PIN';
   }
 
   void _onKey(String k) {
@@ -208,7 +242,6 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
       if (!mounted) return;
       if (ok) {
         HapticFeedback.heavyImpact();
-        // Mostrar toast de sucesso e aguardar animação Lottie completa (~2s)
         _showTopToast(success: true, msg: 'Bem-vindo de volta!');
         await Future.delayed(const Duration(milliseconds: 2000));
         if (mounted) widget.onUnlocked?.call();
@@ -222,7 +255,12 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
 
     // Mode setNew
     if (_firstPin == null) {
-      setState(() { _firstPin = _input; _input = ''; _keyTimestamps.clear(); _processing = false; });
+      setState(() {
+        _firstPin = _input;
+        _input = '';
+        _keyTimestamps.clear();
+        _processing = false;
+      });
     } else {
       if (_input == _firstPin) {
         HapticFeedback.heavyImpact();
@@ -247,51 +285,62 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
 
   void _showTopToast({required bool success, required String msg}) {
     if (!mounted) return;
-    setState(() { _toastSuccess = success; _toastMsg = msg; _showToast = true; });
+    setState(() {
+      _toastSuccess = success;
+      _toastMsg     = msg;
+      _showToast    = true;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenH  = MediaQuery.of(context).size.height;
-    final botPad   = MediaQuery.of(context).padding.bottom;
-    final keypadH  = screenH * 0.55;
+    final screenH = MediaQuery.of(context).size.height;
+    final botPad  = MediaQuery.of(context).padding.bottom;
+    final keypadH = screenH * 0.55;
 
     return Scaffold(
       backgroundColor: _kBg,
       body: Stack(children: [
         Column(children: [
 
-          // ZONA SUPERIOR — título + dots, fundo escuro uniforme
+          // ── Zona superior — título + dots ───────────────────────────
           Expanded(
             child: SafeArea(
               bottom: false,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+
                   // Título
-                  Text(_title,
+                  Text(
+                    _title,
                     style: GoogleFonts.playfairDisplay(
                       color: Colors.white,
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.3,
-                    )),
+                    ),
+                  ),
                   const SizedBox(height: 6),
 
                   // Subtítulo / erro
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
-                    child: Text(_subtitle,
+                    child: Text(
+                      _subtitle,
                       key: ValueKey(_subtitle),
                       style: TextStyle(
-                        color: _error ? Colors.redAccent : Colors.white38,
+                        color: _error
+                            ? AppTheme.error
+                            : Colors.white.withOpacity(0.38),
                         fontSize: 13,
-                      )),
+                      ),
+                    ),
                   ),
 
                   const SizedBox(height: 32),
 
-                  // Dots
+                  // Dots PIN
                   AnimatedBuilder(
                     animation: _shakeAnim,
                     builder: (_, child) => Transform.translate(
@@ -305,24 +354,32 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
                           final ch = filled && _visible ? _input[i] : null;
                           return AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
-                            margin: const EdgeInsets.symmetric(horizontal: 6),
-                            width: filled ? 16 : 13,
+                            margin:
+                                const EdgeInsets.symmetric(horizontal: 6),
+                            width:  filled ? 16 : 13,
                             height: filled ? 16 : 13,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: _error
-                                  ? Colors.redAccent
+                                  ? AppTheme.error
                                   : filled
                                       ? Colors.white
                                       : Colors.white.withOpacity(0.25),
                               boxShadow: filled && !_error
-                                  ? [BoxShadow(color: Colors.white.withOpacity(0.3), blurRadius: 6)]
+                                  ? [
+                                      BoxShadow(
+                                          color: Colors.white.withOpacity(0.3),
+                                          blurRadius: 6)
+                                    ]
                                   : null,
                             ),
                             child: ch != null
-                                ? Center(child: Text(ch,
-                                    style: const TextStyle(color: Colors.black, fontSize: 9,
-                                        fontWeight: FontWeight.bold)))
+                                ? Center(
+                                    child: Text(ch,
+                                        style: const TextStyle(
+                                            color: Colors.black,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold)))
                                 : null,
                           );
                         },
@@ -334,13 +391,13 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // ZONA INFERIOR — teclado com curva no topo
+          // ── Zona inferior — teclado ──────────────────────────────────
           Container(
             height: keypadH + botPad,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: _kKeypad,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(36),
+              borderRadius: const BorderRadius.only(
+                topLeft:  Radius.circular(36),
                 topRight: Radius.circular(36),
               ),
             ),
@@ -349,9 +406,11 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(32, 28, 32, 12),
                 child: _Keypad(
+                  btnColor: _kBtn,
                   onKey: _onKey,
                   onDelete: _onDel,
-                  onToggleVisible: () => setState(() => _visible = !_visible),
+                  onToggleVisible: () =>
+                      setState(() => _visible = !_visible),
                   isVisible: _visible,
                   processing: _processing,
                 ),
@@ -365,7 +424,9 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
           _TopToast(
             success: _toastSuccess,
             message: _toastMsg,
-            onDone: () { if (mounted) setState(() => _showToast = false); },
+            onDone: () {
+              if (mounted) setState(() => _showToast = false);
+            },
           ),
       ]),
     );
@@ -374,13 +435,17 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
 
 // ── Keypad ────────────────────────────────────────────────────────────────────
 class _Keypad extends StatelessWidget {
+  final Color btnColor;
   final ValueChanged<String> onKey;
   final VoidCallback onDelete, onToggleVisible;
   final bool isVisible, processing;
 
   const _Keypad({
-    required this.onKey, required this.onDelete,
-    required this.onToggleVisible, required this.isVisible,
+    required this.btnColor,
+    required this.onKey,
+    required this.onDelete,
+    required this.onToggleVisible,
+    required this.isVisible,
     required this.processing,
   });
 
@@ -405,50 +470,85 @@ class _Keypad extends StatelessWidget {
         _buildRow(['4', '5', '6']),
         _buildRow(['7', '8', '9']),
         Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-          _KeyBtn(onTap: onToggleVisible, enabled: !processing,
-            child: Icon(isVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: Colors.white54, size: 22)),
-          _KeyBtn(onTap: () => onKey('0'), enabled: !processing,
+          _KeyBtn(
+            btnColor: btnColor,
+            onTap: onToggleVisible,
+            enabled: !processing,
+            child: Icon(
+                isVisible
+                    ? Icons.visibility_off_rounded
+                    : Icons.visibility_rounded,
+                color: Colors.white54,
+                size: 22),
+          ),
+          _KeyBtn(
+            btnColor: btnColor,
+            onTap: () => onKey('0'),
+            enabled: !processing,
             child: const Text('0',
-                style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w300))),
-          _KeyBtn(onTap: onDelete, enabled: !processing,
-            child: const Icon(Icons.backspace_rounded, color: Colors.white54, size: 22)),
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w300)),
+          ),
+          _KeyBtn(
+            btnColor: btnColor,
+            onTap: onDelete,
+            enabled: !processing,
+            child: const Icon(Icons.backspace_rounded,
+                color: Colors.white54, size: 22),
+          ),
         ]),
       ],
     );
   }
 
   Widget _buildRow(List<String> keys) => Row(
-    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-    children: keys.map((k) => _KeyBtn(
-      onTap: () => onKey(k), enabled: !processing,
-      child: Text(k, style: const TextStyle(
-          color: Colors.white, fontSize: 28, fontWeight: FontWeight.w300)),
-    )).toList(),
-  );
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: keys
+            .map((k) => _KeyBtn(
+                  btnColor: btnColor,
+                  onTap: () => onKey(k),
+                  enabled: !processing,
+                  child: Text(k,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w300)),
+                ))
+            .toList(),
+      );
 }
 
-// ── Botão do teclado — sem sombra, sem efeito, flat ──────────────────────────
+// ── Botão do teclado ──────────────────────────────────────────────────────────
 class _KeyBtn extends StatefulWidget {
+  final Color btnColor;
   final VoidCallback onTap;
   final Widget child;
   final bool enabled;
-  const _KeyBtn({required this.onTap, required this.child, this.enabled = true});
+  const _KeyBtn({
+    required this.btnColor,
+    required this.onTap,
+    required this.child,
+    this.enabled = true,
+  });
   @override
   State<_KeyBtn> createState() => _KeyBtnState();
 }
 
 class _KeyBtnState extends State<_KeyBtn> with SingleTickerProviderStateMixin {
   late final AnimationController _c;
-  late final Animation<double> _s;
+  late final Animation<double>   _s;
 
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this,
+    _c = AnimationController(
+        vsync: this,
         duration: const Duration(milliseconds: 70),
         reverseDuration: const Duration(milliseconds: 160),
-        lowerBound: 0, upperBound: 1);
+        lowerBound: 0,
+        upperBound: 1);
     _s = Tween<double>(begin: 1.0, end: 0.88)
         .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
   }
@@ -460,18 +560,20 @@ class _KeyBtnState extends State<_KeyBtn> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTapDown: widget.enabled ? (_) => _c.forward() : null,
-      onTapUp: widget.enabled ? (_) { _c.reverse(); widget.onTap(); } : null,
-      onTapCancel: widget.enabled ? () => _c.reverse() : null,
+      onTapDown:  widget.enabled ? (_) => _c.forward()              : null,
+      onTapUp:    widget.enabled ? (_) { _c.reverse(); widget.onTap(); } : null,
+      onTapCancel: widget.enabled ? () => _c.reverse()              : null,
       child: AnimatedBuilder(
         animation: _s,
-        builder: (_, child) => Transform.scale(scale: _s.value, child: child),
+        builder: (_, child) =>
+            Transform.scale(scale: _s.value, child: child),
         child: Container(
           width: 74, height: 74,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            // Flat — sem sombra, sem gradiente, só a cor
-            color: widget.enabled ? _kBtn : _kBtn.withOpacity(0.4),
+            color: widget.enabled
+                ? widget.btnColor
+                : widget.btnColor.withOpacity(0.4),
           ),
           child: Center(child: widget.child),
         ),

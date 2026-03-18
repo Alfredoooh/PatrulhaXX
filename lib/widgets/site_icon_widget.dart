@@ -57,7 +57,6 @@ class _SiteIconWidgetState extends State<SiteIconWidget> {
         errorBuilder: (_, __, ___) => _fallback(s),
       );
     } else {
-      // Tenta com cached_network_image enquanto faz o download local
       iconContent = CachedNetworkImage(
         imageUrl: widget.site.faviconUrl,
         width: s,
@@ -71,19 +70,10 @@ class _SiteIconWidgetState extends State<SiteIconWidget> {
     return Container(
       width: s,
       height: s,
-      decoration: BoxDecoration(
+      // Sem boxShadow colorido — ícones limpos sem gradiente
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.white,
-        boxShadow: widget.showShadow
-            ? [
-                BoxShadow(
-                  color: widget.site.primaryColor.withOpacity(0.35),
-                  blurRadius: 12,
-                  spreadRadius: 1,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
       ),
       child: ClipOval(child: iconContent),
     );

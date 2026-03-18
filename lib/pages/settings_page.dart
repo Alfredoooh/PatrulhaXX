@@ -9,12 +9,8 @@ import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import 'lock_screen.dart';
 
-// ─── Cor primária ─────────────────────────────────────────────────────────────
-const _kPrimary = Color(0xFFFF9000);
-
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 
-// Fundo de ecrã
 const _iDark =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M21.752,15.002A9,9,0,1,1,8.998,2.248,7,7,0,0,0,21.752,15.002Z"'
@@ -50,7 +46,6 @@ const _iWallpaper =
     '</g>'
     '</g></g></g></svg>';
 
-// Motor de pesquisa
 const _iEngine =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="m21.17,19.756c.524-.791.83-1.738.83-2.756,0-2.757-2.243-5-5-5s-5,2.243-5,5,2.243,5,5,5'
@@ -63,7 +58,6 @@ const _iEngine =
     'M2,7v-2c0-1.654,1.346-3,3-3h14c1.654,0,3,1.346,3,3v2H2Z"/>'
     '</svg>';
 
-// Bloquear capturas de ecrã
 const _iScreenshot =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<circle cx="16" cy="8.011" r="2.5"/>'
@@ -75,7 +69,6 @@ const _iScreenshot =
     'a3,3,0,0,0,3,3H18a1,1,0,0,0,.707-1.707Z"/>'
     '</svg>';
 
-// Alterar PIN
 const _iPin =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M11,15c0,.553-.448,1-1,1H5c-2.757,0-5-2.243-5-5v-3C0,5.243,2.243,3,5,3h14'
@@ -95,7 +88,6 @@ const _iPin =
     ',1.5-.672,1.5-1.5-.672-1.5-1.5-1.5Z"/>'
     '</svg>';
 
-// Volume máximo
 const _iVolume =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M20.807,4.29a1,1,0,0,0-1.415,1.415,8.913,8.913,0,0,1,0,12.59'
@@ -109,7 +101,6 @@ const _iVolume =
     'a1,1,0,0,0,.837-.453A10.079,10.079,0,0,1,13,2.465Z"/>'
     '</svg>';
 
-// Privacidade nos recentes
 const _iLock =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M19,8.424V7A7,7,0,0,0,5,7V8.424A5,5,0,0,0,2,13v6a5.006,5.006,0,0,0,5,5H17'
@@ -139,7 +130,6 @@ const _iReload =
 
 const _secureChannel = MethodChannel('com.patrulhaxx/secure');
 
-// ─── Ícone de voltar (AppBar) ─────────────────────────────────────────────────
 const _iBack =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23'
@@ -147,7 +137,6 @@ const _iBack =
     '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/>'
     '</svg>';
 
-// ─── Chevron direita (trailing nas rows) ──────────────────────────────────────
 const _iChevron =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M9,18l6-6-6-6" fill="none" stroke="currentColor" stroke-width="2" '
@@ -165,13 +154,13 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _lock = false;
   final _ts = ThemeService.instance;
 
-  // Cores reactivas ao tema
-  bool get _isDark => _ts.isDark;
-  Color get _bg   => _isDark ? const Color(0xFF111111) : const Color(0xFFF2F2F7);
-  Color get _card => _isDark ? const Color(0xFF1C1C1E) : Colors.white;
-  Color get _text => _isDark ? Colors.white : const Color(0xFF1C1C1E);
-  Color get _sub  => _isDark ? Colors.white54 : Colors.black45;
-  Color get _div  => _isDark ? Colors.white12 : Colors.black12;
+  // Atalhos para o AppTheme actual — sempre consistente com dark/light
+  AppTheme get _t  => AppTheme.current;
+  Color get _bg    => _t.bg;
+  Color get _card  => _t.card;
+  Color get _text  => _t.text;
+  Color get _sub   => _t.textSecondary;
+  Color get _div   => _t.divider;
 
   @override
   void initState() {
@@ -182,8 +171,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: const Color(0xFF1C1C1C),
+      content: Text(msg, style: TextStyle(color: _t.toastText)),
+      backgroundColor: _t.toastBg,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
@@ -200,15 +189,18 @@ class _SettingsPageState extends State<SettingsPage> {
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
         height: MediaQuery.of(context).size.height * 0.9,
-        decoration: const BoxDecoration(
-            color: Color(0xFF0C0C0C),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        decoration: BoxDecoration(
+            color: _t.sheet,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(20))),
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           child: mode == LockMode.unlock
-              ? LockScreen(mode: LockMode.unlock,
+              ? LockScreen(
+                  mode: LockMode.unlock,
                   onUnlocked: () { Navigator.pop(context); onDone(); })
-              : LockScreen(mode: LockMode.setNew,
+              : LockScreen(
+                  mode: LockMode.setNew,
                   onPinSet: (p) async {
                     await LockService.instance.setPin(p);
                     if (mounted) { Navigator.pop(context); onDone(); }
@@ -229,7 +221,7 @@ class _SettingsPageState extends State<SettingsPage> {
         itemExtent: 44, looping: false,
         onSelectedItemChanged: (i) => idx = i,
         children: labels.map((l) => Center(child: Text(l,
-            style: const TextStyle(color: Colors.white, fontSize: 16)))).toList(),
+            style: TextStyle(color: _text, fontSize: 16)))).toList(),
       ),
       () { _ts.setLockDelay(opts[idx]); setState(() {}); },
     );
@@ -244,7 +236,7 @@ class _SettingsPageState extends State<SettingsPage> {
         itemExtent: 44, looping: false,
         onSelectedItemChanged: (i) => vol = (i + 1) * 10,
         children: List.generate(10, (i) => Center(child: Text('${(i+1)*10}%',
-            style: const TextStyle(color: Colors.white, fontSize: 16)))),
+            style: TextStyle(color: _text, fontSize: 16)))),
       ),
       () { _ts.setMaxVolume(vol); setState(() {}); },
     );
@@ -259,7 +251,7 @@ class _SettingsPageState extends State<SettingsPage> {
         itemExtent: 44, looping: false,
         onSelectedItemChanged: (i) => idx = i,
         children: ThemeService.engines.values.map((v) => Center(child: Text(v,
-            style: const TextStyle(color: Colors.white, fontSize: 16)))).toList(),
+            style: TextStyle(color: _text, fontSize: 16)))).toList(),
       ),
       () { _ts.setEngine(keys[idx]); setState(() {}); },
     );
@@ -273,8 +265,10 @@ class _SettingsPageState extends State<SettingsPage> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
         const SizedBox(height: 8),
-        Center(child: Container(width: 36, height: 4,
-            decoration: BoxDecoration(color: _div,
+        Center(child: Container(
+            width: 36, height: 4,
+            decoration: BoxDecoration(
+                color: _t.sheetHandle,
                 borderRadius: BorderRadius.circular(2)))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -285,8 +279,8 @@ class _SettingsPageState extends State<SettingsPage> {
             const Spacer(),
             TextButton(
               onPressed: () { Navigator.pop(context); onOk(); },
-              child: const Text('OK', style: TextStyle(
-                  color: _kPrimary, fontWeight: FontWeight.w700))),
+              child: Text('OK', style: TextStyle(
+                  color: AppTheme.ytRed, fontWeight: FontWeight.w700))),
           ]),
         ),
         SizedBox(height: 180, child: child),
@@ -295,7 +289,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // ── Picker de wallpaper: switch "Usar imagem" + grelha de imagens ────────
   void _pickWallpaper() {
     showModalBottomSheet(
       context: context,
@@ -306,15 +299,16 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (_) => StatefulBuilder(
         builder: (ctx, setLocal) => Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 8),
-          Center(child: Container(width: 36, height: 4,
-              decoration: BoxDecoration(color: _div,
+          Center(child: Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                  color: _t.sheetHandle,
                   borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 12),
           Text('Fundo de ecrã', style: TextStyle(color: _text,
               fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
 
-          // ── Switch: Usar imagem como fundo ────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(children: [
@@ -328,8 +322,11 @@ class _SettingsPageState extends State<SettingsPage> {
                       style: TextStyle(color: _text, fontSize: 14,
                           fontWeight: FontWeight.w500)),
                   const SizedBox(height: 2),
-                  Text(_ts.useWallpaper ? 'Imagem ativa' : _ts.isDark ? 'Fundo escuro sólido' : 'Fundo claro sólido',
-                      style: TextStyle(color: _sub, fontSize: 12)),
+                  Text(
+                    _ts.useWallpaper
+                        ? 'Imagem ativa'
+                        : (_ts.isDark ? 'Fundo escuro sólido' : 'Fundo claro sólido'),
+                    style: TextStyle(color: _sub, fontSize: 12)),
                 ],
               )),
               _MiniSwitch(
@@ -343,9 +340,8 @@ class _SettingsPageState extends State<SettingsPage> {
             ]),
           ),
 
-          // ── Grelha de imagens (só visível quando switch ativo) ────────────
           if (_ts.useWallpaper) ...[
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             SizedBox(height: 160, child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -361,11 +357,12 @@ class _SettingsPageState extends State<SettingsPage> {
                     Navigator.pop(context);
                   },
                   child: Container(
-                    width: 90, height: 160, margin: const EdgeInsets.only(right: 10),
+                    width: 90, height: 160,
+                    margin: const EdgeInsets.only(right: 10),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: sel ? _kPrimary : Colors.transparent,
+                        color: sel ? AppTheme.ytRed : Colors.transparent,
                         width: 2,
                       ),
                     ),
@@ -373,7 +370,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       borderRadius: BorderRadius.circular(12),
                       child: Image.asset(wp, fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
-                              color: AppTheme.current.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03))),
+                              color: _t.thumbBg)),
                     ),
                   ),
                 );
@@ -415,28 +412,31 @@ class _SettingsPageState extends State<SettingsPage> {
           surfaceTintColor: Colors.transparent,
           leading: IconButton(
             icon: SvgPicture.string(
-              _iBack,
-              width: 22, height: 22,
+              _iBack, width: 22, height: 22,
               colorFilter: ColorFilter.mode(_text, BlendMode.srcIn),
             ),
             onPressed: () => Navigator.pop(context),
           ),
-          title: Text('Definições', style: TextStyle(color: _text,
-              fontSize: 17, fontWeight: FontWeight.w600)),
+          title: Text('Definições',
+              style: TextStyle(color: _text, fontSize: 17,
+                  fontWeight: FontWeight.w600)),
         ),
         body: ListView(
           padding: const EdgeInsets.only(top: 8, bottom: 32),
           children: [
 
-            // ── Aparência ────────────────────────────────────────────
+            // ── Aparência ─────────────────────────────────────────────
             _label('Aparência'),
             _section([
-              // Switch tema claro/escuro
               _SwitchRow(
-                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+                    '<circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/>'
+                    '<path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42'
+                    'M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" '
+                    'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
                 label: 'Tema claro',
-                sub: _isDark ? 'Tema escuro ativo' : 'Tema claro ativo',
-                value: !_isDark,
+                sub: _ts.isDark ? 'Tema escuro ativo' : 'Tema claro ativo',
+                value: !_ts.isDark,
                 textColor: _text, subColor: _sub,
                 onChanged: (v) {
                   _ts.setDark(!v);
@@ -444,13 +444,12 @@ class _SettingsPageState extends State<SettingsPage> {
                 },
               ),
               _divider(),
-              // "Fundo de ecrã" — abre o picker (que inclui switch + grelha)
               _TapRow(
                 svg: _iWallpaper,
                 label: 'Fundo de ecrã',
                 sub: _ts.useWallpaper
                     ? _ts.bg.split('/').last
-                    : (_isDark ? 'Fundo escuro' : 'Fundo claro'),
+                    : (_ts.isDark ? 'Fundo escuro' : 'Fundo claro'),
                 textColor: _text, subColor: _sub,
                 onTap: _pickWallpaper,
               ),
@@ -584,7 +583,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         errorBuilder: (_, __, ___) => Container(
                             width: 44, height: 44,
                             decoration: BoxDecoration(
-                                color: Colors.red.shade900,
+                                color: AppTheme.ytRedDark,
                                 borderRadius: BorderRadius.circular(12)),
                             child: const Icon(Icons.shield_rounded,
                                 color: Colors.white, size: 24))),
@@ -616,9 +615,11 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (_) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Center(child: Container(width: 36, height: 4,
+          Center(child: Container(
+              width: 36, height: 4,
               margin: const EdgeInsets.only(bottom: 14),
-              decoration: BoxDecoration(color: _div,
+              decoration: BoxDecoration(
+                  color: _t.sheetHandle,
                   borderRadius: BorderRadius.circular(2)))),
           Text('Limpar downloads?', style: TextStyle(color: _text,
               fontSize: 16, fontWeight: FontWeight.w600)),
@@ -643,7 +644,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 if (context.mounted) _snack('Downloads limpos');
               },
               style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
+                  backgroundColor: AppTheme.error,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12))),
@@ -673,7 +674,8 @@ class _TapRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fgColor = destructive ? Colors.redAccent : textColor;
+    final fgColor = destructive ? AppTheme.error : textColor;
+    final iconColor = destructive ? AppTheme.error : subColor;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -681,8 +683,7 @@ class _TapRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(children: [
           SvgPicture.string(svg, width: 20, height: 20,
-              colorFilter: ColorFilter.mode(
-                  destructive ? Colors.redAccent : subColor, BlendMode.srcIn)),
+              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn)),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -737,20 +738,21 @@ class _SwitchRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _MiniSwitch
+// _MiniSwitch — usa AppTheme.ytRed quando activo, cores correctas no thumb
 // ─────────────────────────────────────────────────────────────────────────────
 class _MiniSwitch extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
   const _MiniSwitch({required this.value, required this.onChanged});
 
-  static const double _w = 40;
-  static const double _h = 23;
+  static const double _w     = 40;
+  static const double _h     = 23;
   static const double _thumb = 17;
-  static const double _pad = 3;
+  static const double _pad   = 3;
 
   @override
   Widget build(BuildContext context) {
+    final t = AppTheme.current;
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: AnimatedContainer(
@@ -760,7 +762,7 @@ class _MiniSwitch extends StatelessWidget {
         height: _h,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(_h / 2),
-          color: value ? _kPrimary : AppTheme.current.cardAlt,
+          color: value ? AppTheme.ytRed : t.cardAlt,
         ),
         child: AnimatedAlign(
           duration: const Duration(milliseconds: 200),
@@ -772,7 +774,8 @@ class _MiniSwitch extends StatelessWidget {
             margin: const EdgeInsets.all(_pad),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppTheme.current.isDark ? Colors.white : const Color(0xFF1C1C1E),
+              // Thumb branco sempre — lê-se sobre vermelho E sobre cinzento
+              color: Colors.white,
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x33000000),
