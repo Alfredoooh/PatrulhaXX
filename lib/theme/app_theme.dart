@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/theme_service.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────
 // AppTheme — sistema de cores YouTube completo (dark + light)
 // Uso:  final t = AppTheme.current;
 // ─────────────────────────────────────────────────────────────────────────────
