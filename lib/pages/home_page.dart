@@ -2639,7 +2639,7 @@ class _StoryItem extends StatelessWidget {
       t.navActive,
       AppTheme.success,
       AppTheme.ytRedDark,
-      t.link,
+      AppTheme.link,
       t.chipBgActive,
     ][index % 6];
 
