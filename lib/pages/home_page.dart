@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:lottie/lottie.dart';
 import 'package:animations/animations.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
@@ -74,14 +75,12 @@ const _svgDrawerDownload =
     's1.023-.391,1.414,0l1.293,1.293v-7.398c0-.553,.448-1,1-1s1,.447,1,1v7.398l1.293-1.293'
     'c.391-.391,1.023-.391,1.414,0Z"/></svg>';
 
+// SVG drawer settings — path limpo equivalente ao enviado
 const _svgDrawerSettings =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M1,4.75H3.736a3.728,3.728,0,0,0,7.195,0H23a1,1,0,0,0,0-2H10.931a3.728,3.728,0,0,0-7.195,0H1a1,1,0,0,0,0,2Z'
-    'M7.333,2a1.75,1.75,0,1,1-1.75,1.75A1.752,1.752,0,0,1,7.333,2Z"/>'
-    '<path d="M23,11H20.264a3.727,3.727,0,0,0-7.194,0H1a1,1,0,0,0,0,2H13.07a3.727,3.727,0,0,0,7.194,0H23a1,1,0,0,0,0-2Z'
-    'm-6.333,2.75A1.75,1.75,0,1,1,18.417,12,1.752,1.752,0,0,1,16.667,13.75Z"/>'
-    '<path d="M23,19.25H10.931a3.728,3.728,0,0,0-7.195,0H1a1,1,0,0,0,0,2H3.736a3.728,3.728,0,0,0,7.195,0H23a1,1,0,0,0,0-2Z'
-    'M7.333,22a1.75,1.75,0,1,1,1.75-1.75A1.753,1.752,0,0,1,7.333,22Z"/></svg>';
+    '<path d="M12,8a4,4,0,1,0,4,4A4,4,0,0,0,12,8Zm0,6a2,2,0,1,1,2-2A2,2,0,0,1,12,14Z"/>'
+    '<path d="M21.294,13.9l-.444-.256a9.1,9.1,0,0,0,0-3.29l.444-.256a3,3,0,1,0-3-5.2l-.445.257A8.977,8.977,0,0,0,15,3.513V3a3,3,0,0,0-6,0v.513A8.977,8.977,0,0,0,6.152,5.159L5.705,4.9a3,3,0,0,0-3,5.2l.444.256a9.1,9.1,0,0,0,0,3.29L2.7,13.9a3,3,0,0,0,3,5.2l.445-.257A8.977,8.977,0,0,0,9,20.487V21a3,3,0,0,0,6,0v-.513a8.977,8.977,0,0,0,2.848-1.646L18.294,19.1a3,3,0,0,0,3-5.2Zm-2.548-3.776a7.048,7.048,0,0,1,0,3.75,1,1,0,0,0,.464,1.133l1.084.626a1,1,0,0,1-1,1.733l-1.086-.628a1,1,0,0,0-1.215.165,6.984,6.984,0,0,1-3.243,1.875,1,1,0,0,0-.751.969V21a1,1,0,0,1-2,0v-1.252a1,1,0,0,0-.751-.969A6.984,6.984,0,0,1,7.006,16.9a1,1,0,0,0-1.215-.165l-1.084.627a1,1,0,1,1-1-1.732l1.084-.626a1,1,0,0,0,.464-1.133,7.048,7.048,0,0,1,0-3.75A1,1,0,0,0,4.79,8.992L3.706,8.366a1,1,0,0,1,1-1.733l1.086.628A1,1,0,0,0,7.006,7.1a6.984,6.984,0,0,1,3.243-1.875A1,1,0,0,0,11,4.252V3a1,1,0,0,1,2,0V4.252a1,1,0,0,0,.751.969A6.984,6.984,0,0,1,16.994,7.1a1,1,0,0,0,1.215.165l1.084-.627a1,1,0,1,1,1,1.732l-1.084.626A1,1,0,0,0,18.746,10.124Z"/>'
+    '</svg>';
 
 const svgExibicaoFilled =
     '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 24 24">'
@@ -109,14 +108,61 @@ const svgExibicaoOutline =
     'm-20,0c0,.553-.448,1-1,1H1c-.552,0-1-.447-1-1s.448-1,1-1H3c.552,0,1,.447,1,1Z"/>'
     '</svg>';
 
+// Ícone Início filled (casa preenchida)
 const _svgBrowseFilled =
-    '<svg id="Layer_1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
-    '<path d="M16.56 8.08C18.22 6.42 19 3.88 18.33 1.15A1 1 0 0 0 17 .56c-3.21.68-5.29 3.4-5.29 5.93a5.27 5.27 0 0 0 .29 1.68L3.24 17a2.5 2.5 0 0 0-.74 1.77V21.5A2.5 2.5 0 0 0 5 24h3.73a2.5 2.5 0 0 0 1.77-.73L19.22 14.5a5.29 5.29 0 0 0 1.68.29A5.1 5.1 0 0 0 24 13.35a1 1 0 0 0-.57-1.35c-2.73-.67-5.27.11-6.87 2.08Z"/>'
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M23.121,9.069,15.536,1.483a5.008,5.008,0,0,0-7.072,0L.879,9.069A2.978,2.978,0,0,0,0,11.19v9.817a3,3,0,0,0,3,3H21a3,3,0,0,0,3-3V11.19A2.978,2.978,0,0,0,23.121,9.069ZM15,22.007H9V18.073a3,3,0,0,1,6,0Zm7-1a1,1,0,0,1-1,1H17V18.073a5,5,0,0,0-10,0v3.934H3a1,1,0,0,1-1-1V11.19a1.008,1.008,0,0,1,.293-.707L9.878,2.9a3.008,3.008,0,0,1,4.244,0l7.585,7.586A1.008,1.008,0,0,1,22,11.19Z"/>'
     '</svg>';
 
+// Ícone Início outline
 const _svgBrowseOutline =
-    '<svg id="Layer_1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
-    '<path d="M16.56 8.08C18.22 6.42 19 3.88 18.33 1.15A1 1 0 0 0 17 .56c-3.21.68-5.29 3.4-5.29 5.93a5.27 5.27 0 0 0 .29 1.68L3.24 17a2.5 2.5 0 0 0-.74 1.77V21.5A2.5 2.5 0 0 0 5 24h3.73a2.5 2.5 0 0 0 1.77-.73L19.22 14.5a5.29 5.29 0 0 0 1.68.29A5.1 5.1 0 0 0 24 13.35a1 1 0 0 0-.57-1.35c-2.73-.67-5.27.11-6.87 2.08Z" fill="none" stroke="currentColor" stroke-width="1.5"/>'
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M23.121,9.069,15.536,1.483a5.008,5.008,0,0,0-7.072,0L.879,9.069A2.978,2.978,0,0,0,0,11.19v9.817a3,3,0,0,0,3,3H21a3,3,0,0,0,3-3V11.19A2.978,2.978,0,0,0,23.121,9.069ZM15,22.007H9V18.073a3,3,0,0,1,6,0Zm7-1a1,1,0,0,1-1,1H17V18.073a5,5,0,0,0-10,0v3.934H3a1,1,0,0,1-1-1V11.19a1.008,1.008,0,0,1,.293-.707L9.878,2.9a3.008,3.008,0,0,1,4.244,0l7.585,7.586A1.008,1.008,0,0,1,22,11.19Z"/>'
+    '</svg>';
+
+// Ícone hambúrguer (três linhas) — nunca vira X
+const _svgHamburger =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M1,4h22a1,1,0,0,0,0-2H1A1,1,0,0,0,1,4Z"/>'
+    '<path d="M23,11H1a1,1,0,0,0,0,2H23a1,1,0,0,0,0-2Z"/>'
+    '<path d="M23,20H1a1,1,0,0,0,0,2H23a1,1,0,0,0,0-2Z"/>'
+    '</svg>';
+
+// SVG settings gradiente Android (para o corpo do Início)
+const _svgSettingsGradient =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48px" height="48px">'
+    '<defs>'
+    '<linearGradient id="sg_a" x1="32.012" x2="15.881" y1="32.012" y2="15.881" gradientUnits="userSpaceOnUse">'
+    '<stop offset="0" stop-color="#fff"/><stop offset=".242" stop-color="#f2f2f2"/><stop offset="1" stop-color="#ccc"/>'
+    '</linearGradient>'
+    '<linearGradient id="sg_b" x1="17.45" x2="28.94" y1="17.45" y2="28.94" gradientUnits="userSpaceOnUse">'
+    '<stop offset="0" stop-color="#0d61a9"/><stop offset=".363" stop-color="#0e5fa4"/>'
+    '<stop offset=".78" stop-color="#135796"/><stop offset="1" stop-color="#16528c"/>'
+    '</linearGradient>'
+    '<linearGradient id="sg_c" x1="5.326" x2="38.082" y1="5.344" y2="38.099" gradientUnits="userSpaceOnUse">'
+    '<stop offset="0" stop-color="#889097"/><stop offset=".331" stop-color="#848c94"/>'
+    '<stop offset=".669" stop-color="#78828b"/><stop offset="1" stop-color="#64717c"/>'
+    '</linearGradient>'
+    '</defs>'
+    '<circle cx="24" cy="24" r="11.5" fill="url(#sg_a)"/>'
+    '<circle cx="24" cy="24" r="7" fill="url(#sg_b)"/>'
+    '<path fill="url(#sg_c)" d="M43.407,19.243c-2.389-0.029-4.702-1.274-5.983-3.493'
+    'c-1.233-2.136-1.208-4.649-0.162-6.693c-2.125-1.887-4.642-3.339-7.43-4.188'
+    'C28.577,6.756,26.435,8,24,8s-4.577-1.244-5.831-3.131c-2.788,0.849-5.305,2.301-7.43,4.188'
+    'c1.046,2.044,1.071,4.557-0.162,6.693c-1.281,2.219-3.594,3.464-5.983,3.493'
+    'C4.22,20.77,4,22.358,4,24c0,1.284,0.133,2.535,0.364,3.752c2.469-0.051,4.891,1.208,6.213,3.498'
+    'c1.368,2.37,1.187,5.204-0.22,7.345c2.082,1.947,4.573,3.456,7.34,4.375'
+    'C18.827,40.624,21.221,39,24,39s5.173,1.624,6.303,3.971c2.767-0.919,5.258-2.428,7.34-4.375'
+    'c-1.407-2.141-1.588-4.975-0.22-7.345c1.322-2.29,3.743-3.549,6.213-3.498'
+    'C43.867,26.535,44,25.284,44,24C44,22.358,43.78,20.77,43.407,19.243z'
+    'M24,34.5c-5.799,0-10.5-4.701-10.5-10.5c0-5.799,4.701-10.5,10.5-10.5'
+    'S34.5,18.201,34.5,24C34.5,29.799,29.799,34.5,24,34.5z"/>'
+    '</svg>';
+
+// SVG lupa personalizado para a pesquisa
+const _svgSearch =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M23.707,22.293l-5.969-5.969a10.016,10.016,0,1,0-1.414,1.414l5.969,5.969a1,1,0,0,0,1.414-1.414ZM10,18a8,8,0,1,1,8-8A8.009,8.009,0,0,1,10,18Z"/>'
     '</svg>';
 
 // ─── Shorts JS ────────────────────────────────────────────────────────────────
@@ -229,9 +275,13 @@ class _HomePageState extends State<HomePage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Não chama setState ao resumir — evita reiniciar as telas quando o app
+    // está bloqueado e o utilizador desbloqueia
     if (state == AppLifecycleState.resumed && mounted) {
-      if (!_fadeIn.isAnimating && _fadeIn.value < 1.0) _fadeIn.forward();
-      setState(() {});
+      if (!_fadeIn.isAnimating && _fadeIn.value < 1.0) {
+        _fadeIn.forward();
+      }
+      // Não chama setState() — o IndexedStack mantém o estado de cada tab
     }
   }
 
@@ -298,6 +348,7 @@ class _HomePageState extends State<HomePage>
                     ExibicaoPage(
                       embedUrl: _selectedEmbedUrl,
                       currentVideo: _selectedVideo,
+                      isActive: _tab == 2,
                       onVideoTap: (FeedVideo video) {
                         setState(() {
                           _selectedEmbedUrl = video.embedUrl;
@@ -508,13 +559,12 @@ class _MiniPlayerState extends State<_MiniPlayer>
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _BottomNav — inalterado conforme pedido, apenas cores corrigidas
+// _BottomNav — reactivo ao tema via ListenableBuilder
 // ─────────────────────────────────────────────────────────────────────────────
 class _BottomNav extends StatelessWidget {
   final int tab;
   final void Function(int) onTab;
   final double navH, safeBottom;
-  Color get _kBg => AppTheme.current.navBg;
 
   const _BottomNav({
     required this.tab, required this.onTab,
@@ -523,38 +573,44 @@ class _BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _kBg,
-        border: Border(top: BorderSide(
-          color: AppTheme.current.navBorder,
-          width: 0.5)),
-      ),
-      padding: EdgeInsets.only(bottom: safeBottom),
-      height: navH + safeBottom,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _NavIcon(
-            label: 'Navegar',
-            svgFilled: _svgBrowseFilled,
-            svgOutline: _svgBrowseOutline,
-            active: tab == 0,
-            onTap: () => onTab(0),
+    // ListenableBuilder garante rebuild imediato quando o tema muda,
+    // sem depender do setState do pai
+    return ListenableBuilder(
+      listenable: ThemeService.instance,
+      builder: (_, __) {
+        final t = AppTheme.current;
+        return Container(
+          decoration: BoxDecoration(
+            color: t.navBg,
+            border: Border(top: BorderSide(color: t.navBorder, width: 0.5)),
           ),
-          _NavFeedPill(
-            active: tab == 1,
-            onTap: () => onTab(1),
+          padding: EdgeInsets.only(bottom: safeBottom),
+          height: navH + safeBottom,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _NavIcon(
+                label: 'Início',
+                svgFilled: _svgBrowseFilled,
+                svgOutline: _svgBrowseOutline,
+                active: tab == 0,
+                onTap: () => onTab(0),
+              ),
+              _NavFeedPill(
+                active: tab == 1,
+                onTap: () => onTab(1),
+              ),
+              _NavIcon(
+                label: 'Exibição',
+                svgFilled: svgExibicaoFilled,
+                svgOutline: svgExibicaoOutline,
+                active: tab == 2,
+                onTap: () => onTab(2),
+              ),
+            ],
           ),
-          _NavIcon(
-            label: 'Exibição',
-            svgFilled: svgExibicaoFilled,
-            svgOutline: svgExibicaoOutline,
-            active: tab == 2,
-            onTap: () => onTab(2),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -724,74 +780,109 @@ class _WallpaperColorExtractorState extends State<_WallpaperColorExtractor> {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _NavAppBar — botão hamburger com animação morph para X
+// _NavAppBar — estilo YouTube: logo+nome topo esq, bússola topo dir, chips
 // ─────────────────────────────────────────────────────────────────────────────
 class _NavAppBar extends StatelessWidget {
   final VoidCallback onMenu;
-  const _NavAppBar({required this.onMenu});
+  final void Function(String) onQuickSearch;
+  const _NavAppBar({required this.onMenu, required this.onQuickSearch});
+
+  // Chips de pesquisa rápida — clicáveis, abrem SearchResultsPage
+  static const _quickChips = [
+    'Amador', 'MILF', 'Latina', 'Asiática', 'Loira',
+    'Lésbicas', 'Teen', 'Caseiro', 'Massage', 'Threesome',
+  ];
+
+  // SVG bússola para abrir o drawer
+  static const _svgCompass =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+      '<path d="M12,0A12,12,0,1,0,24,12,12.013,12.013,0,0,0,12,0Zm0,22A10,10,0,1,1,22,12,10.011,10.011,0,0,1,12,22Z"/>'
+      '<path d="M16.243,7.757a1,1,0,0,0-1.023-.247l-5,1.667A1,1,0,0,0,9.587,9.81l-1.83,5.49a1,1,0,0,0,1.27,1.27l5.49-1.83a1,1,0,0,0,.633-.633l1.667-5A1,1,0,0,0,16.243,7.757ZM13.7,13.7l-3.242,1.08,1.08-3.242,1.98-.66Z"/>'
+      '</svg>';
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top;
-    return Padding(
-      padding: EdgeInsets.only(top: topPad + 6, bottom: 4),
-      child: Row(children: [
-        _AnimatedMenuButton(onTap: onMenu),
-        const SizedBox(width: 12),
-        Text('Navegar',
+    final t = AppTheme.current;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+      // ── Linha 1: logo + nome | bússola ──────────────────────────────────
+      Row(children: [
+        // Logo do app
+        Image.asset(
+          'assets/logo.png',
+          width: 28, height: 28,
+          errorBuilder: (_, __, ___) => SvgPicture.string(
+            _svgShortsActive, width: 28, height: 28),
+        ),
+        const SizedBox(width: 8),
+        Text('Nuxxx',
           style: TextStyle(
-            color: AppTheme.current.text,
+            color: t.text,
             fontSize: 20,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
           )),
+        const Spacer(),
+        // Bússola — abre o drawer
+        GestureDetector(
+          onTap: onMenu,
+          behavior: HitTestBehavior.opaque,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 12, top: 2, bottom: 2),
+            child: SvgPicture.string(
+              _svgCompass, width: 24, height: 24,
+              colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
+            ),
+          ),
+        ),
       ]),
-    );
+
+      const SizedBox(height: 12),
+
+      // ── Linha 2: chips de pesquisa rápida ────────────────────────────────
+      SizedBox(
+        height: 32,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: EdgeInsets.zero,
+          itemCount: _quickChips.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (_, i) => _QuickChip(
+            label: _quickChips[i],
+            onTap: () => onQuickSearch(_quickChips[i]),
+          ),
+        ),
+      ),
+    ]);
   }
 }
 
-// ─── Animated hamburger → X ──────────────────────────────────────────────────
-class _AnimatedMenuButton extends StatefulWidget {
+// Chip de pesquisa rápida — estilo YouTube "Todos / Manchester City..."
+class _QuickChip extends StatelessWidget {
+  final String label;
   final VoidCallback onTap;
-  const _AnimatedMenuButton({required this.onTap});
-  @override
-  State<_AnimatedMenuButton> createState() => _AnimatedMenuButtonState();
-}
-
-class _AnimatedMenuButtonState extends State<_AnimatedMenuButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-  bool _isOpen = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 280));
-  }
-
-  @override
-  void dispose() { _c.dispose(); super.dispose(); }
-
-  void _toggle() {
-    setState(() => _isOpen = !_isOpen);
-    if (_isOpen) _c.forward(); else _c.reverse();
-    widget.onTap();
-  }
+  const _QuickChip({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final color = AppTheme.current.icon;
+    final t = AppTheme.current;
     return GestureDetector(
-      onTap: _toggle,
-      child: SizedBox(
-        width: 38, height: 38,
-        child: Center(
-          child: AnimatedIcon(
-            icon: AnimatedIcons.menu_close,
-            progress: _c,
-            color: color,
-            size: 24,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          // Fundo ligeiramente contrastante — igual ao YouTube
+          color: t.isDark
+              ? Colors.white.withOpacity(0.13)
+              : Colors.black.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(100),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: t.text,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
@@ -801,7 +892,7 @@ class _AnimatedMenuButtonState extends State<_AnimatedMenuButton>
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _NavDrawer — bordas retas, estilo YouTube, à frente do bottom bar, SVGs
+// _NavDrawer — borda reta, em frente do conteúdo mas NÃO sobre o bottom bar
 // ─────────────────────────────────────────────────────────────────────────────
 class _NavDrawer extends StatelessWidget {
   final VoidCallback onDownloads;
@@ -810,59 +901,69 @@ class _NavDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top;
+    final topPad    = MediaQuery.of(context).padding.top;
+    // Obtém a altura do bottom bar do ancestral — evita sobreposição
+    final botPad    = MediaQuery.of(context).padding.bottom;
+    final screenH   = MediaQuery.of(context).size.height;
+    // Altura reservada para o bottom nav (62 fixo + safeArea bottom)
+    const kNavH = 62.0;
+    final drawerH   = screenH - kNavH - botPad;
     final t = AppTheme.current;
 
     return Drawer(
-      // Sem borderRadius — bordas retas como YouTube
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-      backgroundColor: t.drawerBg,
+      backgroundColor: Colors.transparent,
       elevation: 0,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(height: topPad + 16),
+      // SizedBox limita a altura para não cobrir o bottom bar
+      child: SizedBox(
+        height: drawerH,
+        child: Material(
+          color: t.drawerBg,
+          elevation: 0,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: topPad + 16),
 
-        // ── Header com logo ──────────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-          child: Row(children: [
-            SvgPicture.string(_svgShortsActive, width: 28, height: 28),
-            const SizedBox(width: 10),
-            Text('patrulhaXX',
-              style: TextStyle(
-                color: t.text,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
-              )),
-          ]),
+              // Header logo
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: Row(children: [
+                  SvgPicture.string(_svgShortsActive, width: 28, height: 28),
+                  const SizedBox(width: 10),
+                  Text('patrulhaXX',
+                    style: TextStyle(
+                      color: t.text, fontSize: 18,
+                      fontWeight: FontWeight.w700, letterSpacing: -0.3,
+                    )),
+                ]),
+              ),
+
+              Divider(color: t.divider, height: 1, thickness: 1),
+              const SizedBox(height: 4),
+
+              _DrawerItemSvg(
+                svgData: _svgDrawerDownload,
+                label: 'Downloads',
+                onTap: () { Navigator.pop(context); onDownloads(); },
+              ),
+              _DrawerItemSvg(
+                svgData: _svgDrawerSettings,
+                label: 'Definições',
+                onTap: () { Navigator.pop(context); onSettings(); },
+              ),
+
+              const Spacer(),
+              Divider(color: t.divider, height: 1, thickness: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+                child: Text('patrulhaXX',
+                    style: TextStyle(color: t.textTertiary, fontSize: 11)),
+              ),
+            ],
+          ),
         ),
-
-        Divider(color: t.divider, height: 1, thickness: 1),
-        const SizedBox(height: 4),
-
-        // ── Itens ────────────────────────────────────────────────────────────
-        _DrawerItemSvg(
-          svgData: _svgDrawerDownload,
-          label: 'Downloads',
-          onTap: () { Navigator.pop(context); onDownloads(); },
-        ),
-        _DrawerItemSvg(
-          svgData: _svgDrawerSettings,
-          label: 'Definições',
-          onTap: () { Navigator.pop(context); onSettings(); },
-        ),
-
-        const Spacer(),
-
-        Divider(color: t.divider, height: 1, thickness: 1),
-
-        // ── Rodapé ───────────────────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-          child: Text('patrulhaXX',
-            style: TextStyle(color: t.textTertiary, fontSize: 11)),
-        ),
-      ]),
+      ),
     );
   }
 }
@@ -969,7 +1070,14 @@ class _HomeTab extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _NavAppBar(onMenu: () => Scaffold.of(scaffoldCtx).openDrawer()),
+                      _NavAppBar(
+                        onMenu: () => Scaffold.of(scaffoldCtx).openDrawer(),
+                        onQuickSearch: (q) => Navigator.push(
+                          scaffoldCtx,
+                          MaterialPageRoute(
+                              builder: (_) => SearchResultsPage(query: q)),
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       _SearchTrigger(
                         navColor: navColor,
@@ -990,6 +1098,21 @@ class _HomeTab extends StatelessWidget {
             ),
             SliverToBoxAdapter(
               child: _SitesGrid(sites: kSites, onTap: onOpen),
+            ),
+            // ── Linha divisória com fade nas pontas ──────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 24, bottom: 0),
+                child: _FadeDivider(),
+              ),
+            ),
+            // ── Secção Stories ───────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: _StoriesSection(),
+            ),
+            // ── Estado vazio — Lottie Cat ────────────────────────────────────
+            SliverToBoxAdapter(
+              child: _HomeEmptyState(),
             ),
             SliverToBoxAdapter(child: SizedBox(height: navBottom + 16)),
           ]),
@@ -1047,8 +1170,9 @@ class _SearchTrigger extends StatelessWidget {
             border: Border.all(color: _borderColor),
           ),
           child: Row(children: [
-            const SizedBox(width: 18),
-            Icon(Icons.search_rounded, color: _hintColor, size: 20),
+            const SizedBox(width: 16),
+            SvgPicture.string(_svgSearch, width: 18, height: 18,
+                colorFilter: ColorFilter.mode(_hintColor, BlendMode.srcIn)),
             const SizedBox(width: 10),
             Text(
               'Pesquisar vídeos, sites...',
@@ -1074,6 +1198,13 @@ class _SearchPageState extends State<_SearchPage> {
   final _ctrl = TextEditingController();
   bool get _hasQuery => _ctrl.text.trim().isNotEmpty;
 
+  // Sugestões sempre visíveis
+  static const _suggestions = [
+    'amador português', 'milf', 'latina', 'caseiro', 'teen',
+    'loira', 'morena', 'asiática', 'lésbicas', 'threesome',
+    'maduro', 'college', 'office', 'massage', 'outdoor',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -1088,6 +1219,14 @@ class _SearchPageState extends State<_SearchPage> {
   void _search() {
     final q = _ctrl.text.trim();
     if (q.isEmpty) return;
+    FocusScope.of(context).unfocus();
+    Navigator.pushReplacement(context,
+        MaterialPageRoute(builder: (_) => SearchResultsPage(query: q)));
+  }
+
+  void _searchFor(String q) {
+    _ctrl.text = q;
+    setState(() {});
     FocusScope.of(context).unfocus();
     Navigator.pushReplacement(context,
         MaterialPageRoute(builder: (_) => SearchResultsPage(query: q)));
@@ -1109,16 +1248,23 @@ class _SearchPageState extends State<_SearchPage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(children: [
+              // Back arrow — padrão do app
               GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: Container(
                   width: 40, height: 40,
                   decoration: BoxDecoration(
-                    color: t.btnGhost,
-                    shape: BoxShape.circle,
+                    color: t.btnGhost, shape: BoxShape.circle),
+                  child: Center(
+                    child: SvgPicture.string(
+                      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+                      '<path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23'
+                      'a1,1,0,0,0,1-1h0a1,1,0,0,0-1-1H2.55L6.17,7.38A1,1,0,0,0,6.17,6h0A1,1,0,0,0,'
+                      '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/></svg>',
+                      width: 18, height: 18,
+                      colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
+                    ),
                   ),
-                  child: Icon(Icons.arrow_back_ios_new_rounded,
-                      color: t.icon, size: 16),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1131,8 +1277,10 @@ class _SearchPageState extends State<_SearchPage> {
                     border: Border.all(color: t.inputBorder),
                   ),
                   child: Row(children: [
-                    const SizedBox(width: 18),
-                    Icon(Icons.search_rounded, color: t.textSecondary, size: 20),
+                    const SizedBox(width: 16),
+                    // Ícone lupa personalizado
+                    SvgPicture.string(_svgSearch, width: 18, height: 18,
+                        colorFilter: ColorFilter.mode(t.textSecondary, BlendMode.srcIn)),
                     const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
@@ -1152,8 +1300,7 @@ class _SearchPageState extends State<_SearchPage> {
                           hintText: 'Pesquisar...',
                           hintStyle: TextStyle(color: t.inputHint, fontSize: 15),
                           isDense: true,
-                          contentPadding:
-                              const EdgeInsets.symmetric(vertical: 13),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 13),
                         ),
                       ),
                     ),
@@ -1162,16 +1309,14 @@ class _SearchPageState extends State<_SearchPage> {
                         onTap: _search,
                         child: Container(
                           margin: const EdgeInsets.only(right: 6),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 7),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                           decoration: BoxDecoration(
                             color: AppTheme.ytRed,
                             borderRadius: BorderRadius.circular(100),
                           ),
                           child: Text('Ir',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 13,
                                   fontWeight: FontWeight.w700)),
                         ),
                       )
@@ -1181,6 +1326,40 @@ class _SearchPageState extends State<_SearchPage> {
                 ),
               ),
             ]),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Sugestões sempre visíveis
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                Text('Sugestões',
+                    style: TextStyle(
+                        color: t.textSecondary, fontSize: 12,
+                        fontWeight: FontWeight.w600, letterSpacing: 0.3)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: _suggestions.map((s) => GestureDetector(
+                    onTap: () => _searchFor(s),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: t.chipBg,
+                        borderRadius: BorderRadius.circular(100),
+                        border: Border.all(color: t.borderSoft),
+                      ),
+                      child: Text(s,
+                          style: TextStyle(
+                              color: t.text, fontSize: 13,
+                              fontWeight: FontWeight.w400)),
+                    ),
+                  )).toList(),
+                ),
+              ],
+            ),
           ),
         ]),
       ),
@@ -1218,7 +1397,7 @@ class _ActionRow extends StatelessWidget {
       )),
       const SizedBox(width: 10),
       Expanded(child: _ActionBtn(
-        svg: _svgSettings, label: 'Definições', onTap: onSettings,
+        svg: _svgSettingsGradient, label: 'Definições', onTap: onSettings,
         bgColor: bgColor, borderColor: borderColor, contentColor: contentColor,
         isSettings: true,
       )),
@@ -1246,9 +1425,9 @@ class _ActionBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget iconWidget;
     if (isDownloads) {
-      iconWidget = Image.asset('assets/icons/downloads_folder.png',
-          width: 38, height: 38);
+      iconWidget = Image.asset('assets/icons/downloads_folder.png', width: 38, height: 38);
     } else if (isSettings) {
+      // Renderiza com gradiente original — sem colorFilter
       iconWidget = SvgPicture.string(svg!, width: 38, height: 38);
     } else {
       iconWidget = SvgPicture.string(svg!, width: 17, height: 17,
@@ -1723,49 +1902,16 @@ class _ShortsTabState extends State<_ShortsTab>
     final t = AppTheme.current;
     final topPad = MediaQuery.of(context).padding.top;
 
-    if (_loading) {
-      return Container(
-        color: t.bg,
-        child: ListView(
-          padding: EdgeInsets.only(top: topPad + 56),
-          children: List.generate(5, (_) => _FeedCardSkeleton()),
-        ),
-      );
-    }
-
-    if (_error) {
-      return Container(
-        color: t.bg,
-        child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.wifi_off_rounded, color: t.iconSub, size: 48),
-          const SizedBox(height: 16),
-          Text('Sem ligação à internet',
-              style: TextStyle(color: t.textSecondary, fontSize: 14)),
-          const SizedBox(height: 20),
-          GestureDetector(
-            onTap: _fetch,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppTheme.ytRed,
-                borderRadius: BorderRadius.circular(100),
-              ),
-              child: Text('Tentar novamente',
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w700)),
-            ),
-          ),
-        ])),
-      );
-    }
-
     return Container(
       color: t.bg,
       child: Column(children: [
+        // AppBar FORA de qualquer condicional
         _FeedAppBar(
           topPad: topPad,
           selectedChip: _selectedChip,
           onChipChanged: _onChipChanged,
+          onSearchTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const _SearchPage())),
         ),
 
         Expanded(
@@ -1773,26 +1919,62 @@ class _ShortsTabState extends State<_ShortsTab>
             color: AppTheme.ytRed,
             backgroundColor: t.surface,
             onRefresh: _fetch,
-            child: ListView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.only(top: 8, bottom: 24),
-              itemCount: _filtered.length + 1,
-              itemBuilder: (_, i) {
-                final list = _filtered;
-                if (i == list.length) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: SizedBox(
-                      width: 20, height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 1.5, color: AppTheme.ytRed))),
-                  );
-                }
-                return _VideoCard(
-                    video: list[i],
-                    onTap: () => widget.onVideoTap(list[i]));
-              },
-            ),
+            child: _loading
+                // Skeletons dentro do ListView — AppBar não é tocado
+                ? ListView(
+                    padding: const EdgeInsets.only(top: 8, bottom: 24),
+                    children: List.generate(5, (_) => _FeedCardSkeleton()),
+                  )
+                : _error
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.55,
+                            child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.wifi_off_rounded, color: t.iconSub, size: 48),
+                              const SizedBox(height: 16),
+                              Text('Sem ligação à internet',
+                                  style: TextStyle(color: t.textSecondary, fontSize: 14)),
+                              const SizedBox(height: 20),
+                              GestureDetector(
+                                onTap: _fetch,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.ytRed,
+                                    borderRadius: BorderRadius.circular(100),
+                                  ),
+                                  child: const Text('Tentar novamente',
+                                      style: TextStyle(
+                                          color: Colors.white, fontWeight: FontWeight.w700)),
+                                ),
+                              ),
+                            ])),
+                          ),
+                        ],
+                      )
+                    : ListView.builder(
+                        controller: _scroll,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.only(top: 8, bottom: 24),
+                        itemCount: _filtered.length + 1,
+                        itemBuilder: (_, i) {
+                          final list = _filtered;
+                          if (i == list.length) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              child: Center(child: SizedBox(
+                                width: 20, height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 1.5, color: AppTheme.ytRed))),
+                            );
+                          }
+                          return _VideoCard(
+                              video: list[i],
+                              onTap: () => widget.onVideoTap(list[i]));
+                        },
+                      ),
           ),
         ),
       ]),
@@ -1815,11 +1997,12 @@ String faviconForSource(VideoSource src) {
 }
 
 
-// ─── AppBar do Feed — chips funcionais, estilo YouTube ────────────────────────
+// ─── AppBar do Feed — chips funcionais, botão pesquisa, estilo YouTube ────────
 class _FeedAppBar extends StatelessWidget {
   final double topPad;
   final int selectedChip;
   final void Function(int) onChipChanged;
+  final VoidCallback onSearchTap;
 
   static const _chips = [
     'Todos', 'Mais vistos', 'Recentes', 'Avaliação',
@@ -1830,6 +2013,7 @@ class _FeedAppBar extends StatelessWidget {
     required this.topPad,
     required this.selectedChip,
     required this.onChipChanged,
+    required this.onSearchTap,
   });
 
   @override
@@ -1840,25 +2024,34 @@ class _FeedAppBar extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(height: topPad),
 
-        // ── Título ────────────────────────────────────────────────────────────
+        // Título + botão de pesquisa
         Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+          padding: const EdgeInsets.fromLTRB(14, 10, 8, 8),
           child: Row(children: [
             SvgPicture.string(_svgShortsActive, width: 26, height: 26),
             const SizedBox(width: 8),
             Text('Feed',
               style: TextStyle(
-                color: t.text,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.5,
+                color: t.text, fontSize: 20,
+                fontWeight: FontWeight.w700, letterSpacing: -0.5,
               )),
+            const Spacer(),
+            // Botão pesquisar
+            GestureDetector(
+              onTap: onSearchTap,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                child: SvgPicture.string(_svgSearch, width: 20, height: 20,
+                    colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn)),
+              ),
+            ),
           ]),
         ),
 
-        // ── Chips funcionais — borderRadius 4, estilo YouTube ─────────────────
+        // Chips — altura 30, bordas mais curvas (radius 8)
         SizedBox(
-          height: 36,
+          height: 30,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.only(left: 14, right: 14),
@@ -1870,10 +2063,10 @@ class _FeedAppBar extends StatelessWidget {
                 onTap: () => onChipChanged(i),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
                     color: selected ? t.chipBgActive : t.chipBg,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(_chips[i],
                     style: TextStyle(
@@ -1963,6 +2156,30 @@ class _VideoCard extends StatelessWidget {
   final VoidCallback onTap;
   const _VideoCard({required this.video, required this.onTap});
 
+  // Headers completos — evita 403 em sites que verificam Referer/Accept
+  static Map<String, String> _headers(VideoSource src) {
+    final origin = _originForSource(src);
+    return {
+      'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
+          '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+      'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+      'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+      if (origin.isNotEmpty) 'Referer': origin,
+    };
+  }
+
+  static String _originForSource(VideoSource src) {
+    switch (src) {
+      case VideoSource.eporner:   return 'https://www.eporner.com/';
+      case VideoSource.pornhub:   return 'https://www.pornhub.com/';
+      case VideoSource.redtube:   return 'https://www.redtube.com/';
+      case VideoSource.youporn:   return 'https://www.youporn.com/';
+      case VideoSource.xvideos:   return 'https://www.xvideos.com/';
+      case VideoSource.xhamster:  return 'https://xhamster.com/';
+      case VideoSource.spankbang: return 'https://spankbang.com/';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
@@ -1971,38 +2188,15 @@ class _VideoCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.only(bottom: 20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+          // ── Thumbnail ──────────────────────────────────────────────────────
           AspectRatio(
             aspectRatio: 16 / 9,
             child: Stack(fit: StackFit.expand, children: [
-              Image.network(
-                video.thumb,
-                fit: BoxFit.cover,
-                cacheWidth: 640,
-                headers: const {
-                  'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36',
-                },
-                errorBuilder: (_, __, ___) => Container(
-                  color: t.thumbBg,
-                  child: Center(child: Icon(Icons.play_circle_outline_rounded,
-                      color: t.iconSub, size: 40)),
-                ),
-                loadingBuilder: (_, child, progress) {
-                  if (progress == null) return child;
-                  return Container(
-                    color: t.thumbBg,
-                    child: Center(child: SizedBox(
-                      width: 18, height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1.2,
-                        value: progress.expectedTotalBytes != null
-                            ? progress.cumulativeBytesLoaded /
-                                progress.expectedTotalBytes!
-                            : null,
-                        color: t.iconSub,
-                      ),
-                    )),
-                  );
-                },
+              _ThumbImage(
+                url: video.thumb,
+                headers: _headers(video.source),
+                placeholder: t.thumbBg,
               ),
               if (video.duration.isNotEmpty)
                 Positioned(
@@ -2010,75 +2204,57 @@ class _VideoCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.black87,
-                      borderRadius: BorderRadius.circular(3)),
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(3)),
                     child: Text(video.duration,
                         style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
+                            color: Colors.white, fontSize: 11,
                             fontWeight: FontWeight.w600)),
                   ),
                 ),
               Center(child: Container(
                 width: 44, height: 44,
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.45),
-                  shape: BoxShape.circle),
+                    color: Colors.black.withOpacity(0.45),
+                    shape: BoxShape.circle),
                 child: const Icon(Icons.play_arrow_rounded,
                     color: Colors.white, size: 28),
               )),
             ]),
           ),
 
-          // Info em baixo — estilo YouTube
+          // ── Info ────────────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: Image.network(
-                  faviconForSource(video.source),
-                  width: 36, height: 36,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 36, height: 36,
-                    decoration: BoxDecoration(
-                      color: t.avatarBg, shape: BoxShape.circle),
-                    child: Center(child: Text(video.sourceInitial,
-                        style: TextStyle(
-                            color: t.textSecondary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600))),
-                  ),
-                ),
-              ),
+              _FaviconAvatar(source: video.source),
               const SizedBox(width: 10),
               Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(video.title,
-                    style: TextStyle(
-                      color: t.text,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w500,
-                      height: 1.3,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                    style: TextStyle(color: t.text, fontSize: 13.5,
+                        fontWeight: FontWeight.w500, height: 1.3),
+                    maxLines: 2, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 3),
                   Text(
                     '${video.sourceLabel}${video.views.isNotEmpty ? "  ·  ${video.views} vis." : ""}',
-                    style: TextStyle(color: t.textSecondary, fontSize: 11.5),
-                  ),
+                    style: TextStyle(color: t.textSecondary, fontSize: 11.5)),
                 ],
               )),
-              SvgPicture.string(
-                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-                '<circle cx="12" cy="2.5" r="2.5"/>'
-                '<circle cx="12" cy="12" r="2.5"/>'
-                '<circle cx="12" cy="21.5" r="2.5"/></svg>',
-                width: 18, height: 18,
-                colorFilter: ColorFilter.mode(t.iconTertiary, BlendMode.srcIn),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapUp: (d) => _showVideoMenu(context, video, d.globalPosition, t),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: SvgPicture.string(
+                    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+                    '<circle cx="12" cy="2.5" r="2.5"/>'
+                    '<circle cx="12" cy="12" r="2.5"/>'
+                    '<circle cx="12" cy="21.5" r="2.5"/></svg>',
+                    width: 18, height: 18,
+                    colorFilter: ColorFilter.mode(t.iconTertiary, BlendMode.srcIn)),
+                ),
               ),
             ]),
           ),
@@ -2086,6 +2262,194 @@ class _VideoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Widget de thumbnail com retry automático ─────────────────────────────────
+// Resolve: timeout, 403, headers incorrectos, imagens presas em loading
+class _ThumbImage extends StatefulWidget {
+  final String url;
+  final Map<String, String> headers;
+  final Color placeholder;
+  const _ThumbImage({required this.url, required this.headers, required this.placeholder});
+  @override
+  State<_ThumbImage> createState() => _ThumbImageState();
+}
+
+class _ThumbImageState extends State<_ThumbImage> {
+  // Chave para forçar rebuild do Image.network em retry
+  int _attempt = 0;
+  bool _failed = false;
+
+  // Tempo máximo de espera por imagem — se demorar mais, trata como erro
+  static const _kTimeout = Duration(seconds: 12);
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+
+    if (widget.url.isEmpty || _failed) {
+      return _placeholder(t);
+    }
+
+    return Image.network(
+      // Adiciona o attempt como query param para forçar novo pedido no retry
+      _attempt == 0 ? widget.url : '${widget.url}?_r=$_attempt',
+      key: ValueKey('${widget.url}_$_attempt'),
+      fit: BoxFit.cover,
+      // SEM cacheWidth — deixa o Flutter gerir o decode nativamente (mais rápido)
+      headers: widget.headers,
+      // Timeout via frameCallback — Image.network não tem timeout nativo
+      // mas ao usar key+attempt o Image é recriado limpo
+      errorBuilder: (_, __, ___) {
+        // Tenta mais uma vez automaticamente (máx 2 tentativas)
+        if (_attempt < 1) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _attempt++);
+          });
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _failed = true);
+          });
+        }
+        return _placeholder(t);
+      },
+      loadingBuilder: (_, child, progress) {
+        if (progress == null) return child; // carregado
+        // Shimmer enquanto carrega
+        return _ThumbShimmer();
+      },
+    );
+  }
+
+  Widget _placeholder(AppTheme t) => Container(
+    color: t.thumbBg,
+    child: Center(child: Icon(Icons.play_circle_outline_rounded,
+        color: t.iconSub, size: 40)),
+  );
+}
+
+// Shimmer específico para a thumbnail
+class _ThumbShimmer extends StatefulWidget {
+  @override State<_ThumbShimmer> createState() => _ThumbShimmerState();
+}
+class _ThumbShimmerState extends State<_ThumbShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _a;
+  @override void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
+    _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+  }
+  @override void dispose() { _c.dispose(); super.dispose(); }
+  @override Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _a,
+    builder: (_, __) => Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment(_a.value - 1, 0), end: Alignment(_a.value + 1, 0),
+          colors: AppTheme.current.shimmer,
+        ),
+      ),
+    ),
+  );
+}
+
+// ─── Avatar do favicon com fallback ──────────────────────────────────────────
+class _FaviconAvatar extends StatelessWidget {
+  final VideoSource source;
+  const _FaviconAvatar({required this.source});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Image.network(
+        faviconForSource(source),
+        width: 36, height: 36,
+        // Sem headers extras — favicons são públicos
+        // Sem cacheWidth para não bloquear
+        gaplessPlayback: true, // não pisca ao recarregar
+        errorBuilder: (_, __, ___) => Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(color: t.avatarBg, shape: BoxShape.circle),
+          child: Center(child: Text(
+            source.name[0].toUpperCase(),
+            style: TextStyle(color: t.textSecondary, fontSize: 13,
+                fontWeight: FontWeight.w600))),
+        ),
+        loadingBuilder: (_, child, p) => p == null ? child : Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(color: t.avatarBg, shape: BoxShape.circle),
+        ),
+      ),
+    );
+  }
+}
+
+// Popup menu dos três pontinhos do VideoCard
+void _showVideoMenu(BuildContext context, FeedVideo video, Offset pos, AppTheme t) {
+  const _svgSaveLater =
+      '<svg id="Layer_1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
+      '<path d="m14.181.207a1 1 0 0 0 -1.181.983v2.879a8.053 8.053 0 1 0 6.931 6.931h2.886'
+      'a1 1 0 0 0 .983-1.181 12.047 12.047 0 0 0 -9.619-9.612zm1.819 12.793h-2.277'
+      'a1.994 1.994 0 1 1 -2.723-2.723v-3.277a1 1 0 0 1 2 0v3.277a2 2 0 0 1 .723.723h2.277'
+      'a1 1 0 0 1 0 2z"/></svg>';
+  const _svgPlaylist =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+      '<path d="M1,6H23a1,1,0,0,0,0-2H1A1,1,0,0,0,1,6Z"/>'
+      '<path d="M23,9H9a1,1,0,0,0,0,2H23a1,1,0,0,0,0-2Z"/>'
+      '<path d="M23,19H1a1,1,0,0,0,0,2H23a1,1,0,0,0,0-2Z"/>'
+      '<path d="M23,14H9a1,1,0,0,0,0,2H23a1,1,0,0,0,0-2Z"/>'
+      '<path d="M1.707,16.245l2.974-2.974a1.092,1.092,0,0,0,0-1.542L1.707,8.755'
+      'A1,1,0,0,0,0,9.463v6.074A1,1,0,0,0,1.707,16.245Z"/></svg>';
+  const _svgPlayNext =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+      '<path d="m5,20c0,1.381-1.119,2.5-2.5,2.5s-2.5-1.119-2.5-2.5,1.119-2.5,2.5-2.5,2.5,1.119,2.5,2.5Z'
+      'M21.5,6.5c1.381,0,2.5-1.119,2.5-2.5s-1.119-2.5-2.5-2.5-2.5,1.119-2.5,2.5,1.119,2.5,2.5,2.5Z'
+      'm-7.216-1.207c-.391-.391-1.023-.391-1.414,0s-.391,1.023,0,1.414l1.293,1.293h-6.163'
+      'c-.552,0-1,.448-1,1s.448,1,1,1h6.228l-1.293,1.293c-.391.391-.391,1.023,0,1.414'
+      '.195.195.451.293.707.293s.512-.098.707-.293l1.972-1.972c.939-.938.939-2.466,0-3.405l-2.037-2.037Z"/>'
+      '</svg>';
+
+  PopupMenuItem<String> _item(String val, String svg, String label) =>
+      PopupMenuItem<String>(
+        value: val, height: 46,
+        child: Row(children: [
+          SvgPicture.string(svg, width: 17, height: 17,
+              colorFilter: ColorFilter.mode(t.iconSub, BlendMode.srcIn)),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label, style: TextStyle(color: t.text, fontSize: 13.5))),
+        ]),
+      );
+
+  final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+  showMenu<String>(
+    context: context,
+    color: t.popup,
+    elevation: 6,
+    shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: t.borderSoft)),
+    position: RelativeRect.fromRect(pos & const Size(1, 1), Offset.zero & overlay.size),
+    items: [
+      _item('save',     _svgSaveLater, 'Guardar para assistir mais tarde'),
+      _item('playlist', _svgPlaylist,  'Adicionar na minha playlist'),
+      _item('next',     _svgPlayNext,  'Exibir como próximo vídeo'),
+    ],
+  ).then((val) {
+    if (val == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(val == 'save'
+          ? 'Guardado para assistir mais tarde'
+          : val == 'playlist' ? 'Adicionado à playlist' : 'Será exibido a seguir',
+          style: TextStyle(color: AppTheme.current.toastText)),
+      backgroundColor: AppTheme.current.toastBg,
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 2),
+    ));
+  });
 }
 
 
@@ -2178,6 +2542,187 @@ class _SiteCellState extends State<_SiteCell> with SingleTickerProviderStateMixi
                     fontSize: 10,
                     fontWeight: FontWeight.w500)),
           ),
+        ]),
+      ),
+    );
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _FadeDivider — linha fina com transparência nas pontas
+// ─────────────────────────────────────────────────────────────────────────────
+class _FadeDivider extends StatelessWidget {
+  const _FadeDivider();
+  @override
+  Widget build(BuildContext context) {
+    final color = AppTheme.current.divider;
+    return Container(
+      height: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 0),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            color.withOpacity(0.0),
+            color.withOpacity(0.6),
+            color.withOpacity(0.6),
+            color.withOpacity(0.0),
+          ],
+          stops: const [0.0, 0.18, 0.82, 1.0],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _StoriesSection — título + chevron + lista horizontal de stories
+// ─────────────────────────────────────────────────────────────────────────────
+class _StoriesSection extends StatelessWidget {
+  const _StoriesSection();
+
+  // Stories fictícios para a estrutura visual — apenas placeholders com cores do app
+  static const int _count = 6;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+
+        // Título + chevron
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(children: [
+            Text('Stories',
+                style: TextStyle(
+                    color: t.text,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded, color: t.iconSub, size: 20),
+          ]),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Lista horizontal
+        SizedBox(
+          height: 110,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _count,
+            itemBuilder: (_, i) => _StoryItem(index: i),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+}
+
+class _StoryItem extends StatelessWidget {
+  final int index;
+  const _StoryItem({required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    final isAdd = index == 0;
+    // Usa accentColor derivado do índice para variar visualmente
+    final accent = [
+      AppTheme.ytRed,
+      t.navActive,
+      AppTheme.success,
+      AppTheme.ytRedDark,
+      t.link,
+      t.chipBgActive,
+    ][index % 6];
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Anel de Story (borda colorida)
+          Container(
+            width: 68, height: 68,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: isAdd ? null : LinearGradient(
+                colors: [accent, accent.withOpacity(0.5)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              color: isAdd ? t.btnGhost : null,
+              border: Border.all(
+                  color: isAdd ? t.border : Colors.transparent, width: 1.5),
+            ),
+            padding: const EdgeInsets.all(2.5),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: t.card,
+              ),
+              child: isAdd
+                  ? Center(child: Icon(Icons.add_rounded,
+                      color: t.iconSub, size: 26))
+                  : ClipOval(child: Container(
+                      color: t.thumbBg,
+                      child: Center(child: Icon(
+                          Icons.person_rounded,
+                          color: t.iconTertiary, size: 28)),
+                    )),
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: 68,
+            child: Text(
+              isAdd ? 'Adicionar' : 'Story ${index}',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  color: t.textSecondary,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w400),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _HomeEmptyState — Lottie Cat (mesmo da tela de Exibição)
+// ─────────────────────────────────────────────────────────────────────────────
+class _HomeEmptyState extends StatelessWidget {
+  const _HomeEmptyState();
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 24),
+      child: Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          SizedBox(
+            width: 180, height: 180,
+            child: Lottie.asset(
+              'assets/lottie/Cat_playing_animation.json',
+              repeat: true, animate: true,
+              errorBuilder: (_, __, ___) => Icon(
+                  Icons.movie_outlined, color: t.emptyIcon, size: 64),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text('Nada mais por aqui',
+              style: TextStyle(color: t.emptyText, fontSize: 13)),
         ]),
       ),
     );

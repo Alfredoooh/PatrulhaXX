@@ -2,8 +2,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,15 +13,20 @@ import 'home_page.dart' show kPrimaryColor, FeedVideo, FeedFetcher,
     VideoSource, faviconForSource;
 import '../theme/app_theme.dart';
 
-// ─── SVG ícone de voltar (igual ao settings) ──────────────────────────────────
+// SVG back — padrão do app
 const _iBack =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23'
     'a1,1,0,0,0,1-1h0a1,1,0,0,0-1-1H2.55L6.17,7.38A1,1,0,0,0,6.17,6h0A1,1,0,0,0,'
-    '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/>'
-    '</svg>';
+    '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/></svg>';
 
-// ─── Modelo original mantido para compatibilidade ────────────────────────────
+// SVG lupa
+const _iSearch =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M23.707,22.293l-5.969-5.969a10.016,10.016,0,1,0-1.414,1.414l5.969,5.969'
+    'a1,1,0,0,0,1.414-1.414ZM10,18a8,8,0,1,1,8-8A8.009,8.009,0,0,1,10,18Z"/></svg>';
+
+// ─── Modelo Eporner ───────────────────────────────────────────────────────────
 class _EpornerVideo {
   final String id, title, url, thumbUrl, lengthMin, views, rate, keywords;
   const _EpornerVideo({
@@ -74,7 +77,7 @@ class _EpornerApi {
   static const _base = 'https://www.eporner.com/api/v2/video/search/';
   static const _ua   = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36';
 
-  static Future<({List<_EpornerVideo> videos, int totalCount, int totalPages})>
+  static Future<({List<_EpornerVideo> videos, int totalPages})>
       search({required String query, int page = 1, int perPage = 40}) async {
     final uri = Uri.parse(_base).replace(queryParameters: {
       'query':     query.isEmpty ? 'all' : query,
@@ -93,7 +96,6 @@ class _EpornerApi {
     final rawVideos = (data['videos'] as List<dynamic>?) ?? [];
     return (
       videos:     rawVideos.map((v) => _EpornerVideo.fromJson(v as Map<String, dynamic>)).toList(),
-      totalCount: (data['total_count'] as int?) ?? 0,
       totalPages: (data['total_pages'] as int?) ?? 1,
     );
   }
@@ -112,24 +114,20 @@ class SearchResultsPage extends StatefulWidget {
 }
 
 class _SearchResultsPageState extends State<SearchResultsPage>
-    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
+    with AutomaticKeepAliveClientMixin {
+  @override bool get wantKeepAlive => true;
 
-  late final TabController _tabs;
   late final TextEditingController _q;
   late final ScrollController _scroll;
   final _focus = FocusNode();
 
-  List<_EpornerVideo> _videos     = [];
-  List<FeedVideo>     _feedVideos = [];
+  List<FeedVideo> _feedVideos  = [];
   bool _loading     = false;
   bool _loadingMore = false;
   bool _searching   = false;
   String? _error;
   int _page       = 1;
   int _totalPages = 1;
-  int _totalCount = 0;
 
   List<String> _suggestions = [];
   List<String> _history     = [];
@@ -138,7 +136,6 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   @override
   void initState() {
     super.initState();
-    _tabs   = TabController(length: 2, vsync: this);
     _q      = TextEditingController(text: widget.query ?? '');
     _scroll = ScrollController()..addListener(_onScroll);
     _q.addListener(_onTyping);
@@ -150,12 +147,12 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
   @override
   void dispose() {
-    _tabs.dispose(); _q.removeListener(_onTyping);
+    _q.removeListener(_onTyping);
     _q.dispose(); _scroll.dispose(); _focus.dispose();
     super.dispose();
   }
 
-  // ── Histórico ─────────────────────────────────────────────────────────────
+  // ── Histórico ──────────────────────────────────────────────────────────────
   Future<void> _loadHistory() async {
     final p = await SharedPreferences.getInstance();
     if (mounted) setState(() => _history = p.getStringList(_kHistory) ?? []);
@@ -163,8 +160,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
   Future<void> _saveHistory(String q) async {
     if (q.isEmpty) return;
-    _history.remove(q);
-    _history.insert(0, q);
+    _history.remove(q); _history.insert(0, q);
     if (_history.length > 20) _history = _history.sublist(0, 20);
     setState(() {});
     final p = await SharedPreferences.getInstance();
@@ -183,7 +179,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     await p.remove(_kHistory);
   }
 
-  // ── Sugestões ─────────────────────────────────────────────────────────────
+  // ── Sugestões ──────────────────────────────────────────────────────────────
   void _onTyping() {
     setState(() {});
     final q = _q.text.trim();
@@ -203,7 +199,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     } catch (_) {}
   }
 
-  // ── Scroll infinito ───────────────────────────────────────────────────────
+  // ── Scroll infinito ────────────────────────────────────────────────────────
   void _onScroll() {
     if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 400 &&
         !_loadingMore && _page < _totalPages) {
@@ -211,18 +207,17 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     }
   }
 
-  // ── Pesquisa ──────────────────────────────────────────────────────────────
+  // ── Pesquisa ───────────────────────────────────────────────────────────────
   Future<void> _doSearch(String q) async {
-    q = q.trim();
-    if (q.isEmpty) return;
+    q = q.trim(); if (q.isEmpty) return;
     _focus.unfocus();
     _q.text = q;
     _q.selection = TextSelection.collapsed(offset: q.length);
     await _saveHistory(q);
     setState(() {
       _searching = true; _loading = true; _error = null;
-      _videos = []; _feedVideos = []; _suggestions = [];
-      _page = 1; _totalPages = 1; _totalCount = 0;
+      _feedVideos = []; _suggestions = [];
+      _page = 1; _totalPages = 1;
     });
     await _fetch(reset: true);
   }
@@ -234,17 +229,15 @@ class _SearchResultsPageState extends State<SearchResultsPage>
         FeedFetcher.fetchPornhub(_page),
         FeedFetcher.fetchRedtube(_page),
       ]);
-      final epResult = results[0] as ({List<_EpornerVideo> videos, int totalCount, int totalPages});
+      final epResult = results[0] as ({List<_EpornerVideo> videos, int totalPages});
       final phVideos = results[1] as List<FeedVideo>;
       final rtVideos = results[2] as List<FeedVideo>;
 
       final epFeed = epResult.videos.map((v) => FeedVideo(
-        title:    v.title,
-        thumb:    v.thumbUrl,
+        title: v.title, thumb: v.thumbUrl,
         embedUrl: 'https://www.eporner.com/embed/${v.id}/',
-        duration: v.lengthMin,
-        views:    v.views,
-        source:   VideoSource.eporner,
+        duration: v.lengthMin, views: v.views,
+        source: VideoSource.eporner,
       )).toList();
 
       final merged = <FeedVideo>[];
@@ -258,11 +251,9 @@ class _SearchResultsPageState extends State<SearchResultsPage>
       }
 
       if (mounted) setState(() {
-        _videos     = reset ? epResult.videos : [..._videos, ...epResult.videos];
-        _feedVideos = reset ? merged : [..._feedVideos, ...merged];
-        _totalCount = epResult.totalCount;
-        _totalPages = epResult.totalPages;
-        _loading    = false;
+        _feedVideos  = reset ? merged : [..._feedVideos, ...merged];
+        _totalPages  = epResult.totalPages;
+        _loading     = false;
         _loadingMore = false;
       });
     } catch (e) {
@@ -276,60 +267,75 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     await _fetch();
   }
 
-  // ── Abrir vídeo — abre ExibicaoPage, com ou sem callback ─────────────────
   void _openVideo(FeedVideo v) {
     if (widget.onVideoTap != null) {
-      // Integrado no IndexedStack — delega ao pai
       widget.onVideoTap!(v);
     } else {
-      // Aberto via Navigator.push — navega para ExibicaoPage dedicada
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ExibicaoPage(
-            embedUrl: v.embedUrl,
-            currentVideo: v,
-            onVideoTap: (next) {
-              // Substitui o vídeo actual na página aberta
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ExibicaoPage(
-                    embedUrl: next.embedUrl,
-                    currentVideo: next,
-                    onVideoTap: (_) {},
-                  ),
-                ),
-              );
-            },
-          ),
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => ExibicaoPage(
+          embedUrl: v.embedUrl, currentVideo: v,
+          onVideoTap: (next) => Navigator.pushReplacement(context,
+              MaterialPageRoute(builder: (_) => ExibicaoPage(
+                embedUrl: next.embedUrl, currentVideo: next,
+                onVideoTap: (_) {},
+              ))),
         ),
-      );
+      ));
     }
   }
 
-  void _openEporner(_EpornerVideo v) => Navigator.push(context,
-      MaterialPageRoute(builder: (_) => BrowserPage(
-        freeNavigation: true,
-        site: SiteModel(
-          id: 'ep', name: v.title, baseUrl: v.url,
-          allowedDomain: '', searchUrl: v.url, primaryColor: kPrimaryColor),
-      )));
-
   void _clearSearch() {
     _q.clear();
-    setState(() { _searching = false; _videos = []; _feedVideos = []; _suggestions = []; });
+    setState(() { _searching = false; _feedVideos = []; _suggestions = []; });
     _focus.requestFocus();
   }
 
-  List<_EpornerVideo> get _allWithThumb => _videos.where((v) => v.thumbUrl.isNotEmpty).toList();
+  // ── Popup menu três pontinhos do AppBar ────────────────────────────────────
+  void _showAppBarMenu(BuildContext ctx) {
+    final t = AppTheme.current;
+    final RenderBox btn = ctx.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
+    final pos = btn.localToGlobal(Offset(btn.size.width, btn.size.height), ancestor: overlay);
+    showMenu<String>(
+      context: ctx,
+      color: t.popup,
+      elevation: 6,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: t.borderSoft)),
+      position: RelativeRect.fromLTRB(
+          pos.dx - 180, pos.dy + 4, pos.dx, pos.dy + 200),
+      items: [
+        PopupMenuItem<String>(
+          value: 'options',
+          height: 46,
+          child: Text('Opções de pesquisa',
+              style: TextStyle(color: t.text, fontSize: 14)),
+        ),
+        PopupMenuItem<String>(
+          value: 'filter',
+          height: 46,
+          child: Text('Filtro de pesquisa',
+              style: TextStyle(color: t.text, fontSize: 14)),
+        ),
+      ],
+    ).then((val) {
+      if (val == null || !mounted) return;
+      final msg = val == 'options' ? 'Opções de pesquisa' : 'Filtro de pesquisa';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg, style: TextStyle(color: t.toastText)),
+        backgroundColor: t.toastBg,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ));
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final t       = AppTheme.current;
-    final isDark  = t.isDark;
-    final topPad  = MediaQuery.of(context).padding.top;
+    final t      = AppTheme.current;
+    final topPad = MediaQuery.of(context).padding.top;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -341,30 +347,27 @@ class _SearchResultsPageState extends State<SearchResultsPage>
         resizeToAvoidBottomInset: false,
         body: Column(children: [
 
-          // ── AppBar ────────────────────────────────────────────────────────
+          // ── AppBar ─────────────────────────────────────────────────────────
           Container(
             color: t.appBar,
             child: Column(children: [
               SizedBox(height: topPad),
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
                 child: Row(children: [
 
-                  // ── Botão voltar — SVG igual ao settings ──────────────────
-                  if (_searching)
-                    GestureDetector(
-                      onTap: _clearSearch,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: SvgPicture.string(
-                          _iBack,
-                          width: 20, height: 20,
-                          colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
-                        ),
-                      ),
+                  // Back
+                  GestureDetector(
+                    onTap: _searching ? _clearSearch : () => Navigator.pop(context),
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      child: SvgPicture.string(_iBack, width: 20, height: 20,
+                          colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn)),
                     ),
+                  ),
 
-                  // ── Campo de pesquisa ─────────────────────────────────────
+                  // Campo de pesquisa
                   Expanded(
                     child: Container(
                       height: 44,
@@ -374,8 +377,9 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                         border: Border.all(color: t.inputBorder),
                       ),
                       child: Row(children: [
-                        const SizedBox(width: 14),
-                        Icon(Icons.search_rounded, color: t.inputHint, size: 18),
+                        const SizedBox(width: 12),
+                        SvgPicture.string(_iSearch, width: 16, height: 16,
+                            colorFilter: ColorFilter.mode(t.inputHint, BlendMode.srcIn)),
                         const SizedBox(width: 8),
                         Expanded(
                           child: TextField(
@@ -392,8 +396,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                               hintText: 'Pesquisar vídeos...',
                               hintStyle: TextStyle(color: t.inputHint, fontSize: 14.5),
                               isDense: true,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 11),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 11),
                             ),
                           ),
                         ),
@@ -403,98 +406,56 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                             child: Padding(
                               padding: const EdgeInsets.only(right: 10),
                               child: Icon(Icons.close_rounded,
-                                  color: t.iconSub, size: 17),
-                            ),
+                                  color: t.iconSub, size: 17)),
                           )
                         else
                           const SizedBox(width: 12),
                       ]),
                     ),
                   ),
+
+                  // Três pontinhos
+                  Builder(builder: (btnCtx) => GestureDetector(
+                    onTap: () => _showAppBarMenu(btnCtx),
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      child: Icon(Icons.more_vert_rounded, color: t.icon, size: 22),
+                    ),
+                  )),
                 ]),
               ),
-
-              // Tabs (só quando há resultados)
-              if (_searching) ...[
-                Divider(height: 1, color: t.divider),
-                TabBar(
-                  controller: _tabs,
-                  indicator: UnderlineTabIndicator(
-                    borderSide: BorderSide(color: AppTheme.ytRed, width: 2),
-                    borderRadius: const BorderRadius.all(Radius.circular(1)),
-                  ),
-                  dividerColor: Colors.transparent,
-                  labelColor: t.text,
-                  unselectedLabelColor: t.textSecondary,
-                  labelStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
-                  unselectedLabelStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w400),
-                  tabs: [
-                    Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Text('Vídeos'),
-                      if (!_loading && _totalCount > 0) ...[
-                        const SizedBox(width: 6),
-                        _CountPill(count: _totalCount),
-                      ],
-                    ])),
-                    Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Text('Miniaturas'),
-                      if (!_loading && _allWithThumb.isNotEmpty) ...[
-                        const SizedBox(width: 6),
-                        _CountPill(count: _allWithThumb.length),
-                      ],
-                    ])),
-                  ],
-                ),
-              ],
+              Divider(height: 1, color: t.divider),
             ]),
           ),
 
-          // ── Corpo ─────────────────────────────────────────────────────────
+          // ── Corpo ──────────────────────────────────────────────────────────
           Expanded(
             child: !_searching
                 ? _SuggestionsView(
                     query: _q.text.trim(),
                     history: _history,
                     suggestions: _suggestions,
-                    isDark: isDark,
                     textColor: t.text,
                     subColor: t.textSecondary,
                     divColor: t.divider,
                     onSelect: _doSearch,
                     onFill: (q) {
                       _q.text = q;
-                      _q.selection =
-                          TextSelection.collapsed(offset: q.length);
+                      _q.selection = TextSelection.collapsed(offset: q.length);
                     },
                     onRemoveHistory: _removeHistory,
                     onClearHistory: _clearHistory,
                   )
                 : _loading
-                    ? _SkeletonList(isDark: isDark)
+                    ? _SkeletonList()
                     : _error != null
-                        ? _ErrorView(
-                            message: _error!,
-                            onRetry: () => _doSearch(_q.text))
-                        : TabBarView(
-                            controller: _tabs,
-                            children: [
-                              _VideosTab(
-                                videos: _feedVideos,
-                                loadingMore: _loadingMore,
-                                isDark: isDark,
-                                textColor: t.text,
-                                subColor: t.textSecondary,
-                                scroll: _scroll,
-                                onTap: _openVideo,
-                              ),
-                              _ImagesTab(
-                                videos: _allWithThumb,
-                                isDark: isDark,
-                                onTap: _openEporner,
-                              ),
-                            ],
+                        ? _ErrorView(message: _error!, onRetry: () => _doSearch(_q.text))
+                        : _VideosTab(
+                            videos: _feedVideos,
+                            loadingMore: _loadingMore,
+                            scroll: _scroll,
+                            onTap: _openVideo,
                           ),
           ),
         ]),
@@ -509,15 +470,14 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 class _SuggestionsView extends StatelessWidget {
   final String query;
   final List<String> history, suggestions;
-  final bool isDark;
   final Color textColor, subColor, divColor;
   final void Function(String) onSelect, onFill, onRemoveHistory;
   final VoidCallback onClearHistory;
 
   const _SuggestionsView({
     required this.query, required this.history, required this.suggestions,
-    required this.isDark, required this.textColor, required this.subColor,
-    required this.divColor, required this.onSelect, required this.onFill,
+    required this.textColor, required this.subColor, required this.divColor,
+    required this.onSelect, required this.onFill,
     required this.onRemoveHistory, required this.onClearHistory,
   });
 
@@ -561,25 +521,18 @@ class _SuggestionsView extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(children: [
                 Icon(
-                  showSuggestions
-                      ? Icons.search_rounded
-                      : Icons.history_rounded,
-                  color: subColor, size: 20,
-                ),
+                  showSuggestions ? Icons.search_rounded : Icons.history_rounded,
+                  color: subColor, size: 20),
                 const SizedBox(width: 14),
                 Expanded(child: Text(item,
                     style: TextStyle(color: textColor, fontSize: 14.5))),
                 GestureDetector(
-                  onTap: () => showSuggestions
-                      ? onFill(item)
-                      : onRemoveHistory(item),
+                  onTap: () => showSuggestions ? onFill(item) : onRemoveHistory(item),
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
                     padding: const EdgeInsets.only(left: 12),
                     child: Icon(
-                      showSuggestions
-                          ? Icons.north_west_rounded
-                          : Icons.close_rounded,
+                      showSuggestions ? Icons.north_west_rounded : Icons.close_rounded,
                       color: subColor, size: 18),
                   ),
                 ),
@@ -594,36 +547,34 @@ class _SuggestionsView extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _VideosTab
+// _VideosTab — lista de vídeos estilo YouTube
 // ─────────────────────────────────────────────────────────────────────────────
 class _VideosTab extends StatelessWidget {
   final List<FeedVideo> videos;
-  final bool loadingMore, isDark;
-  final Color textColor, subColor;
+  final bool loadingMore;
   final ScrollController scroll;
   final void Function(FeedVideo) onTap;
 
   const _VideosTab({
-    required this.videos, required this.loadingMore, required this.isDark,
-    required this.textColor, required this.subColor, required this.scroll,
-    required this.onTap,
+    required this.videos, required this.loadingMore,
+    required this.scroll, required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final t = AppTheme.current;
     if (videos.isEmpty) {
       return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.search_off_rounded,
-            color: subColor.withOpacity(0.25), size: 48),
+        Icon(Icons.search_off_rounded, color: t.iconTertiary, size: 48),
         const SizedBox(height: 12),
         Text('Nenhum vídeo encontrado',
-            style: TextStyle(color: subColor, fontSize: 13)),
+            style: TextStyle(color: t.textSecondary, fontSize: 13)),
       ]));
     }
 
     return ListView.builder(
       controller: scroll,
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(top: 8, bottom: 24),
       itemCount: videos.length + (loadingMore ? 1 : 0),
       itemBuilder: (_, i) {
         if (i == videos.length) {
@@ -635,28 +586,73 @@ class _VideosTab extends StatelessWidget {
                   strokeWidth: 1.5, color: AppTheme.ytRed))),
           );
         }
-        final v = videos[i];
-        return _VideoCard(
-          video: v, isDark: isDark,
-          textColor: textColor, subColor: subColor,
-          onTap: () => onTap(v),
-        );
+        return _VideoCard(video: videos[i], onTap: () => onTap(videos[i]));
       },
     );
   }
 }
 
-// ─── Card de vídeo ────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// _VideoCard — estilo YouTube exacto
+// ─────────────────────────────────────────────────────────────────────────────
 class _VideoCard extends StatelessWidget {
   final FeedVideo video;
-  final bool isDark;
-  final Color textColor, subColor;
   final VoidCallback onTap;
+  const _VideoCard({required this.video, required this.onTap});
 
-  const _VideoCard({
-    required this.video, required this.isDark,
-    required this.textColor, required this.subColor, required this.onTap,
-  });
+  static Map<String, String> _headers(VideoSource src) {
+    final origin = _origin(src);
+    return {
+      'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
+          '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+      'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+      'Accept-Language': 'pt-PT,pt;q=0.9',
+      if (origin.isNotEmpty) 'Referer': origin,
+    };
+  }
+
+  static String _origin(VideoSource src) {
+    switch (src) {
+      case VideoSource.eporner:   return 'https://www.eporner.com/';
+      case VideoSource.pornhub:   return 'https://www.pornhub.com/';
+      case VideoSource.redtube:   return 'https://www.redtube.com/';
+      case VideoSource.youporn:   return 'https://www.youporn.com/';
+      case VideoSource.xvideos:   return 'https://www.xvideos.com/';
+      case VideoSource.xhamster:  return 'https://xhamster.com/';
+      case VideoSource.spankbang: return 'https://spankbang.com/';
+    }
+  }
+
+  void _showMenu(BuildContext ctx, AppTheme t) {
+    final RenderBox btn = ctx.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
+    final pos = btn.localToGlobal(
+        Offset(btn.size.width, btn.size.height), ancestor: overlay);
+    showMenu<String>(
+      context: ctx,
+      color: t.popup,
+      elevation: 6,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: t.borderSoft)),
+      position: RelativeRect.fromLTRB(
+          pos.dx - 200, pos.dy - 30, pos.dx, pos.dy + 200),
+      items: [
+        PopupMenuItem<String>(
+          value: 'options',
+          height: 46,
+          child: Text('Opções de pesquisa',
+              style: TextStyle(color: t.text, fontSize: 14)),
+        ),
+        PopupMenuItem<String>(
+          value: 'filter',
+          height: 46,
+          child: Text('Filtro de pesquisa',
+              style: TextStyle(color: t.text, fontSize: 14)),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -667,186 +663,204 @@ class _VideoCard extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
+          // ── Thumbnail 16:9 ───────────────────────────────────────────────
           AspectRatio(
             aspectRatio: 16 / 9,
             child: Stack(fit: StackFit.expand, children: [
-              Image.network(
-                video.thumb,
-                fit: BoxFit.cover,
-                cacheWidth: 640,
-                headers: const {'User-Agent': 'Mozilla/5.0'},
-                errorBuilder: (_, __, ___) => Container(
-                  color: t.thumbBg,
-                  child: Icon(Icons.play_circle_outline_rounded,
-                      color: t.iconSub, size: 40),
-                ),
-                loadingBuilder: (_, child, p) {
-                  if (p == null) return child;
-                  return _ThumbSkeleton(isDark: isDark);
-                },
-              ),
+              _ThumbNet(url: video.thumb, headers: _headers(video.source)),
               if (video.duration.isNotEmpty)
                 Positioned(
                   bottom: 6, right: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                     decoration: BoxDecoration(
                         color: Colors.black87,
                         borderRadius: BorderRadius.circular(3)),
                     child: Text(video.duration,
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 11,
                             fontWeight: FontWeight.w600)),
                   ),
                 ),
             ]),
           ),
 
+          // ── Info — idêntica ao YouTube ───────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+            padding: const EdgeInsets.fromLTRB(12, 10, 8, 0),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: Image.network(
-                  faviconForSource(video.source),
-                  width: 34, height: 34,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 34, height: 34,
-                    decoration: BoxDecoration(
-                        color: t.avatarBg, shape: BoxShape.circle),
-                    child: Center(child: Text(video.sourceInitial,
-                        style: TextStyle(color: t.textSecondary,
-                            fontSize: 12, fontWeight: FontWeight.w700))),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(child: Column(
+
+              // Avatar circular
+              _FaviconAvatar(source: video.source, size: 36),
+              const SizedBox(width: 12),
+
+              // Título + subtítulo
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                Text(video.title,
-                  style: TextStyle(color: textColor, fontSize: 13.5,
-                      fontWeight: FontWeight.w500, height: 1.3),
-                  maxLines: 2, overflow: TextOverflow.ellipsis,
+                    Text(
+                      video.title,
+                      style: TextStyle(
+                          color: t.text, fontSize: 14,
+                          fontWeight: FontWeight.w500, height: 1.35),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _buildSubtitle(video),
+                      style: TextStyle(color: t.textSecondary, fontSize: 12),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  '${video.sourceLabel}'
-                  '${video.views.isNotEmpty ? "  ·  ${video.views} vis." : ""}',
-                  style: TextStyle(color: subColor, fontSize: 11.5),
+              ),
+
+              // Three-dot
+              Builder(builder: (btnCtx) => GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _showMenu(btnCtx, t),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 4, 0),
+                  child: Icon(Icons.more_vert_rounded,
+                      color: t.iconTertiary, size: 20),
                 ),
-              ])),
-              Icon(Icons.more_vert_rounded, color: t.iconTertiary, size: 20),
+              )),
             ]),
           ),
         ]),
       ),
     );
   }
+
+  String _buildSubtitle(FeedVideo v) {
+    final parts = <String>[v.sourceLabel];
+    if (v.views.isNotEmpty) parts.add('${v.views} vis.');
+    return parts.join(' · ');
+  }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _ImagesTab — grid masonry
-// ─────────────────────────────────────────────────────────────────────────────
-class _ImagesTab extends StatelessWidget {
-  final List<_EpornerVideo> videos;
-  final bool isDark;
-  final void Function(_EpornerVideo) onTap;
-  const _ImagesTab({required this.videos, required this.isDark, required this.onTap});
-
+// Thumbnail com retry (igual ao feed)
+class _ThumbNet extends StatefulWidget {
+  final String url;
+  final Map<String, String> headers;
+  const _ThumbNet({required this.url, required this.headers});
+  @override State<_ThumbNet> createState() => _ThumbNetState();
+}
+class _ThumbNetState extends State<_ThumbNet> {
+  int _attempt = 0;
+  bool _failed  = false;
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    if (videos.isEmpty) {
-      return Center(child: Text('Nenhuma miniatura encontrada',
-          style: TextStyle(color: t.textSecondary, fontSize: 13)));
+    if (widget.url.isEmpty || _failed) {
+      return Container(color: t.thumbBg,
+          child: Center(child: Icon(Icons.play_circle_outline_rounded,
+              color: t.iconSub, size: 40)));
     }
-    return MasonryGridView.count(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
-      crossAxisCount: 2,
-      mainAxisSpacing: 4,
-      crossAxisSpacing: 4,
-      itemCount: videos.length,
-      itemBuilder: (_, i) {
-        final v = videos[i];
-        return GestureDetector(
-          onTap: () => onTap(v),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: Stack(children: [
-              CachedNetworkImage(
-                imageUrl: v.thumbUrl,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                placeholder: (_, __) => Container(height: 110, color: t.thumbBg),
-                errorWidget: (_, __, ___) => Container(
-                    height: 90, color: t.thumbBg,
-                    child: Center(child: Icon(Icons.broken_image_outlined,
-                        color: t.iconTertiary, size: 24))),
-              ),
-              Positioned(
-                bottom: 0, left: 0, right: 0,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(6, 20, 6, 6),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter, end: Alignment.topCenter,
-                      colors: [Colors.black.withOpacity(0.8), Colors.transparent],
-                    ),
-                  ),
-                  child: Text(v.title, maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: t.text,
-                          fontSize: 10, fontWeight: FontWeight.w500)),
-                ),
-              ),
-              if (v.lengthMin.isNotEmpty)
-                Positioned(top: 4, right: 4,
-                    child: _DurationBadge(text: v.lengthMin)),
-            ]),
-          ),
-        );
+    return Image.network(
+      _attempt == 0 ? widget.url : '${widget.url}?_r=$_attempt',
+      key: ValueKey('${widget.url}_$_attempt'),
+      fit: BoxFit.cover,
+      headers: widget.headers,
+      errorBuilder: (_, __, ___) {
+        if (_attempt < 1) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _attempt++);
+          });
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _failed = true);
+          });
+        }
+        return Container(color: t.thumbBg,
+            child: Center(child: Icon(Icons.play_circle_outline_rounded,
+                color: t.iconSub, size: 40)));
+      },
+      loadingBuilder: (_, child, p) {
+        if (p == null) return child;
+        return _ThumbShimmer();
       },
     );
   }
 }
 
-// ─── Skeleton list ────────────────────────────────────────────────────────────
-class _SkeletonList extends StatelessWidget {
-  final bool isDark;
-  const _SkeletonList({required this.isDark});
+class _ThumbShimmer extends StatefulWidget {
+  @override State<_ThumbShimmer> createState() => _ThumbShimmerState();
+}
+class _ThumbShimmerState extends State<_ThumbShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _a;
+  @override void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
+    _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+  }
+  @override void dispose() { _c.dispose(); super.dispose(); }
+  @override Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _a,
+    builder: (_, __) => Container(decoration: BoxDecoration(gradient: LinearGradient(
+      begin: Alignment(_a.value - 1, 0), end: Alignment(_a.value + 1, 0),
+      colors: AppTheme.current.shimmer))));
+}
 
-  @override
-  Widget build(BuildContext context) => ListView.builder(
-    padding: const EdgeInsets.only(top: 4),
+// Avatar favicon
+class _FaviconAvatar extends StatelessWidget {
+  final VideoSource source;
+  final double size;
+  const _FaviconAvatar({required this.source, this.size = 36});
+  @override Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size / 2),
+      child: Image.network(
+        faviconForSource(source),
+        width: size, height: size,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => Container(
+          width: size, height: size,
+          decoration: BoxDecoration(color: t.avatarBg, shape: BoxShape.circle),
+          child: Center(child: Text(
+            source.name[0].toUpperCase(),
+            style: TextStyle(color: t.textSecondary,
+                fontSize: size * 0.36, fontWeight: FontWeight.w700))),
+        ),
+        loadingBuilder: (_, child, p) => p == null ? child : Container(
+          width: size, height: size,
+          decoration: BoxDecoration(color: t.avatarBg, shape: BoxShape.circle),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+class _SkeletonList extends StatelessWidget {
+  const _SkeletonList();
+  @override Widget build(BuildContext context) => ListView.builder(
+    padding: const EdgeInsets.only(top: 8),
     itemCount: 5,
-    itemBuilder: (_, __) => _CardSkeleton(isDark: isDark),
+    itemBuilder: (_, __) => const _CardSkeleton(),
   );
 }
 
 class _CardSkeleton extends StatefulWidget {
-  final bool isDark;
-  const _CardSkeleton({required this.isDark});
-  @override
-  State<_CardSkeleton> createState() => _CardSkeletonState();
+  const _CardSkeleton();
+  @override State<_CardSkeleton> createState() => _CardSkeletonState();
 }
-
 class _CardSkeletonState extends State<_CardSkeleton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c;
   late final Animation<double> _a;
-  @override
-  void initState() {
+  @override void initState() {
     super.initState();
-    _c = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 1200))..repeat();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
     _a = Tween<double>(begin: -2, end: 2)
         .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
   }
-  @override
-  void dispose() { _c.dispose(); super.dispose(); }
+  @override void dispose() { _c.dispose(); super.dispose(); }
 
   Widget _box(double w, double h, {double r = 6}) => AnimatedBuilder(
     animation: _a,
@@ -855,16 +869,14 @@ class _CardSkeletonState extends State<_CardSkeleton>
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(r),
         gradient: LinearGradient(
-          begin: Alignment(_a.value - 1, 0),
-          end: Alignment(_a.value + 1, 0),
+          begin: Alignment(_a.value - 1, 0), end: Alignment(_a.value + 1, 0),
           colors: AppTheme.current.shimmer,
         ),
       ),
     ),
   );
 
-  @override
-  Widget build(BuildContext context) {
+  @override Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -873,11 +885,10 @@ class _CardSkeletonState extends State<_CardSkeleton>
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _box(34, 34, r: 17),
-            const SizedBox(width: 10),
-            Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _box(w * 0.7, 14),
+            _box(36, 36, r: 18),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _box(w * 0.75, 14),
               const SizedBox(height: 6),
               _box(w * 0.45, 12),
             ])),
@@ -888,80 +899,17 @@ class _CardSkeletonState extends State<_CardSkeleton>
   }
 }
 
-// ─── Thumbnail skeleton inline ────────────────────────────────────────────────
-class _ThumbSkeleton extends StatefulWidget {
-  final bool isDark;
-  const _ThumbSkeleton({required this.isDark});
-  @override
-  State<_ThumbSkeleton> createState() => _ThumbSkeletonState();
-}
-class _ThumbSkeletonState extends State<_ThumbSkeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-  late final Animation<double> _a;
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 1200))..repeat();
-    _a = Tween<double>(begin: -2, end: 2)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
-  }
-  @override
-  void dispose() { _c.dispose(); super.dispose(); }
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _a,
-    builder: (_, __) => Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment(_a.value - 1, 0),
-          end: Alignment(_a.value + 1, 0),
-          colors: AppTheme.current.shimmer,
-        ),
-      ),
-    ),
-  );
-}
-
-// ─── CountPill ────────────────────────────────────────────────────────────────
-class _CountPill extends StatelessWidget {
-  final int count;
-  const _CountPill({required this.count});
-
-  String get _label {
-    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
-    if (count >= 1000)    return '${(count / 1000).toStringAsFixed(0)}k';
-    return '$count';
-  }
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-    decoration: BoxDecoration(
-      color: AppTheme.ytRed.withOpacity(0.15),
-      borderRadius: BorderRadius.circular(4),
-    ),
-    child: Text(_label,
-      style: TextStyle(color: AppTheme.ytRed,
-          fontSize: 9, fontWeight: FontWeight.w700)),
-  );
-}
-
 // ─── DurationBadge ────────────────────────────────────────────────────────────
 class _DurationBadge extends StatelessWidget {
   final String text;
   const _DurationBadge({required this.text});
-
-  @override
-  Widget build(BuildContext context) => Container(
+  @override Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
     decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.75),
         borderRadius: BorderRadius.circular(4)),
-    child: Text(text,
-        style: const TextStyle(
-            color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+    child: Text(text, style: const TextStyle(
+        color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
   );
 }
 
@@ -970,9 +918,7 @@ class _ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
   const _ErrorView({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
+  @override Widget build(BuildContext context) {
     final t = AppTheme.current;
     return Center(
       child: Padding(
@@ -992,8 +938,8 @@ class _ErrorView extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text('Tentar novamente',
-                style: TextStyle(
-                    color: t.text, fontSize: 13, fontWeight: FontWeight.w500)),
+                  style: TextStyle(color: t.text, fontSize: 13,
+                      fontWeight: FontWeight.w500)),
             ),
           ),
         ]),

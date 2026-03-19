@@ -56,4 +56,5 @@ flutter:
     - assets/images/bg12.jpg
     - assets/icons/downloads_folder.png
     - assets/lottie/tick_mark.json
+    - assets/lottie/Cat_playing_animation.json
     - assets/lottie/wrong_feedback.json
