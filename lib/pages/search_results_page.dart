@@ -13,14 +13,12 @@ import 'home_page.dart' show kPrimaryColor, FeedVideo, FeedFetcher,
     VideoSource, faviconForSource;
 import '../theme/app_theme.dart';
 
-// SVG back — padrão do app
 const _iBack =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23'
     'a1,1,0,0,0,1-1h0a1,1,0,0,0-1-1H2.55L6.17,7.38A1,1,0,0,0,6.17,6h0A1,1,0,0,0,'
     '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/></svg>';
 
-// SVG lupa
 const _iSearch =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M23.707,22.293l-5.969-5.969a10.016,10.016,0,1,0-1.414,1.414l5.969,5.969'
@@ -125,6 +123,9 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   bool _loading     = false;
   bool _loadingMore = false;
   bool _searching   = false;
+  // Quando true, o campo mostra o texto da query como display (não editável)
+  // Ao clicar activa o modo de edição
+  bool _editingQuery = false;
   String? _error;
   int _page       = 1;
   int _totalPages = 1;
@@ -152,7 +153,6 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     super.dispose();
   }
 
-  // ── Histórico ──────────────────────────────────────────────────────────────
   Future<void> _loadHistory() async {
     final p = await SharedPreferences.getInstance();
     if (mounted) setState(() => _history = p.getStringList(_kHistory) ?? []);
@@ -179,7 +179,6 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     await p.remove(_kHistory);
   }
 
-  // ── Sugestões ──────────────────────────────────────────────────────────────
   void _onTyping() {
     setState(() {});
     final q = _q.text.trim();
@@ -199,7 +198,6 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     } catch (_) {}
   }
 
-  // ── Scroll infinito ────────────────────────────────────────────────────────
   void _onScroll() {
     if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 400 &&
         !_loadingMore && _page < _totalPages) {
@@ -207,7 +205,6 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     }
   }
 
-  // ── Pesquisa ───────────────────────────────────────────────────────────────
   Future<void> _doSearch(String q) async {
     q = q.trim(); if (q.isEmpty) return;
     _focus.unfocus();
@@ -215,7 +212,9 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     _q.selection = TextSelection.collapsed(offset: q.length);
     await _saveHistory(q);
     setState(() {
-      _searching = true; _loading = true; _error = null;
+      _searching = true;
+      _editingQuery = false; // volta ao modo display após pesquisar
+      _loading = true; _error = null;
       _feedVideos = []; _suggestions = [];
       _page = 1; _totalPages = 1;
     });
@@ -284,13 +283,26 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     }
   }
 
+  // Clicou no display da query — activa edição
+  void _activateEditing() {
+    setState(() => _editingQuery = true);
+    // Pequeno delay para garantir que o TextField já foi inserido na árvore
+    Future.delayed(const Duration(milliseconds: 50), () {
+      if (mounted) _focus.requestFocus();
+    });
+  }
+
   void _clearSearch() {
     _q.clear();
-    setState(() { _searching = false; _feedVideos = []; _suggestions = []; });
+    setState(() {
+      _searching = false;
+      _editingQuery = false;
+      _feedVideos = [];
+      _suggestions = [];
+    });
     _focus.requestFocus();
   }
 
-  // ── Popup menu três pontinhos do AppBar ────────────────────────────────────
   void _showAppBarMenu(BuildContext ctx) {
     final t = AppTheme.current;
     final RenderBox btn = ctx.findRenderObject() as RenderBox;
@@ -303,20 +315,15 @@ class _SearchResultsPageState extends State<SearchResultsPage>
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
           side: BorderSide(color: t.borderSoft)),
-      position: RelativeRect.fromLTRB(
-          pos.dx - 180, pos.dy + 4, pos.dx, pos.dy + 200),
+      position: RelativeRect.fromLTRB(pos.dx - 180, pos.dy + 4, pos.dx, pos.dy + 200),
       items: [
         PopupMenuItem<String>(
-          value: 'options',
-          height: 46,
-          child: Text('Opções de pesquisa',
-              style: TextStyle(color: t.text, fontSize: 14)),
+          value: 'options', height: 46,
+          child: Text('Opções de pesquisa', style: TextStyle(color: t.text, fontSize: 14)),
         ),
         PopupMenuItem<String>(
-          value: 'filter',
-          height: 46,
-          child: Text('Filtro de pesquisa',
-              style: TextStyle(color: t.text, fontSize: 14)),
+          value: 'filter', height: 46,
+          child: Text('Filtro de pesquisa', style: TextStyle(color: t.text, fontSize: 14)),
         ),
       ],
     ).then((val) {
@@ -336,6 +343,12 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     super.build(context);
     final t      = AppTheme.current;
     final topPad = MediaQuery.of(context).padding.top;
+
+    // Determina se mostra o campo editável ou o display da query
+    // - Não está em modo pesquisa → sempre editável (estado inicial)
+    // - Está em modo pesquisa + editando → TextField activo
+    // - Está em modo pesquisa + não editando → display não editável
+    final showEditableField = !_searching || _editingQuery;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -358,7 +371,22 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
                   // Back
                   GestureDetector(
-                    onTap: _searching ? _clearSearch : () => Navigator.pop(context),
+                    onTap: () {
+                      if (_editingQuery) {
+                        // Cancela edição e volta ao display
+                        setState(() {
+                          _editingQuery = false;
+                          _q.text = _feedVideos.isNotEmpty || _searching
+                              ? _q.text
+                              : '';
+                        });
+                        _focus.unfocus();
+                      } else if (_searching) {
+                        _clearSearch();
+                      } else {
+                        Navigator.pop(context);
+                      }
+                    },
                     behavior: HitTestBehavior.opaque,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -367,50 +395,70 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                     ),
                   ),
 
-                  // Campo de pesquisa
+                  // Campo: display quando há resultados, editável nos outros casos
                   Expanded(
-                    child: Container(
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: t.inputBg,
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(color: t.inputBorder),
-                      ),
-                      child: Row(children: [
-                        const SizedBox(width: 12),
-                        SvgPicture.string(_iSearch, width: 16, height: 16,
-                            colorFilter: ColorFilter.mode(t.inputHint, BlendMode.srcIn)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _q,
-                            focusNode: _focus,
-                            autofocus: !_searching,
-                            style: TextStyle(color: t.inputText, fontSize: 14.5),
-                            textInputAction: TextInputAction.search,
-                            cursorColor: AppTheme.ytRed,
-                            cursorWidth: 1.5,
-                            onSubmitted: _doSearch,
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              hintText: 'Pesquisar vídeos...',
-                              hintStyle: TextStyle(color: t.inputHint, fontSize: 14.5),
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 11),
-                            ),
-                          ),
+                    child: GestureDetector(
+                      // Ao tocar no display → activa edição
+                      onTap: (!showEditableField) ? _activateEditing : null,
+                      child: Container(
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: t.inputBg,
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(color: t.inputBorder),
                         ),
-                        if (_q.text.isNotEmpty)
-                          GestureDetector(
-                            onTap: _clearSearch,
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 10),
-                              child: Icon(Icons.close_rounded,
-                                  color: t.iconSub, size: 17)),
-                          )
-                        else
+                        child: Row(children: [
                           const SizedBox(width: 12),
-                      ]),
+                          SvgPicture.string(_iSearch, width: 16, height: 16,
+                              colorFilter: ColorFilter.mode(t.inputHint, BlendMode.srcIn)),
+                          const SizedBox(width: 8),
+
+                          Expanded(
+                            child: showEditableField
+                                // ── Campo editável ──────────────────────────
+                                ? TextField(
+                                    controller: _q,
+                                    focusNode: _focus,
+                                    autofocus: !_searching,
+                                    style: TextStyle(color: t.inputText, fontSize: 14.5),
+                                    textInputAction: TextInputAction.search,
+                                    cursorColor: AppTheme.ytRed,
+                                    cursorWidth: 1.5,
+                                    onSubmitted: _doSearch,
+                                    decoration: InputDecoration(
+                                      border: InputBorder.none,
+                                      hintText: 'Pesquisar vídeos...',
+                                      hintStyle: TextStyle(color: t.inputHint, fontSize: 14.5),
+                                      isDense: true,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(vertical: 11),
+                                    ),
+                                  )
+                                // ── Display da query (não editável) ─────────
+                                : Text(
+                                    _q.text,
+                                    style: TextStyle(
+                                      color: t.inputText,
+                                      fontSize: 14.5,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                          ),
+
+                          // X para limpar — só no modo editável
+                          if (showEditableField && _q.text.isNotEmpty)
+                            GestureDetector(
+                              onTap: _clearSearch,
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 10),
+                                child: Icon(Icons.close_rounded,
+                                    color: t.iconSub, size: 17)),
+                            )
+                          else
+                            const SizedBox(width: 12),
+                        ]),
+                      ),
                     ),
                   ),
 
@@ -431,7 +479,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
           // ── Corpo ──────────────────────────────────────────────────────────
           Expanded(
-            child: !_searching
+            child: !_searching || _editingQuery
                 ? _SuggestionsView(
                     query: _q.text.trim(),
                     history: _history,
@@ -513,16 +561,14 @@ class _SuggestionsView extends StatelessWidget {
               ),
             ]),
           ),
-
         ...items.map((item) => Column(children: [
           InkWell(
             onTap: () => onSelect(item),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(children: [
-                Icon(
-                  showSuggestions ? Icons.search_rounded : Icons.history_rounded,
-                  color: subColor, size: 20),
+                Icon(showSuggestions ? Icons.search_rounded : Icons.history_rounded,
+                    color: subColor, size: 20),
                 const SizedBox(width: 14),
                 Expanded(child: Text(item,
                     style: TextStyle(color: textColor, fontSize: 14.5))),
@@ -547,7 +593,7 @@ class _SuggestionsView extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _VideosTab — lista de vídeos estilo YouTube
+// _VideosTab
 // ─────────────────────────────────────────────────────────────────────────────
 class _VideosTab extends StatelessWidget {
   final List<FeedVideo> videos;
@@ -593,7 +639,7 @@ class _VideosTab extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _VideoCard — estilo YouTube exacto
+// _VideoCard
 // ─────────────────────────────────────────────────────────────────────────────
 class _VideoCard extends StatelessWidget {
   final FeedVideo video;
@@ -626,8 +672,7 @@ class _VideoCard extends StatelessWidget {
   void _showMenu(BuildContext ctx, AppTheme t) {
     final RenderBox btn = ctx.findRenderObject() as RenderBox;
     final RenderBox overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
-    final pos = btn.localToGlobal(
-        Offset(btn.size.width, btn.size.height), ancestor: overlay);
+    final pos = btn.localToGlobal(Offset(btn.size.width, btn.size.height), ancestor: overlay);
     showMenu<String>(
       context: ctx,
       color: t.popup,
@@ -635,20 +680,15 @@ class _VideoCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
           side: BorderSide(color: t.borderSoft)),
-      position: RelativeRect.fromLTRB(
-          pos.dx - 200, pos.dy - 30, pos.dx, pos.dy + 200),
+      position: RelativeRect.fromLTRB(pos.dx - 200, pos.dy - 30, pos.dx, pos.dy + 200),
       items: [
         PopupMenuItem<String>(
-          value: 'options',
-          height: 46,
-          child: Text('Opções de pesquisa',
-              style: TextStyle(color: t.text, fontSize: 14)),
+          value: 'options', height: 46,
+          child: Text('Opções de pesquisa', style: TextStyle(color: t.text, fontSize: 14)),
         ),
         PopupMenuItem<String>(
-          value: 'filter',
-          height: 46,
-          child: Text('Filtro de pesquisa',
-              style: TextStyle(color: t.text, fontSize: 14)),
+          value: 'filter', height: 46,
+          child: Text('Filtro de pesquisa', style: TextStyle(color: t.text, fontSize: 14)),
         ),
       ],
     );
@@ -662,8 +702,6 @@ class _VideoCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.only(bottom: 20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-          // ── Thumbnail 16:9 ───────────────────────────────────────────────
           AspectRatio(
             aspectRatio: 16 / 9,
             child: Stack(fit: StackFit.expand, children: [
@@ -684,47 +722,32 @@ class _VideoCard extends StatelessWidget {
                 ),
             ]),
           ),
-
-          // ── Info — idêntica ao YouTube ───────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 8, 0),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-              // Avatar circular
               _FaviconAvatar(source: video.source, size: 36),
               const SizedBox(width: 12),
-
-              // Título + subtítulo
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      video.title,
-                      style: TextStyle(
-                          color: t.text, fontSize: 14,
+                    Text(video.title,
+                      style: TextStyle(color: t.text, fontSize: 14,
                           fontWeight: FontWeight.w500, height: 1.35),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 4),
-                    Text(
-                      _buildSubtitle(video),
+                    Text(_buildSubtitle(video),
                       style: TextStyle(color: t.textSecondary, fontSize: 12),
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                    ),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
-
-              // Three-dot
               Builder(builder: (btnCtx) => GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => _showMenu(btnCtx, t),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(8, 0, 4, 0),
-                  child: Icon(Icons.more_vert_rounded,
-                      color: t.iconTertiary, size: 20),
+                  child: Icon(Icons.more_vert_rounded, color: t.iconTertiary, size: 20),
                 ),
               )),
             ]),
@@ -741,7 +764,6 @@ class _VideoCard extends StatelessWidget {
   }
 }
 
-// Thumbnail com retry (igual ao feed)
 class _ThumbNet extends StatefulWidget {
   final String url;
   final Map<String, String> headers;
@@ -806,7 +828,6 @@ class _ThumbShimmerState extends State<_ThumbShimmer>
       colors: AppTheme.current.shimmer))));
 }
 
-// Avatar favicon
 class _FaviconAvatar extends StatelessWidget {
   final VideoSource source;
   final double size;
@@ -836,7 +857,6 @@ class _FaviconAvatar extends StatelessWidget {
   }
 }
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
 class _SkeletonList extends StatelessWidget {
   const _SkeletonList();
   @override Widget build(BuildContext context) => ListView.builder(
@@ -899,21 +919,6 @@ class _CardSkeletonState extends State<_CardSkeleton>
   }
 }
 
-// ─── DurationBadge ────────────────────────────────────────────────────────────
-class _DurationBadge extends StatelessWidget {
-  final String text;
-  const _DurationBadge({required this.text});
-  @override Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-    decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.75),
-        borderRadius: BorderRadius.circular(4)),
-    child: Text(text, style: const TextStyle(
-        color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
-  );
-}
-
-// ─── ErrorView ────────────────────────────────────────────────────────────────
 class _ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;

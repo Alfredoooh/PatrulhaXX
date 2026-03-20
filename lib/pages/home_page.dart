@@ -102,6 +102,24 @@ const _svgHamburger =
     '<path d="M23,20H1a1,1,0,0,0,0,2H23a1,1,0,0,0,0-2Z"/>'
     '</svg>';
 
+// SVGs do drawer
+const _svgDrawerDownload =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M19,3h-6.528c-.154,0-.31-.036-.447-.105l-3.156-1.578c-.415-.207-.878-.316-1.341-.316h-2.528'
+    'C2.243,1,0,3.243,0,6v12c0,2.757,2.243,5,5,5h1c.552,0,1-.447,1-1s-.448-1-1-1h-1c-1.654,0-3-1.346-3-3V9H22v9'
+    'c0,1.654-1.346,3-3,3h-1c-.553,0-1,.447-1,1s.447,1,1,1h1c2.757,0,5-2.243,5-5V8c0-2.757-2.243-5-5-5Z'
+    'M2,6c0-1.654,1.346-3,3-3h2.528c.154,0,.31,.036,.447,.105l3.156,1.578c.415,.207,.878,.316,1.341,.316h6.528'
+    'c1.302,0,2.402,.839,2.816,2H2v-1Zm13.707,13.105c.391,.391,.391,1.023,0,1.414l-1.613,1.613'
+    'c-.577,.577-1.335,.865-2.094,.865s-1.516-.288-2.093-.865l-1.614-1.613c-.391-.391-.391-1.023,0-1.414'
+    's1.023-.391,1.414,0l1.293,1.293v-7.398c0-.553,.448-1,1-1s1,.447,1,1v7.398l1.293-1.293'
+    'c.391-.391,1.023-.391,1.414,0Z"/></svg>';
+
+const _svgDrawerSettings =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M12,8a4,4,0,1,0,4,4A4,4,0,0,0,12,8Zm0,6a2,2,0,1,1,2-2A2,2,0,0,1,12,14Z"/>'
+    '<path d="M21.294,13.9l-.444-.256a9.1,9.1,0,0,0,0-3.29l.444-.256a3,3,0,1,0-3-5.2l-.445.257A8.977,8.977,0,0,0,15,3.513V3a3,3,0,0,0-6,0v.513A8.977,8.977,0,0,0,6.152,5.159L5.705,4.9a3,3,0,0,0-3,5.2l.444.256a9.1,9.1,0,0,0,0,3.29L2.7,13.9a3,3,0,0,0,3,5.2l.445-.257A8.977,8.977,0,0,0,9,20.487V21a3,3,0,0,0,6,0v-.513a8.977,8.977,0,0,0,2.848-1.646L18.294,19.1a3,3,0,0,0,3-5.2Z"/>'
+    '</svg>';
+
 // SVG settings gradiente Android (para o corpo do Início)
 const _svgSettingsGradient =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48px" height="48px">'
@@ -354,13 +372,11 @@ class _HomePageState extends State<HomePage>
             tab: _tab,
             onTab: (i) {
               setState(() {
-                if (i == 2 && i != _tab) {
-                  _selectedEmbedUrl = null;
-                  _selectedVideo = null;
-                  _miniPlayerActive = false;
-                } else if (i != 2 && _tab == 2 && _selectedVideo != null) {
+                // Ao sair da Exibição para outro tab — activa mini player se há vídeo
+                if (i != 2 && _tab == 2 && _selectedVideo != null) {
                   _miniPlayerActive = true;
                 } else if (i == 2) {
+                  // Ao entrar na Exibição — desactiva mini player mas NÃO apaga o vídeo
                   _miniPlayerActive = false;
                 }
                 _tab = i;
@@ -1103,13 +1119,15 @@ class _SearchPageState extends State<_SearchPage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(children: [
-              // Back arrow — padrão do app
+              // Back arrow — mesmo tamanho que o input
               GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: Container(
-                  width: 40, height: 40,
+                  width: 50, height: 50,
                   decoration: BoxDecoration(
-                    color: t.btnGhost, shape: BoxShape.circle),
+                    color: t.btnGhost,
+                    borderRadius: BorderRadius.circular(100),
+                  ),
                   child: Center(
                     child: SvgPicture.string(
                       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
