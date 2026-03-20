@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 import 'home_page.dart' show kPrimaryColor, FeedVideo, FeedFetcher,
     VideoSource, svgExibicaoOutline, faviconForSource;
 import '../services/theme_service.dart';
@@ -13,9 +14,6 @@ import 'download_list_page.dart';
 import '../theme/app_theme.dart';
 
 // ─── URLs ─────────────────────────────────────────────────────────────────────
-const _kDefaultEmbedUrl =
-    'https://patrulhaxx.onrender.com/gallery/'
-    'sente-a-batida-20260318-133645-0000_5w12cAmW.mp4';
 const _kAdsUrl = 'https://patrulhaxx.onrender.com/ads';
 
 // ─── SVGs menu popup ──────────────────────────────────────────────────────────
@@ -266,6 +264,62 @@ List<Widget> _skeletonCards(int n) => List.generate(n, (_) =>
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Player de vídeo local (estado vazio — nenhum vídeo selecionado)
+// ─────────────────────────────────────────────────────────────────────────────
+class _LocalAssetPlayer extends StatefulWidget {
+  final bool muted;
+  const _LocalAssetPlayer({required this.muted});
+  @override State<_LocalAssetPlayer> createState() => _LocalAssetPlayerState();
+}
+
+class _LocalAssetPlayerState extends State<_LocalAssetPlayer> {
+  late VideoPlayerController _ctrl;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = VideoPlayerController.asset('assets/videos/promo.mp4')
+      ..initialize().then((_) {
+        if (!mounted) return;
+        setState(() => _initialized = true);
+        _ctrl.setLooping(true);
+        _ctrl.setVolume(widget.muted ? 0.0 : 1.0);
+        _ctrl.play();
+      });
+  }
+
+  @override
+  void didUpdateWidget(_LocalAssetPlayer old) {
+    super.didUpdateWidget(old);
+    if (old.muted != widget.muted) {
+      _ctrl.setVolume(widget.muted ? 0.0 : 1.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) {
+      return const ColoredBox(color: Colors.black);
+    }
+    return FittedBox(
+      fit: BoxFit.cover,
+      child: SizedBox(
+        width: _ctrl.value.size.width,
+        height: _ctrl.value.size.height,
+        child: VideoPlayer(_ctrl),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ExibicaoPage
 // ─────────────────────────────────────────────────────────────────────────────
 class ExibicaoPage extends StatefulWidget {
@@ -298,8 +352,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   bool   _playerLoading  = true;
   FeedVideo? _nextVideo;
 
-  bool   get _isEmpty        => widget.embedUrl == null || widget.currentVideo == null;
-  String get _activeEmbedUrl => widget.embedUrl ?? _kDefaultEmbedUrl;
+  bool get _isEmpty => widget.embedUrl == null || widget.currentVideo == null;
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
   @override void initState() {
@@ -374,8 +427,11 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 
   void _toggleMute() {
     setState(() => _muted = !_muted);
-    _webCtrl?.evaluateJavascript(
-        source: "document.querySelector('video').muted = ${_muted};");
+    if (!_isEmpty) {
+      _webCtrl?.evaluateJavascript(
+          source: "document.querySelector('video').muted = ${_muted};");
+    }
+    // O _LocalAssetPlayer recebe o novo valor de muted via didUpdateWidget
   }
 
   Future<void> _openAdsUrl() async {
@@ -385,7 +441,6 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 
   /// Injeta o CSS e o JS no WebView após o load
   Future<void> _injectJs(InAppWebViewController ctrl) async {
-    // Passa o CSS como variável global para o JS ler
     final escapedCss = _kCleanCss.replaceAll("'", "\\'").replaceAll('\n', '\\n');
     await ctrl.evaluateJavascript(source: "window.__pxCss = '$escapedCss';");
     await ctrl.evaluateJavascript(source: _kPlayerInitJs);
@@ -466,59 +521,58 @@ class _ExibicaoPageState extends State<ExibicaoPage>
               color: Colors.black,
               child: Stack(children: [
 
-                // WebView fullscreen sem bordas brancas
+                // ── Vídeo local (estado vazio) ou WebView (vídeo selecionado) ─
                 Positioned.fill(
-                  child: InAppWebView(
-                    key: ValueKey(_activeEmbedUrl),
-                    initialUrlRequest: URLRequest(url: WebUri(_activeEmbedUrl)),
-                    initialSettings: InAppWebViewSettings(
-                      javaScriptEnabled: true,
-                      mediaPlaybackRequiresUserGesture: false,
-                      allowsInlineMediaPlayback: true,
-                      // transparentBackground elimina bordas brancas laterais
-                      transparentBackground: true,
-                      disableDefaultErrorPage: true,
-                      // Bloqueia scroll horizontal — sem deslize lateral
-                      disableHorizontalScroll: true,
-                      // Scroll vertical permitido apenas para RedTube auto-scroll
-                      disableVerticalScroll: false,
-                      supportZoom: false,
-                      builtInZoomControls: false,
-                      displayZoomControls: false,
-                      horizontalScrollBarEnabled: false,
-                      verticalScrollBarEnabled: false,
-                      userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
-                          'AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/124.0.0.0 Mobile Safari/537.36',
-                    ),
-                    onWebViewCreated: (ctrl) {
-                      _webCtrl = ctrl;
-                      if (_muted) {
-                        ctrl.evaluateJavascript(
-                            source: "document.querySelector('video')&&(document.querySelector('video').muted=true)");
-                      }
-                    },
-                    onLoadStop: (ctrl, _) async {
-                      await _injectJs(ctrl);
-                      if (mounted) setState(() => _playerLoading = false);
-                    },
-                    shouldOverrideUrlLoading: (ctrl, action) async {
-                      final url = action.request.url?.toString() ?? '';
-                      final ok = url.contains('/embed/') ||
-                          url.contains('embed.redtube') ||
-                          url.contains('youporn.com/embed') ||
-                          url == _activeEmbedUrl ||
-                          url.startsWith('about:') ||
-                          url.startsWith('blob:') ||
-                          url.startsWith('data:') ||
-                          url.isEmpty;
-                      return ok ? NavigationActionPolicy.ALLOW : NavigationActionPolicy.CANCEL;
-                    },
-                  ),
+                  child: _isEmpty
+                      ? _LocalAssetPlayer(muted: _muted)
+                      : InAppWebView(
+                          key: ValueKey(widget.embedUrl),
+                          initialUrlRequest: URLRequest(url: WebUri(widget.embedUrl!)),
+                          initialSettings: InAppWebViewSettings(
+                            javaScriptEnabled: true,
+                            mediaPlaybackRequiresUserGesture: false,
+                            allowsInlineMediaPlayback: true,
+                            transparentBackground: true,
+                            disableDefaultErrorPage: true,
+                            disableHorizontalScroll: true,
+                            disableVerticalScroll: false,
+                            supportZoom: false,
+                            builtInZoomControls: false,
+                            displayZoomControls: false,
+                            horizontalScrollBarEnabled: false,
+                            verticalScrollBarEnabled: false,
+                            userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
+                                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                                'Chrome/124.0.0.0 Mobile Safari/537.36',
+                          ),
+                          onWebViewCreated: (ctrl) {
+                            _webCtrl = ctrl;
+                            if (_muted) {
+                              ctrl.evaluateJavascript(
+                                  source: "document.querySelector('video')&&(document.querySelector('video').muted=true)");
+                            }
+                          },
+                          onLoadStop: (ctrl, _) async {
+                            await _injectJs(ctrl);
+                            if (mounted) setState(() => _playerLoading = false);
+                          },
+                          shouldOverrideUrlLoading: (ctrl, action) async {
+                            final url = action.request.url?.toString() ?? '';
+                            final ok = url.contains('/embed/') ||
+                                url.contains('embed.redtube') ||
+                                url.contains('youporn.com/embed') ||
+                                url == widget.embedUrl ||
+                                url.startsWith('about:') ||
+                                url.startsWith('blob:') ||
+                                url.startsWith('data:') ||
+                                url.isEmpty;
+                            return ok ? NavigationActionPolicy.ALLOW : NavigationActionPolicy.CANCEL;
+                          },
+                        ),
                 ),
 
-                // Thumbnail enquanto carrega (como YouTube)
-                if (_playerLoading)
+                // Thumbnail enquanto carrega (como YouTube) — só no WebView
+                if (!_isEmpty && _playerLoading)
                   Positioned.fill(
                     child: Stack(children: [
                       if (video?.thumb != null && video!.thumb.isNotEmpty)
@@ -534,7 +588,6 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                   ),
 
                 // Botão de mudo — único botão flutuante no canto inferior direito
-                // (o play é do player nativo, não duplicamos)
                 Positioned(
                   bottom: 8, right: 8,
                   child: _PlayerBtn(
@@ -696,6 +749,24 @@ class _EmptyBody extends StatelessWidget {
     final t = AppTheme.current;
     return Center(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
+
+        // Descrição do vídeo promo
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Text(
+            'Esteja pronto para ficar tesudo 🍆🍑',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: t.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              height: 1.4,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
         SizedBox(width: 200, height: 200,
           child: Lottie.asset('assets/lottie/Cat_playing_animation.json',
             repeat: true, animate: true,

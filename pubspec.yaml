@@ -54,7 +54,10 @@ flutter:
     - assets/images/bg10.jpg
     - assets/images/bg11.jpg
     - assets/images/bg12.jpg
+    - assets/videos/promo.mp4
     - assets/icons/downloads_folder.png
     - assets/lottie/tick_mark.json
+    - assets/lottie/lock.json
+    - assets/lottie/no_connection.json
     - assets/lottie/Cat_playing_animation.json
     - assets/lottie/wrong_feedback.json

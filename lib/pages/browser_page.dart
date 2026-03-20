@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:lottie/lottie.dart';
 import '../models/site_model.dart';
 import '../services/favicon_service.dart';
 import '../services/download_service.dart';
 import '../widgets/site_icon_widget.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import 'downloads_page.dart';
 
 // SVGs
 const _svgMenuCopy =
@@ -44,6 +46,7 @@ class _BrowserPageState extends State<BrowserPage> {
   double _progress = 0;
   bool _loading = true;
   bool _dialogOpen = false;
+  bool _noConnection = false;
   String _pageTitle = '';
 
   late final String _startUrl;
@@ -207,8 +210,19 @@ class _BrowserPageState extends State<BrowserPage> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) =>
-          _DownloadSheet(src: src, type: type, thumb: thumb, site: widget.site),
+      builder: (_) => _DownloadSheet(
+        src: src,
+        type: type,
+        thumb: thumb,
+        site: widget.site,
+        onSuccess: () {
+          // Navega para a tela de downloads após guardar
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const DownloadsPage()),
+          );
+        },
+      ),
     ).whenComplete(() => setState(() => _dialogOpen = false));
   }
 
@@ -247,7 +261,6 @@ class _BrowserPageState extends State<BrowserPage> {
           statusBarIconBrightness: t.statusBar,
         ),
         child: Scaffold(
-          // backgroundColor cobre toda a tela — sem bordas brancas
           backgroundColor: t.bg,
           body: Column(children: [
 
@@ -315,92 +328,163 @@ class _BrowserPageState extends State<BrowserPage> {
               ]),
             ),
 
-            // ── Barra de progresso ────────────────────────────────────
+            // ── Barra de progresso — cor única (t.icon) ───────────────
             SizedBox(
               height: 2.5,
               child: _loading
                   ? LinearProgressIndicator(
                       value: _progress,
                       backgroundColor: Colors.transparent,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                          widget.site.primaryColor.withOpacity(0.9)),
+                      valueColor: AlwaysStoppedAnimation<Color>(t.icon),
                     )
                   : const SizedBox.shrink(),
             ),
 
-            // ── WebView ───────────────────────────────────────────────
+            // ── WebView + overlay sem conexão ─────────────────────────
             Expanded(
-              child: InAppWebView(
-                initialUrlRequest: URLRequest(url: WebUri(_startUrl)),
-                initialSettings: InAppWebViewSettings(
-                  javaScriptEnabled: true,
-                  javaScriptCanOpenWindowsAutomatically: true,
-                  domStorageEnabled: true,
-                  databaseEnabled: true,
-                  mediaPlaybackRequiresUserGesture: false,
-                  allowsInlineMediaPlayback: true,
-                  useOnDownloadStart: true,
-                  useShouldOverrideUrlLoading: true,
-                  supportZoom: true,
-                  builtInZoomControls: false,
-                  displayZoomControls: false,
-                  cacheEnabled: true,
-                  allowFileAccessFromFileURLs: true,
-                  allowUniversalAccessFromFileURLs: true,
-                  userAgent:
-                      'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
-                      '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-                ),
-                onWebViewCreated: (ctrl) {
-                  _wvCtrl = ctrl;
-                  ctrl.addJavaScriptHandler(
-                    handlerName: 'DownloadChannel',
-                    callback: _handleMediaArgs,
-                  );
-                },
-                onTitleChanged: (_, title) {
-                  if (mounted && title != null && title.isNotEmpty) {
-                    setState(() => _pageTitle = title);
-                  }
-                },
-                onLoadStart: (_, url) =>
-                    setState(() { _loading = true; _progress = 0; }),
-                onLoadStop: (ctrl, _) async {
-                  setState(() => _loading = false);
-                  await ctrl.evaluateJavascript(source: _mediaJs);
-                },
-                onProgressChanged: (_, p) =>
-                    setState(() => _progress = p / 100),
-                shouldOverrideUrlLoading: (ctrl, action) async {
-                  final url   = action.request.url?.toString() ?? '';
-                  final lower = url.toLowerCase();
-                  final isMedia = lower.contains('.mp4') ||
-                      lower.contains('.webm') ||
-                      lower.contains('.m4v') ||
-                      lower.contains('.mov') ||
-                      lower.contains('.m3u8') ||
-                      lower.contains('.ts?');
-                  if (isMedia && !_dialogOpen) {
-                    _showDownload(src: url, type: 'video', thumb: '');
-                    return NavigationActionPolicy.CANCEL;
-                  }
-                  if (!_isAllowed(url)) return NavigationActionPolicy.CANCEL;
-                  return NavigationActionPolicy.ALLOW;
-                },
-                onDownloadStartRequest: (_, req) {
-                  if (!_dialogOpen) {
-                    _showDownload(
-                      src: req.url.toString(),
-                      type: _guessType(req.url.toString()),
-                      thumb: '',
+              child: Stack(children: [
+
+                InAppWebView(
+                  initialUrlRequest: URLRequest(url: WebUri(_startUrl)),
+                  initialSettings: InAppWebViewSettings(
+                    javaScriptEnabled: true,
+                    javaScriptCanOpenWindowsAutomatically: true,
+                    domStorageEnabled: true,
+                    databaseEnabled: true,
+                    mediaPlaybackRequiresUserGesture: false,
+                    allowsInlineMediaPlayback: true,
+                    useOnDownloadStart: true,
+                    useShouldOverrideUrlLoading: true,
+                    supportZoom: true,
+                    builtInZoomControls: false,
+                    displayZoomControls: false,
+                    cacheEnabled: true,
+                    allowFileAccessFromFileURLs: true,
+                    allowUniversalAccessFromFileURLs: true,
+                    userAgent:
+                        'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
+                        '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                  ),
+                  onWebViewCreated: (ctrl) {
+                    _wvCtrl = ctrl;
+                    ctrl.addJavaScriptHandler(
+                      handlerName: 'DownloadChannel',
+                      callback: _handleMediaArgs,
                     );
-                  }
-                },
-                onPermissionRequest: (_, req) async => PermissionResponse(
-                  resources: req.resources,
-                  action: PermissionResponseAction.GRANT,
+                  },
+                  onTitleChanged: (_, title) {
+                    if (mounted && title != null && title.isNotEmpty) {
+                      setState(() => _pageTitle = title);
+                    }
+                  },
+                  onLoadStart: (_, url) => setState(() {
+                    _loading = true;
+                    _progress = 0;
+                    _noConnection = false;
+                  }),
+                  onLoadStop: (ctrl, _) async {
+                    setState(() => _loading = false);
+                    await ctrl.evaluateJavascript(source: _mediaJs);
+                  },
+                  onReceivedError: (_, request, error) {
+                    // Apenas para o frame principal — ignora sub-recursos
+                    if (request.isForMainFrame == true) {
+                      if (mounted) setState(() => _noConnection = true);
+                    }
+                  },
+                  onProgressChanged: (_, p) =>
+                      setState(() => _progress = p / 100),
+                  shouldOverrideUrlLoading: (ctrl, action) async {
+                    final url   = action.request.url?.toString() ?? '';
+                    final lower = url.toLowerCase();
+                    final isMedia = lower.contains('.mp4') ||
+                        lower.contains('.webm') ||
+                        lower.contains('.m4v') ||
+                        lower.contains('.mov') ||
+                        lower.contains('.m3u8') ||
+                        lower.contains('.ts?');
+                    if (isMedia && !_dialogOpen) {
+                      _showDownload(src: url, type: 'video', thumb: '');
+                      return NavigationActionPolicy.CANCEL;
+                    }
+                    if (!_isAllowed(url)) return NavigationActionPolicy.CANCEL;
+                    return NavigationActionPolicy.ALLOW;
+                  },
+                  onDownloadStartRequest: (_, req) {
+                    if (!_dialogOpen) {
+                      _showDownload(
+                        src: req.url.toString(),
+                        type: _guessType(req.url.toString()),
+                        thumb: '',
+                      );
+                    }
+                  },
+                  onPermissionRequest: (_, req) async => PermissionResponse(
+                    resources: req.resources,
+                    action: PermissionResponseAction.GRANT,
+                  ),
                 ),
-              ),
+
+                // ── Overlay sem conexão ───────────────────────────────
+                if (_noConnection)
+                  Positioned.fill(
+                    child: Container(
+                      color: t.bg,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 180,
+                            height: 180,
+                            child: Lottie.asset(
+                              'assets/lottie/no_connection.json',
+                              repeat: true,
+                              animate: true,
+                              errorBuilder: (_, __, ___) => Icon(
+                                Icons.wifi_off_rounded,
+                                size: 64,
+                                color: t.emptyIcon,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Sem ligação à internet',
+                            style: TextStyle(
+                              color: t.emptyText,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() => _noConnection = false);
+                              _wvCtrl?.reload();
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: t.cardAlt,
+                                borderRadius: BorderRadius.circular(100),
+                                border: Border.all(color: t.border),
+                              ),
+                              child: Text(
+                                'Tentar novamente',
+                                style: TextStyle(
+                                  color: t.text,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ]),
             ),
           ]),
         ),
@@ -655,12 +739,14 @@ class _DownloadSheet extends StatefulWidget {
   final String type;
   final String thumb;
   final SiteModel site;
+  final VoidCallback onSuccess;
 
   const _DownloadSheet({
     required this.src,
     required this.type,
     required this.thumb,
     required this.site,
+    required this.onSuccess,
   });
 
   @override
@@ -680,7 +766,10 @@ class _DownloadSheetState extends State<_DownloadSheet> {
     if (item != null) {
       setState(() { _downloading = false; _done = true; });
       await Future.delayed(const Duration(milliseconds: 900));
-      if (mounted) Navigator.pop(context);
+      if (!mounted) return;
+      Navigator.pop(context);
+      // Navega para a tela de downloads
+      widget.onSuccess();
     } else {
       setState(() {
         _downloading = false;
@@ -799,9 +888,10 @@ class _DownloadSheetState extends State<_DownloadSheet> {
 
           if (_downloading)
             Column(children: [
+              // Cor única — t.text em vez de primaryColor por site
               LinearProgressIndicator(
                 backgroundColor: t.divider,
-                valueColor: AlwaysStoppedAnimation(widget.site.primaryColor),
+                valueColor: AlwaysStoppedAnimation(t.text),
                 borderRadius: BorderRadius.circular(6),
                 minHeight: 5,
               ),

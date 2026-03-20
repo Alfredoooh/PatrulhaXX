@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import '../services/lock_service.dart';
 import '../theme/app_theme.dart';
@@ -54,7 +53,6 @@ class _TopToastState extends State<_TopToast>
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
-    // Toast sempre com estilo iOS pill — fundo branco translúcido, texto escuro
     return Positioned(
       top: topPad + 10,
       left: 20,
@@ -137,14 +135,14 @@ class LockScreen extends StatefulWidget {
 }
 
 class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
-  String  _input       = '';
+  String  _input        = '';
   String? _firstPin;
-  bool    _error       = false;
-  bool    _visible     = false;
-  bool    _showToast   = false;
+  bool    _error        = false;
+  bool    _visible      = false;
+  bool    _showToast    = false;
   bool    _toastSuccess = false;
-  String  _toastMsg    = '';
-  bool    _processing  = false;
+  String  _toastMsg     = '';
+  bool    _processing   = false;
 
   AnimationController? _lottieCtrl;
 
@@ -152,11 +150,6 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
   late final Animation<double>   _shakeAnim;
 
   final List<int> _keyTimestamps = [];
-
-  // Cores fixas do ecrã de bloqueio — sempre escuro independente do tema
-  static const Color _kBg     = Color(0xFF1C1C1E);
-  static const Color _kKeypad = Color(0xFF2C2C2E);
-  static const Color _kBtn    = Color(0xFF3A3A3A);
 
   @override
   void initState() {
@@ -294,119 +287,141 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final t       = AppTheme.current;
     final screenH = MediaQuery.of(context).size.height;
     final botPad  = MediaQuery.of(context).padding.bottom;
+    final topPad  = MediaQuery.of(context).padding.top;
     final keypadH = screenH * 0.55;
 
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: t.bg,
       body: Stack(children: [
         Column(children: [
 
-          // ── Zona superior — título + dots ───────────────────────────
+          // ── Zona superior ─────────────────────────────────────────────
           Expanded(
-            child: SafeArea(
-              bottom: false,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+            child: Stack(children: [
 
-                  // Título
-                  Text(
-                    _title,
-                    style: GoogleFonts.playfairDisplay(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                    ),
+              // Título — fora do grupo centrado, fixo no topo
+              Positioned(
+                top: topPad + 16,
+                left: 0,
+                right: 0,
+                child: Text(
+                  _title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: t.text,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.1,
                   ),
-                  const SizedBox(height: 6),
-
-                  // Subtítulo / erro
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: Text(
-                      _subtitle,
-                      key: ValueKey(_subtitle),
-                      style: TextStyle(
-                        color: _error
-                            ? AppTheme.error
-                            : Colors.white.withOpacity(0.38),
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Dots PIN
-                  AnimatedBuilder(
-                    animation: _shakeAnim,
-                    builder: (_, child) => Transform.translate(
-                        offset: Offset(_shakeAnim.value, 0), child: child),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        _input.isEmpty ? 4 : _input.length.clamp(4, 12),
-                        (i) {
-                          final filled = i < _input.length;
-                          final ch = filled && _visible ? _input[i] : null;
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            margin:
-                                const EdgeInsets.symmetric(horizontal: 6),
-                            width:  filled ? 16 : 13,
-                            height: filled ? 16 : 13,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _error
-                                  ? AppTheme.error
-                                  : filled
-                                      ? Colors.white
-                                      : Colors.white.withOpacity(0.25),
-                              boxShadow: filled && !_error
-                                  ? [
-                                      BoxShadow(
-                                          color: Colors.white.withOpacity(0.3),
-                                          blurRadius: 6)
-                                    ]
-                                  : null,
-                            ),
-                            child: ch != null
-                                ? Center(
-                                    child: Text(ch,
-                                        style: const TextStyle(
-                                            color: Colors.black,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold)))
-                                : null,
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+
+              // Centro — Lottie + subtítulo + dots
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+
+                    // Lottie no lugar do texto central
+                    SizedBox(
+                      width: 120,
+                      height: 120,
+                      child: Lottie.asset(
+                        'assets/lottie/lock.json',
+                        repeat: true,
+                        animate: true,
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.lock_rounded,
+                          size: 64,
+                          color: t.iconSub,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Dots PIN
+                    AnimatedBuilder(
+                      animation: _shakeAnim,
+                      builder: (_, child) => Transform.translate(
+                          offset: Offset(_shakeAnim.value, 0), child: child),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          _input.isEmpty ? 4 : _input.length.clamp(4, 12),
+                          (i) {
+                            final filled = i < _input.length;
+                            final ch = filled && _visible ? _input[i] : null;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              margin: const EdgeInsets.symmetric(horizontal: 6),
+                              width:  filled ? 16 : 13,
+                              height: filled ? 16 : 13,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _error
+                                    ? AppTheme.error
+                                    : filled
+                                        ? t.text
+                                        : t.text.withOpacity(0.25),
+                                boxShadow: filled && !_error
+                                    ? [
+                                        BoxShadow(
+                                            color: t.text.withOpacity(0.3),
+                                            blurRadius: 6)
+                                      ]
+                                    : null,
+                              ),
+                              child: ch != null
+                                  ? Center(
+                                      child: Text(ch,
+                                          style: TextStyle(
+                                              color: t.bg,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold)))
+                                  : null,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Subtítulo / erro
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Text(
+                        _subtitle,
+                        key: ValueKey(_subtitle),
+                        style: TextStyle(
+                          color: _error
+                              ? AppTheme.error
+                              : t.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ]),
           ),
 
-          // ── Zona inferior — teclado ──────────────────────────────────
-          Container(
+          // ── Zona inferior — teclado sem container visível ─────────────
+          SizedBox(
             height: keypadH + botPad,
-            decoration: BoxDecoration(
-              color: _kKeypad,
-              borderRadius: const BorderRadius.only(
-                topLeft:  Radius.circular(36),
-                topRight: Radius.circular(36),
-              ),
-            ),
             child: SafeArea(
               top: false,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(32, 28, 32, 12),
                 child: _Keypad(
-                  btnColor: _kBtn,
+                  btnColor: t.cardAlt,
+                  textColor: t.text,
+                  iconColor: t.textSecondary,
                   onKey: _onKey,
                   onDelete: _onDel,
                   onToggleVisible: () =>
@@ -436,12 +451,16 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
 // ── Keypad ────────────────────────────────────────────────────────────────────
 class _Keypad extends StatelessWidget {
   final Color btnColor;
+  final Color textColor;
+  final Color iconColor;
   final ValueChanged<String> onKey;
   final VoidCallback onDelete, onToggleVisible;
   final bool isVisible, processing;
 
   const _Keypad({
     required this.btnColor,
+    required this.textColor,
+    required this.iconColor,
     required this.onKey,
     required this.onDelete,
     required this.onToggleVisible,
@@ -478,16 +497,16 @@ class _Keypad extends StatelessWidget {
                 isVisible
                     ? Icons.visibility_off_rounded
                     : Icons.visibility_rounded,
-                color: Colors.white54,
+                color: iconColor,
                 size: 22),
           ),
           _KeyBtn(
             btnColor: btnColor,
             onTap: () => onKey('0'),
             enabled: !processing,
-            child: const Text('0',
+            child: Text('0',
                 style: TextStyle(
-                    color: Colors.white,
+                    color: textColor,
                     fontSize: 28,
                     fontWeight: FontWeight.w300)),
           ),
@@ -495,8 +514,7 @@ class _Keypad extends StatelessWidget {
             btnColor: btnColor,
             onTap: onDelete,
             enabled: !processing,
-            child: const Icon(Icons.backspace_rounded,
-                color: Colors.white54, size: 22),
+            child: Icon(Icons.backspace_rounded, color: iconColor, size: 22),
           ),
         ]),
       ],
@@ -511,8 +529,8 @@ class _Keypad extends StatelessWidget {
                   onTap: () => onKey(k),
                   enabled: !processing,
                   child: Text(k,
-                      style: const TextStyle(
-                          color: Colors.white,
+                      style: TextStyle(
+                          color: textColor,
                           fontSize: 28,
                           fontWeight: FontWeight.w300)),
                 ))
@@ -520,7 +538,7 @@ class _Keypad extends StatelessWidget {
       );
 }
 
-// ── Botão do teclado ──────────────────────────────────────────────────────────
+// ── Botão do teclado — pill ───────────────────────────────────────────────────
 class _KeyBtn extends StatefulWidget {
   final Color btnColor;
   final VoidCallback onTap;
@@ -560,17 +578,18 @@ class _KeyBtnState extends State<_KeyBtn> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTapDown:  widget.enabled ? (_) => _c.forward()              : null,
-      onTapUp:    widget.enabled ? (_) { _c.reverse(); widget.onTap(); } : null,
-      onTapCancel: widget.enabled ? () => _c.reverse()              : null,
+      onTapDown:   widget.enabled ? (_) => _c.forward()              : null,
+      onTapUp:     widget.enabled ? (_) { _c.reverse(); widget.onTap(); } : null,
+      onTapCancel: widget.enabled ? () => _c.reverse()               : null,
       child: AnimatedBuilder(
         animation: _s,
         builder: (_, child) =>
             Transform.scale(scale: _s.value, child: child),
         child: Container(
-          width: 74, height: 74,
+          width: 88,
+          height: 52,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
+            borderRadius: BorderRadius.circular(100),
             color: widget.enabled
                 ? widget.btnColor
                 : widget.btnColor.withOpacity(0.4),

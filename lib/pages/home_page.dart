@@ -54,33 +54,6 @@ const _svgDownload =
     's1.023-.391,1.414,0l1.293,1.293v-7.398c0-.553,.448-1,1-1s1,.447,1,1v7.398l1.293-1.293'
     'c.391-.391,1.023-.391,1.414,0Z"/></svg>';
 
-const _svgSettings =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M1,4.75H3.736a3.728,3.728,0,0,0,7.195,0H23a1,1,0,0,0,0-2H10.931a3.728,3.728,0,0,0-7.195,0H1a1,1,0,0,0,0,2Z'
-    'M7.333,2a1.75,1.75,0,1,1-1.75,1.75A1.752,1.752,0,0,1,7.333,2Z"/>'
-    '<path d="M23,11H20.264a3.727,3.727,0,0,0-7.194,0H1a1,1,0,0,0,0,2H13.07a3.727,3.727,0,0,0,7.194,0H23a1,1,0,0,0,0-2Z'
-    'm-6.333,2.75A1.75,1.75,0,1,1,18.417,12,1.752,1.752,0,0,1,16.667,13.75Z"/>'
-    '<path d="M23,19.25H10.931a3.728,3.728,0,0,0-7.195,0H1a1,1,0,0,0,0,2H3.736a3.728,3.728,0,0,0,7.195,0H23a1,1,0,0,0,0-2Z'
-    'M7.333,22a1.75,1.75,0,1,1,1.75-1.75A1.753,1.752,0,0,1,7.333,22Z"/></svg>';
-
-// SVGs para o drawer
-const _svgDrawerDownload =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M19,3h-6.528c-.154,0-.31-.036-.447-.105l-3.156-1.578c-.415-.207-.878-.316-1.341-.316h-2.528'
-    'C2.243,1,0,3.243,0,6v12c0,2.757,2.243,5,5,5h1c.552,0,1-.447,1-1s-.448-1-1-1h-1c-1.654,0-3-1.346-3-3V9H22v9'
-    'c0,1.654-1.346,3-3,3h-1c-.553,0-1,.447-1,1s.447,1,1,1h1c2.757,0,5-2.243,5-5V8c0-2.757-2.243-5-5-5Z'
-    'M2,6c0-1.654,1.346-3,3-3h2.528c.154,0,.31,.036,.447,.105l3.156,1.578c.415,.207,.878,.316,1.341,.316h6.528'
-    'c1.302,0,2.402,.839,2.816,2H2v-1Zm13.707,13.105c.391,.391,.391,1.023,0,1.414l-1.613,1.613'
-    'c-.577,.577-1.335,.865-2.094,.865s-1.516-.288-2.093-.865l-1.614-1.613c-.391-.391-.391-1.023,0-1.414'
-    's1.023-.391,1.414,0l1.293,1.293v-7.398c0-.553,.448-1,1-1s1,.447,1,1v7.398l1.293-1.293'
-    'c.391-.391,1.023-.391,1.414,0Z"/></svg>';
-
-// SVG drawer settings — path limpo equivalente ao enviado
-const _svgDrawerSettings =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M12,8a4,4,0,1,0,4,4A4,4,0,0,0,12,8Zm0,6a2,2,0,1,1,2-2A2,2,0,0,1,12,14Z"/>'
-    '<path d="M21.294,13.9l-.444-.256a9.1,9.1,0,0,0,0-3.29l.444-.256a3,3,0,1,0-3-5.2l-.445.257A8.977,8.977,0,0,0,15,3.513V3a3,3,0,0,0-6,0v.513A8.977,8.977,0,0,0,6.152,5.159L5.705,4.9a3,3,0,0,0-3,5.2l.444.256a9.1,9.1,0,0,0,0,3.29L2.7,13.9a3,3,0,0,0,3,5.2l.445-.257A8.977,8.977,0,0,0,9,20.487V21a3,3,0,0,0,6,0v-.513a8.977,8.977,0,0,0,2.848-1.646L18.294,19.1a3,3,0,0,0,3-5.2Zm-2.548-3.776a7.048,7.048,0,0,1,0,3.75,1,1,0,0,0,.464,1.133l1.084.626a1,1,0,0,1-1,1.733l-1.086-.628a1,1,0,0,0-1.215.165,6.984,6.984,0,0,1-3.243,1.875,1,1,0,0,0-.751.969V21a1,1,0,0,1-2,0v-1.252a1,1,0,0,0-.751-.969A6.984,6.984,0,0,1,7.006,16.9a1,1,0,0,0-1.215-.165l-1.084.627a1,1,0,1,1-1-1.732l1.084-.626a1,1,0,0,0,.464-1.133,7.048,7.048,0,0,1,0-3.75A1,1,0,0,0,4.79,8.992L3.706,8.366a1,1,0,0,1,1-1.733l1.086.628A1,1,0,0,0,7.006,7.1a6.984,6.984,0,0,1,3.243-1.875A1,1,0,0,0,11,4.252V3a1,1,0,0,1,2,0V4.252a1,1,0,0,0,.751.969A6.984,6.984,0,0,1,16.994,7.1a1,1,0,0,0,1.215.165l1.084-.627a1,1,0,1,1,1,1.732l-1.084.626A1,1,0,0,0,18.746,10.124Z"/>'
-    '</svg>';
 
 const svgExibicaoFilled =
     '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 24 24">'
@@ -109,15 +82,16 @@ const svgExibicaoOutline =
     '</svg>';
 
 // Ícone Início filled (casa preenchida)
+// Ícone Início filled — casa preenchida (SVG enviado pelo utilizador)
 const _svgBrowseFilled =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M23.121,9.069,15.536,1.483a5.008,5.008,0,0,0-7.072,0L.879,9.069A2.978,2.978,0,0,0,0,11.19v9.817a3,3,0,0,0,3,3H21a3,3,0,0,0,3-3V11.19A2.978,2.978,0,0,0,23.121,9.069ZM15,22.007H9V18.073a3,3,0,0,1,6,0Zm7-1a1,1,0,0,1-1,1H17V18.073a5,5,0,0,0-10,0v3.934H3a1,1,0,0,1-1-1V11.19a1.008,1.008,0,0,1,.293-.707L9.878,2.9a3.008,3.008,0,0,1,4.244,0l7.585,7.586A1.008,1.008,0,0,1,22,11.19Z"/>'
+    '<path d="M21.743,7.4l-7-6.533a4.027,4.027,0,0,0-5.487,0L2.257,7.4A4.013,4.013,0,0,0,1,10.268V21a2,2,0,0,0,2,2H9.5a1,1,0,0,0,1-1V16.5a1.5,1.5,0,0,1,3,0V22a1,1,0,0,0,1,1H21a2,2,0,0,0,2-2V10.268A4.013,4.013,0,0,0,21.743,7.4Z"/>'
     '</svg>';
 
-// Ícone Início outline
+// Ícone Início outline — casa com contorno (SVG enviado pelo utilizador)
 const _svgBrowseOutline =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M23.121,9.069,15.536,1.483a5.008,5.008,0,0,0-7.072,0L.879,9.069A2.978,2.978,0,0,0,0,11.19v9.817a3,3,0,0,0,3,3H21a3,3,0,0,0,3-3V11.19A2.978,2.978,0,0,0,23.121,9.069ZM15,22.007H9V18.073a3,3,0,0,1,6,0Zm7-1a1,1,0,0,1-1,1H17V18.073a5,5,0,0,0-10,0v3.934H3a1,1,0,0,1-1-1V11.19a1.008,1.008,0,0,1,.293-.707L9.878,2.9a3.008,3.008,0,0,1,4.244,0l7.585,7.586A1.008,1.008,0,0,1,22,11.19Z"/>'
+    '<path d="M21.743,7.4l-7-6.533a4.027,4.027,0,0,0-5.487,0L2.257,7.4A4.013,4.013,0,0,0,1,10.268V21a2,2,0,0,0,2,2H9.5a1,1,0,0,0,1-1V16.5a1.5,1.5,0,0,1,3,0V22a1,1,0,0,0,1,1H21a2,2,0,0,0,2-2V10.268A4.013,4.013,0,0,0,21.743,7.4ZM21,21H15.5V16.5a3.5,3.5,0,0,0-7,0V21H3V10.268a2.013,2.013,0,0,1,.629-1.46l7-6.533a2.027,2.027,0,0,1,2.742,0l7,6.533A2.013,2.013,0,0,1,21,10.268Z"/>'
     '</svg>';
 
 // Ícone hambúrguer (três linhas) — nunca vira X
@@ -165,17 +139,6 @@ const _svgSearch =
     '<path d="M23.707,22.293l-5.969-5.969a10.016,10.016,0,1,0-1.414,1.414l5.969,5.969a1,1,0,0,0,1.414-1.414ZM10,18a8,8,0,1,1,8-8A8.009,8.009,0,0,1,10,18Z"/>'
     '</svg>';
 
-// ─── Shorts JS ────────────────────────────────────────────────────────────────
-const _shortsJsCookies = r"""
-(function() {
-  var d = new Date(); d.setFullYear(d.getFullYear() + 2);
-  var exp = '; expires=' + d.toUTCString() + '; path=/';
-  ['age_verified=1','platform=pc','_tc=1','hasVisited=1',
-   'cookieConsent=1','accessAgeDisclaimerPH=1','accessPH=1'].forEach(function(c){
-    document.cookie = c + exp;
-  });
-})();
-""";
 
 const _shortsJs = r"""
 (function() {
@@ -252,6 +215,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   int _tab = 1;
   String? _selectedEmbedUrl;
   FeedVideo? _selectedVideo;
@@ -302,10 +266,15 @@ class _HomePageState extends State<HomePage>
     }
   }
 
+  void _openDownloads() => Navigator.push(context,
+      MaterialPageRoute(builder: (_) => const DownloadsPage()));
+
+  void _openSettings() => Navigator.push(context,
+      MaterialPageRoute(builder: (_) => const SettingsPage()));
+
   @override
   Widget build(BuildContext context) {
     final safeBottom = MediaQuery.of(context).padding.bottom;
-    final navTotal   = _kNavH + safeBottom;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -313,8 +282,14 @@ class _HomePageState extends State<HomePage>
         statusBarIconBrightness: AppTheme.current.statusBar,
       ),
       child: Scaffold(
+        key: _scaffoldKey,
         extendBody: false,
         backgroundColor: AppTheme.current.bg,
+        // Drawer no Scaffold raiz — o Flutter garante que não cobre o bottomNavigationBar
+        drawer: _NavDrawer(
+          onDownloads: () { _scaffoldKey.currentState?.closeDrawer(); _openDownloads(); },
+          onSettings:  () { _scaffoldKey.currentState?.closeDrawer(); _openSettings(); },
+        ),
         body: Column(children: [
           Expanded(
             child: AnimatedBuilder(
@@ -327,10 +302,9 @@ class _HomePageState extends State<HomePage>
                       fadeIn: _fadeIn,
                       navBottom: 0,
                       onOpen: _openSite,
-                      onDownloads: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const DownloadsPage())),
-                      onSettings: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const SettingsPage())),
+                      onDownloads: _openDownloads,
+                      onSettings: _openSettings,
+                      onMenu: () => _scaffoldKey.currentState?.openDrawer(),
                       onColorExtracted: _onColorExtracted,
                       navColor: const Color(0xFF111111),
                       navIsLight: false,
@@ -780,119 +754,42 @@ class _WallpaperColorExtractorState extends State<_WallpaperColorExtractor> {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _NavAppBar — estilo YouTube: logo+nome topo esq, bússola topo dir, chips
+// _NavAppBar — hambúrguer + título "Início"
 // ─────────────────────────────────────────────────────────────────────────────
 class _NavAppBar extends StatelessWidget {
   final VoidCallback onMenu;
-  final void Function(String) onQuickSearch;
-  const _NavAppBar({required this.onMenu, required this.onQuickSearch});
-
-  // Chips de pesquisa rápida — clicáveis, abrem SearchResultsPage
-  static const _quickChips = [
-    'Amador', 'MILF', 'Latina', 'Asiática', 'Loira',
-    'Lésbicas', 'Teen', 'Caseiro', 'Massage', 'Threesome',
-  ];
-
-  // SVG bússola para abrir o drawer
-  static const _svgCompass =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-      '<path d="M12,0A12,12,0,1,0,24,12,12.013,12.013,0,0,0,12,0Zm0,22A10,10,0,1,1,22,12,10.011,10.011,0,0,1,12,22Z"/>'
-      '<path d="M16.243,7.757a1,1,0,0,0-1.023-.247l-5,1.667A1,1,0,0,0,9.587,9.81l-1.83,5.49a1,1,0,0,0,1.27,1.27l5.49-1.83a1,1,0,0,0,.633-.633l1.667-5A1,1,0,0,0,16.243,7.757ZM13.7,13.7l-3.242,1.08,1.08-3.242,1.98-.66Z"/>'
-      '</svg>';
+  const _NavAppBar({required this.onMenu});
 
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-      // ── Linha 1: logo + nome | bússola ──────────────────────────────────
-      Row(children: [
-        // Logo do app
-        Image.asset(
-          'assets/logo.png',
-          width: 28, height: 28,
-          errorBuilder: (_, __, ___) => SvgPicture.string(
-            _svgShortsActive, width: 28, height: 28),
-        ),
-        const SizedBox(width: 8),
-        Text('Nuxxx',
-          style: TextStyle(
-            color: t.text,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
-          )),
-        const Spacer(),
-        // Bússola — abre o drawer
-        GestureDetector(
-          onTap: onMenu,
-          behavior: HitTestBehavior.opaque,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 12, top: 2, bottom: 2),
+    return Row(children: [
+      GestureDetector(
+        onTap: onMenu,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: 38, height: 38,
+          child: Center(
             child: SvgPicture.string(
-              _svgCompass, width: 24, height: 24,
+              _svgHamburger, width: 22, height: 22,
               colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
             ),
           ),
         ),
-      ]),
-
-      const SizedBox(height: 12),
-
-      // ── Linha 2: chips de pesquisa rápida ────────────────────────────────
-      SizedBox(
-        height: 32,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: EdgeInsets.zero,
-          itemCount: _quickChips.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
-          itemBuilder: (_, i) => _QuickChip(
-            label: _quickChips[i],
-            onTap: () => onQuickSearch(_quickChips[i]),
-          ),
-        ),
       ),
+      const SizedBox(width: 12),
+      Text('Início',
+        style: TextStyle(
+          color: t.text, fontSize: 20,
+          fontWeight: FontWeight.w700, letterSpacing: -0.5,
+        )),
     ]);
-  }
-}
-
-// Chip de pesquisa rápida — estilo YouTube "Todos / Manchester City..."
-class _QuickChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _QuickChip({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          // Fundo ligeiramente contrastante — igual ao YouTube
-          color: t.isDark
-              ? Colors.white.withOpacity(0.13)
-              : Colors.black.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(100),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: t.text,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
   }
 }
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _NavDrawer — borda reta, em frente do conteúdo mas NÃO sobre o bottom bar
+// _NavDrawer — no Scaffold raiz, o Flutter garante que não cobre o bottom bar
 // ─────────────────────────────────────────────────────────────────────────────
 class _NavDrawer extends StatelessWidget {
   final VoidCallback onDownloads;
@@ -901,68 +798,51 @@ class _NavDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topPad    = MediaQuery.of(context).padding.top;
-    // Obtém a altura do bottom bar do ancestral — evita sobreposição
-    final botPad    = MediaQuery.of(context).padding.bottom;
-    final screenH   = MediaQuery.of(context).size.height;
-    // Altura reservada para o bottom nav (62 fixo + safeArea bottom)
-    const kNavH = 62.0;
-    final drawerH   = screenH - kNavH - botPad;
     final t = AppTheme.current;
-
     return Drawer(
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-      backgroundColor: Colors.transparent,
+      backgroundColor: t.drawerBg,
       elevation: 0,
-      // SizedBox limita a altura para não cobrir o bottom bar
-      child: SizedBox(
-        height: drawerH,
-        child: Material(
-          color: t.drawerBg,
-          elevation: 0,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: topPad + 16),
+      child: SafeArea(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const SizedBox(height: 8),
 
-              // Header logo
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: Row(children: [
-                  SvgPicture.string(_svgShortsActive, width: 28, height: 28),
-                  const SizedBox(width: 10),
-                  Text('patrulhaXX',
-                    style: TextStyle(
-                      color: t.text, fontSize: 18,
-                      fontWeight: FontWeight.w700, letterSpacing: -0.3,
-                    )),
-                ]),
-              ),
-
-              Divider(color: t.divider, height: 1, thickness: 1),
-              const SizedBox(height: 4),
-
-              _DrawerItemSvg(
-                svgData: _svgDrawerDownload,
-                label: 'Downloads',
-                onTap: () { Navigator.pop(context); onDownloads(); },
-              ),
-              _DrawerItemSvg(
-                svgData: _svgDrawerSettings,
-                label: 'Definições',
-                onTap: () { Navigator.pop(context); onSettings(); },
-              ),
-
-              const Spacer(),
-              Divider(color: t.divider, height: 1, thickness: 1),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-                child: Text('patrulhaXX',
-                    style: TextStyle(color: t.textTertiary, fontSize: 11)),
-              ),
-            ],
+          // Header logo
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            child: Row(children: [
+              SvgPicture.string(_svgShortsActive, width: 28, height: 28),
+              const SizedBox(width: 10),
+              Text('patrulhaXX',
+                style: TextStyle(
+                  color: t.text, fontSize: 18,
+                  fontWeight: FontWeight.w700, letterSpacing: -0.3,
+                )),
+            ]),
           ),
-        ),
+
+          Divider(color: t.divider, height: 1, thickness: 1),
+          const SizedBox(height: 4),
+
+          _DrawerItemSvg(
+            svgData: _svgDrawerDownload,
+            label: 'Downloads',
+            onTap: () { Navigator.pop(context); onDownloads(); },
+          ),
+          _DrawerItemSvg(
+            svgData: _svgDrawerSettings,
+            label: 'Definições',
+            onTap: () { Navigator.pop(context); onSettings(); },
+          ),
+
+          const Spacer(),
+          Divider(color: t.divider, height: 1, thickness: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+            child: Text('patrulhaXX',
+                style: TextStyle(color: t.textTertiary, fontSize: 11)),
+          ),
+        ]),
       ),
     );
   }
@@ -1006,13 +886,13 @@ class _DrawerItemSvg extends StatelessWidget {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _HomeTab
+// _HomeTab — sem Scaffold com drawer próprio; drawer está no Scaffold raiz
 // ─────────────────────────────────────────────────────────────────────────────
 class _HomeTab extends StatelessWidget {
   final AnimationController fadeIn;
   final double navBottom;
   final void Function(SiteModel) onOpen;
-  final VoidCallback onDownloads, onSettings;
+  final VoidCallback onDownloads, onSettings, onMenu;
   final void Function(Color) onColorExtracted;
   final Color navColor;
   final bool navIsLight;
@@ -1023,6 +903,7 @@ class _HomeTab extends StatelessWidget {
     required this.onOpen,
     required this.onDownloads,
     required this.onSettings,
+    required this.onMenu,
     required this.onColorExtracted,
     required this.navColor,
     required this.navIsLight,
@@ -1031,94 +912,68 @@ class _HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ts = ThemeService.instance;
-    return Scaffold(
-      backgroundColor: AppTheme.current.bg,
-      drawer: _NavDrawer(
-        onDownloads: onDownloads,
-        onSettings: onSettings,
-      ),
-      body: Builder(builder: (scaffoldCtx) => Stack(fit: StackFit.expand, children: [
-        Container(color: AppTheme.current.bg),
+    // Sem Scaffold aninhado — usa o Scaffold raiz que tem o drawer e o bottomNavigationBar
+    return Stack(fit: StackFit.expand, children: [
+      Container(color: AppTheme.current.bg),
 
-        if (ts.useWallpaper && ts.bg.isNotEmpty)
-          Positioned.fill(
-            child: Image.asset(
-              ts.bg,
-              fit: BoxFit.cover,
-              key: ValueKey(ts.bg),
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-            ),
+      if (ts.useWallpaper && ts.bg.isNotEmpty)
+        Positioned.fill(
+          child: Image.asset(
+            ts.bg, fit: BoxFit.cover, key: ValueKey(ts.bg),
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
           ),
+        ),
 
-        if (ts.useWallpaper && ts.bg.isNotEmpty)
-          Positioned(
-            left: -1, top: -1, width: 1, height: 1,
-            child: _WallpaperColorExtractor(
-              imageUrl: ts.bg,
-              onColor: onColorExtracted,
-            ),
-          ),
+      if (ts.useWallpaper && ts.bg.isNotEmpty)
+        Positioned(
+          left: -1, top: -1, width: 1, height: 1,
+          child: _WallpaperColorExtractor(
+            imageUrl: ts.bg, onColor: onColorExtracted),
+        ),
 
-        FadeTransition(
-          opacity: CurvedAnimation(parent: fadeIn, curve: Curves.easeOut),
-          child: CustomScrollView(slivers: [
-            SliverToBoxAdapter(
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _NavAppBar(
-                        onMenu: () => Scaffold.of(scaffoldCtx).openDrawer(),
-                        onQuickSearch: (q) => Navigator.push(
-                          scaffoldCtx,
-                          MaterialPageRoute(
-                              builder: (_) => SearchResultsPage(query: q)),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      _SearchTrigger(
-                        navColor: navColor,
-                        navIsLight: navIsLight,
-                      ),
-                      const SizedBox(height: 10),
-                      _ActionRow(
-                        onDownloads: onDownloads,
-                        onSettings: onSettings,
-                        navColor: navColor,
-                        navIsLight: navIsLight,
-                      ),
-                      const SizedBox(height: 28),
-                    ],
+      FadeTransition(
+        opacity: CurvedAnimation(parent: fadeIn, curve: Curves.easeOut),
+        child: Column(children: [
+
+          // ── AppBar FIXO — não desliza ─────────────────────────────────────
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _NavAppBar(onMenu: onMenu),
+                  const SizedBox(height: 10),
+                  _SearchTrigger(navColor: navColor, navIsLight: navIsLight),
+                  const SizedBox(height: 10),
+                  _ActionRow(
+                    onDownloads: onDownloads,
+                    onSettings: onSettings,
+                    navColor: navColor,
+                    navIsLight: navIsLight,
                   ),
+                  const SizedBox(height: 14),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Conteúdo scrollável ───────────────────────────────────────────
+          Expanded(
+            child: CustomScrollView(slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: _SitesGrid(sites: kSites, onTap: onOpen),
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: _SitesGrid(sites: kSites, onTap: onOpen),
-            ),
-            // ── Linha divisória com fade nas pontas ──────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 24, bottom: 0),
-                child: _FadeDivider(),
-              ),
-            ),
-            // ── Secção Stories ───────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: _StoriesSection(),
-            ),
-            // ── Estado vazio — Lottie Cat ────────────────────────────────────
-            SliverToBoxAdapter(
-              child: _HomeEmptyState(),
-            ),
-            SliverToBoxAdapter(child: SizedBox(height: navBottom + 16)),
-          ]),
-        ),
-      ])),
-    );
+              SliverToBoxAdapter(child: SizedBox(height: navBottom + 16)),
+            ]),
+          ),
+        ]),
+      ),
+    ]);
   }
 }
 
@@ -2548,186 +2403,6 @@ class _SiteCellState extends State<_SiteCell> with SingleTickerProviderStateMixi
   }
 }
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _FadeDivider — linha fina com transparência nas pontas
-// ─────────────────────────────────────────────────────────────────────────────
-class _FadeDivider extends StatelessWidget {
-  const _FadeDivider();
-  @override
-  Widget build(BuildContext context) {
-    final color = AppTheme.current.divider;
-    return Container(
-      height: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 0),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color.withOpacity(0.0),
-            color.withOpacity(0.6),
-            color.withOpacity(0.6),
-            color.withOpacity(0.0),
-          ],
-          stops: const [0.0, 0.18, 0.82, 1.0],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _StoriesSection — título + chevron + lista horizontal de stories
-// ─────────────────────────────────────────────────────────────────────────────
-class _StoriesSection extends StatelessWidget {
-  const _StoriesSection();
-
-  // Stories fictícios para a estrutura visual — apenas placeholders com cores do app
-  static const int _count = 6;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 16),
-
-        // Título + chevron
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(children: [
-            Text('Stories',
-                style: TextStyle(
-                    color: t.text,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right_rounded, color: t.iconSub, size: 20),
-          ]),
-        ),
-
-        const SizedBox(height: 12),
-
-        // Lista horizontal
-        SizedBox(
-          height: 110,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _count,
-            itemBuilder: (_, i) => _StoryItem(index: i),
-          ),
-        ),
-
-        const SizedBox(height: 8),
-      ],
-    );
-  }
-}
-
-class _StoryItem extends StatelessWidget {
-  final int index;
-  const _StoryItem({required this.index});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    final isAdd = index == 0;
-    // Usa accentColor derivado do índice para variar visualmente
-    final accent = [
-      AppTheme.ytRed,
-      t.navActive,
-      AppTheme.success,
-      AppTheme.ytRedDark,
-      AppTheme.link,
-      t.chipBgActive,
-    ][index % 6];
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Anel de Story (borda colorida)
-          Container(
-            width: 68, height: 68,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: isAdd ? null : LinearGradient(
-                colors: [accent, accent.withOpacity(0.5)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              color: isAdd ? t.btnGhost : null,
-              border: Border.all(
-                  color: isAdd ? t.border : Colors.transparent, width: 1.5),
-            ),
-            padding: const EdgeInsets.all(2.5),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: t.card,
-              ),
-              child: isAdd
-                  ? Center(child: Icon(Icons.add_rounded,
-                      color: t.iconSub, size: 26))
-                  : ClipOval(child: Container(
-                      color: t.thumbBg,
-                      child: Center(child: Icon(
-                          Icons.person_rounded,
-                          color: t.iconTertiary, size: 28)),
-                    )),
-            ),
-          ),
-          const SizedBox(height: 6),
-          SizedBox(
-            width: 68,
-            child: Text(
-              isAdd ? 'Adicionar' : 'Story ${index}',
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: t.textSecondary,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w400),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _HomeEmptyState — Lottie Cat (mesmo da tela de Exibição)
-// ─────────────────────────────────────────────────────────────────────────────
-class _HomeEmptyState extends StatelessWidget {
-  const _HomeEmptyState();
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 24),
-      child: Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          SizedBox(
-            width: 180, height: 180,
-            child: Lottie.asset(
-              'assets/lottie/Cat_playing_animation.json',
-              repeat: true, animate: true,
-              errorBuilder: (_, __, ___) => Icon(
-                  Icons.movie_outlined, color: t.emptyIcon, size: 64),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text('Nada mais por aqui',
-              style: TextStyle(color: t.emptyText, fontSize: 13)),
-        ]),
-      ),
-    );
-  }
-}
 
 
 // ─────────────────────────────────────────────────────────────────────────────
