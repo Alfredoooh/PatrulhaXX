@@ -82,6 +82,7 @@ const _svgPause =
     '</svg>';
 
 
+const _svgVolOn =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M20.807,4.29a1,1,0,0,0-1.415,1.415,8.913,8.913,0,0,1,0,12.59'
     'a1,1,0,0,0,1.415,1.415A10.916,10.916,0,0,0,20.807,4.29Z"/>'
@@ -854,11 +855,11 @@ class _EmptyBody extends StatelessWidget {
                 child: Text(
                   'Publicitar minha marca',
                   style: TextStyle(
-                    color: t.link,
+                    color: t.emptyLinkText,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                     decoration: TextDecoration.underline,
-                    decorationColor: t.link,
+                    decorationColor: t.emptyLinkText,
                   ),
                 ),
               ),
