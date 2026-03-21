@@ -224,13 +224,28 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   Future<void> _fetch({bool reset = false}) async {
     try {
       final results = await Future.wait([
-        _EpornerApi.search(query: _q.text.trim(), page: _page, perPage: 30),
+        _EpornerApi.search(query: _q.text.trim(), page: _page, perPage: 20),
         FeedFetcher.fetchPornhub(_page),
         FeedFetcher.fetchRedtube(_page),
+        FeedFetcher.fetchYouporn(_page),
+        FeedFetcher.fetchXhamster(_page),
+        FeedFetcher.fetchBravotube(_page),
+        FeedFetcher.fetchDrtuber(_page),
+        FeedFetcher.fetchTxxx(_page),
+        FeedFetcher.fetchGotporn(_page),
+        FeedFetcher.fetchPorndig(_page),
       ]);
-      final epResult = results[0] as ({List<_EpornerVideo> videos, int totalPages});
-      final phVideos = results[1] as List<FeedVideo>;
-      final rtVideos = results[2] as List<FeedVideo>;
+
+      final epResult  = results[0] as ({List<_EpornerVideo> videos, int totalPages});
+      final phVideos  = results[1] as List<FeedVideo>;
+      final rtVideos  = results[2] as List<FeedVideo>;
+      final ypVideos  = results[3] as List<FeedVideo>;
+      final xhVideos  = results[4] as List<FeedVideo>;
+      final btVideos  = results[5] as List<FeedVideo>;
+      final dtVideos  = results[6] as List<FeedVideo>;
+      final txVideos  = results[7] as List<FeedVideo>;
+      final gpVideos  = results[8] as List<FeedVideo>;
+      final pdVideos  = results[9] as List<FeedVideo>;
 
       final epFeed = epResult.videos.map((v) => FeedVideo(
         title: v.title, thumb: v.thumbUrl,
@@ -240,7 +255,11 @@ class _SearchResultsPageState extends State<SearchResultsPage>
       )).toList();
 
       final merged = <FeedVideo>[];
-      final lists  = [epFeed, phVideos, rtVideos].where((l) => l.isNotEmpty).toList();
+      final lists = [
+        epFeed, phVideos, rtVideos, ypVideos, xhVideos,
+        btVideos, dtVideos, txVideos, gpVideos, pdVideos,
+      ].where((l) => l.isNotEmpty).toList();
+
       if (lists.isNotEmpty) {
         final maxLen = lists.map((l) => l.length).reduce((a, b) => a > b ? a : b);
         for (int i = 0; i < maxLen; i++) {
@@ -666,6 +685,11 @@ class _VideoCard extends StatelessWidget {
       case VideoSource.xvideos:   return 'https://www.xvideos.com/';
       case VideoSource.xhamster:  return 'https://xhamster.com/';
       case VideoSource.spankbang: return 'https://spankbang.com/';
+      case VideoSource.bravotube: return 'https://www.bravotube.net/';
+      case VideoSource.drtuber:   return 'https://www.drtuber.com/';
+      case VideoSource.txxx:      return 'https://www.txxx.com/';
+      case VideoSource.gotporn:   return 'https://www.gotporn.com/';
+      case VideoSource.porndig:   return 'https://www.porndig.com/';
     }
   }
 
