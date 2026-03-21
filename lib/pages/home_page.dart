@@ -81,14 +81,13 @@ const svgExibicaoOutline =
     'm-20,0c0,.553-.448,1-1,1H1c-.552,0-1-.447-1-1s.448-1,1-1H3c.552,0,1,.447,1,1Z"/>'
     '</svg>';
 
-// Ícone Início filled (casa preenchida)
-// Ícone Início filled — casa preenchida (SVG enviado pelo utilizador)
+// Ícone Início filled — enviado pelo utilizador (casa sólida com janelas)
 const _svgBrowseFilled =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M21.743,7.4l-7-6.533a4.027,4.027,0,0,0-5.487,0L2.257,7.4A4.013,4.013,0,0,0,1,10.268V21a2,2,0,0,0,2,2H9.5a1,1,0,0,0,1-1V16.5a1.5,1.5,0,0,1,3,0V22a1,1,0,0,0,1,1H21a2,2,0,0,0,2-2V10.268A4.013,4.013,0,0,0,21.743,7.4Z"/>'
     '</svg>';
 
-// Ícone Início outline — casa com contorno (SVG enviado pelo utilizador)
+// Ícone Início outline — enviado pelo utilizador (casa com contorno e interior vazio)
 const _svgBrowseOutline =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M21.743,7.4l-7-6.533a4.027,4.027,0,0,0-5.487,0L2.257,7.4A4.013,4.013,0,0,0,1,10.268V21a2,2,0,0,0,2,2H9.5a1,1,0,0,0,1-1V16.5a1.5,1.5,0,0,1,3,0V22a1,1,0,0,0,1,1H21a2,2,0,0,0,2-2V10.268A4.013,4.013,0,0,0,21.743,7.4ZM21,21H15.5V16.5a3.5,3.5,0,0,0-7,0V21H3V10.268a2.013,2.013,0,0,1,.629-1.46l7-6.533a2.027,2.027,0,0,1,2.742,0l7,6.533A2.013,2.013,0,0,1,21,10.268Z"/>'

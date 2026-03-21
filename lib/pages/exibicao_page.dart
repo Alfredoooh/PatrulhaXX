@@ -69,7 +69,19 @@ const _svgDl =
     'a1,1,0,0,0-1,1v4a3,3,0,0,0,3,3H21a3,3,0,0,0,3-3V17A1,1,0,0,0,23,16Z"/>'
     '</svg>';
 
-const _svgVolOn =
+// ─── SVG play/pause para o player ────────────────────────────────────────────
+const _svgPlay =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M20.492,7.969,8.967.8A4.322,4.322,0,0,0,2.735,4.344V19.667A4.294,4.294,0,0,0,7,24a4.357,4.357,0,0,0,2.232-.62l11.526-7.165a4.321,4.321,0,0,0-.266-8.246Z"/>'
+    '</svg>';
+
+const _svgPause =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M6.5,0A3.5,3.5,0,0,0,3,3.5v17a3.5,3.5,0,0,0,7,0V3.5A3.5,3.5,0,0,0,6.5,0Z"/>'
+    '<path d="M17.5,0A3.5,3.5,0,0,0,14,3.5v17a3.5,3.5,0,0,0,7,0V3.5A3.5,3.5,0,0,0,17.5,0Z"/>'
+    '</svg>';
+
+
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M20.807,4.29a1,1,0,0,0-1.415,1.415,8.913,8.913,0,0,1,0,12.59'
     'a1,1,0,0,0,1.415,1.415A10.916,10.916,0,0,0,20.807,4.29Z"/>'
@@ -349,6 +361,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   InAppWebViewController? _webCtrl;
   bool   _titleExpanded  = false;
   bool   _muted          = false;
+  bool   _playing        = true;
   bool   _playerLoading  = true;
   FeedVideo? _nextVideo;
 
@@ -423,6 +436,14 @@ class _ExibicaoPageState extends State<ExibicaoPage>
         thumbUrl: video.thumb, sourceUrl: video.embedUrl);
       _snack('Download iniciado');
     } catch (_) { if (mounted) _snack('Erro ao capturar o vídeo.'); }
+  }
+
+  void _togglePlay() {
+    setState(() => _playing = !_playing);
+    _webCtrl?.evaluateJavascript(
+      source: _playing
+          ? "document.querySelector('video')?.play().catch(()=>{})"
+          : "document.querySelector('video')?.pause()");
   }
 
   void _toggleMute() {
@@ -587,12 +608,46 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                     ]),
                   ),
 
-                // Botão de mudo — único botão flutuante no canto inferior direito
+                // Botão play/pause — centro do player
+                if (!_isEmpty)
+                  Positioned.fill(
+                    child: GestureDetector(
+                      onTap: _togglePlay,
+                      behavior: HitTestBehavior.opaque,
+                      child: Center(
+                        child: AnimatedOpacity(
+                          opacity: _playing ? 0.0 : 1.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Container(
+                            width: 54, height: 54,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: SvgPicture.string(
+                                _playing ? _svgPause : _svgPlay,
+                                width: 22, height: 22,
+                                colorFilter: const ColorFilter.mode(
+                                    Colors.white, BlendMode.srcIn),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Botões bottom-right: mudo + download
                 Positioned(
                   bottom: 8, right: 8,
-                  child: _PlayerBtn(
-                    svg: _muted ? _svgVolOff : _svgVolOn,
-                    onTap: _toggleMute,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _PlayerBtn(svg: _muted ? _svgVolOff : _svgVolOn, onTap: _toggleMute),
+                      const SizedBox(height: 8),
+                      _PlayerBtn(svg: _svgDl, onTap: _forceDownload),
+                    ],
                   ),
                 ),
               ]),
@@ -644,53 +699,68 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                             ]),
 
                             const SizedBox(height: 12),
-
-                            // Botão de download — único, centrado
-                            Center(
-                              child: GestureDetector(
-                                onTap: _forceDownload,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: t.cardAlt,
-                                    borderRadius: BorderRadius.circular(100),
-                                    border: Border.all(color: t.border),
-                                  ),
-                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                    SvgPicture.string(_svgDl, width: 15, height: 15,
-                                        colorFilter: ColorFilter.mode(t.textSecondary, BlendMode.srcIn)),
-                                    const SizedBox(width: 8),
-                                    Text('Descarregar',
-                                        style: TextStyle(color: t.textSecondary,
-                                            fontSize: 13, fontWeight: FontWeight.w500)),
-                                  ]),
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
                             Divider(color: t.divider, thickness: 1, height: 1),
                             const SizedBox(height: 12),
 
-                            // Próximo agendado
+                            // Card de próximo vídeo — estilo playlist cor-de-rosa
                             if (_nextVideo != null) ...[
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                decoration: BoxDecoration(
-                                    color: t.cardAlt, borderRadius: BorderRadius.circular(8)),
-                                child: Row(children: [
-                                  SvgPicture.string(_svgPlayNext, width: 14, height: 14,
-                                      colorFilter: ColorFilter.mode(t.textSecondary, BlendMode.srcIn)),
-                                  const SizedBox(width: 8),
-                                  Text('A seguir: ', style: TextStyle(color: t.textSecondary, fontSize: 11.5)),
-                                  Expanded(child: Text(_nextVideo!.title,
-                                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(color: t.text, fontSize: 12, fontWeight: FontWeight.w500))),
-                                  GestureDetector(
-                                    onTap: () => setState(() => _nextVideo = null),
-                                    child: Icon(Icons.close_rounded, color: t.iconTertiary, size: 16),
+                              GestureDetector(
+                                onTap: () {
+                                  widget.onVideoTap(_nextVideo!);
+                                  setState(() => _nextVideo = null);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: t.isDark
+                                        ? const Color(0xFF2A1A1A)
+                                        : const Color(0xFFFFF0F0),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: t.isDark
+                                          ? const Color(0xFF5A2020)
+                                          : const Color(0xFFFFCCCC),
+                                    ),
                                   ),
-                                ]),
+                                  child: Row(children: [
+                                    SvgPicture.string(_svgPlaylist,
+                                        width: 16, height: 16,
+                                        colorFilter: ColorFilter.mode(
+                                            AppTheme.ytRed, BlendMode.srcIn)),
+                                    const SizedBox(width: 10),
+                                    Expanded(child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Seguinte:',
+                                            style: TextStyle(
+                                                color: AppTheme.ytRed,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700)),
+                                        const SizedBox(height: 2),
+                                        Text(_nextVideo!.title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                color: t.text,
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w600)),
+                                        Text(_nextVideo!.sourceLabel,
+                                            style: TextStyle(
+                                                color: t.textSecondary,
+                                                fontSize: 11)),
+                                      ],
+                                    )),
+                                    GestureDetector(
+                                      onTap: () => setState(() => _nextVideo = null),
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(left: 8),
+                                        child: Icon(Icons.close_rounded,
+                                            color: t.iconTertiary, size: 18),
+                                      ),
+                                    ),
+                                  ]),
+                                ),
                               ),
                               const SizedBox(height: 12),
                             ],
@@ -741,50 +811,77 @@ class _PlayerBtn extends StatelessWidget {
   );
 }
 
-// ─── Estado vazio ─────────────────────────────────────────────────────────────
+// ─── Estado vazio — layout idêntico à imagem ──────────────────────────────────
 class _EmptyBody extends StatelessWidget {
   final VoidCallback onAdsLinkTap;
   const _EmptyBody({required this.onAdsLinkTap});
+
   @override Widget build(BuildContext context) {
     final t = AppTheme.current;
-    return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
 
-        // Descrição do vídeo promo
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Text(
-            'Esteja pronto para ficar tesudo 🍆🍑',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: t.textSecondary,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              height: 1.4,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+
+        // ── Bloco de info — colado ao player, fundo surface ──────────────────
+        Container(
+          color: t.surface,
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Bem-vindo ao nuxx',
+                style: TextStyle(
+                  color: t.text,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Selecione qualquer vídeo na aba feed para ser exibido aqui...',
+                style: TextStyle(
+                  color: t.textSecondary,
+                  fontSize: 13.5,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: onAdsLinkTap,
+                child: Text(
+                  'Publicitar minha marca',
+                  style: TextStyle(
+                    color: t.link,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.underline,
+                    decorationColor: t.link,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // ── Gato Lottie — ocupa o espaço restante, centrado ─────────────────
+        Expanded(
+          child: Center(
+            child: SizedBox(
+              width: 200, height: 200,
+              child: Lottie.asset(
+                'assets/lottie/Cat_playing_animation.json',
+                repeat: true, animate: true,
+                errorBuilder: (_, __, ___) => SvgPicture.string(
+                  svgExibicaoOutline, width: 72, height: 72,
+                  colorFilter: ColorFilter.mode(t.emptyIcon, BlendMode.srcIn)),
+              ),
             ),
           ),
         ),
-
-        const SizedBox(height: 24),
-
-        SizedBox(width: 200, height: 200,
-          child: Lottie.asset('assets/lottie/Cat_playing_animation.json',
-            repeat: true, animate: true,
-            errorBuilder: (_, __, ___) => SvgPicture.string(svgExibicaoOutline,
-              width: 72, height: 72,
-              colorFilter: ColorFilter.mode(t.emptyIcon, BlendMode.srcIn)),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text('Seleciona um vídeo no Feed', style: TextStyle(color: t.emptyText, fontSize: 13.5)),
-        const SizedBox(height: 20),
-        GestureDetector(
-          onTap: onAdsLinkTap,
-          child: Text('Criar publicidade agora',
-            style: TextStyle(color: t.emptyLinkText, fontSize: 13, fontWeight: FontWeight.w500,
-              decoration: TextDecoration.underline, decorationColor: t.emptyLinkText)),
-        ),
-      ]),
+      ],
     );
   }
 }
