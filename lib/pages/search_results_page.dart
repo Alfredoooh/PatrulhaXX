@@ -24,6 +24,18 @@ const _iSearch =
     '<path d="M23.707,22.293l-5.969-5.969a10.016,10.016,0,1,0-1.414,1.414l5.969,5.969'
     'a1,1,0,0,0,1.414-1.414ZM10,18a8,8,0,1,1,8-8A8.009,8.009,0,0,1,10,18Z"/></svg>';
 
+// Ícone recentes/histórico — enviado pelo utilizador
+const _iHistory =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">'
+    '<path d="M256,80C159.9,80,80,159.9,80,256s79.9,176,176,176s176-79.9,176-176'
+    'C432,159.9,352.1,80,256,80z M256,400c-79.4,0-144-64.6-144-144s64.6-144,144-144'
+    's144,64.6,144,144S335.4,400,256,400z"/>'
+    '<path d="M272,176h-32v96l64,64l22.6-22.6l-54.6-54.6V176z"/>'
+    '<path d="M256,0C114.6,0,0,114.6,0,256s114.6,256,256,256s256-114.6,256-256'
+    'S397.4,0,256,0z M256,480C132.3,480,32,379.7,32,256S132.3,32,256,32'
+    's224,100.3,224,224S379.7,480,256,480z"/>'
+    '</svg>';
+
 // ─── Modelo Eporner ───────────────────────────────────────────────────────────
 class _EpornerVideo {
   final String id, title, url, thumbUrl, lengthMin, views, rate, keywords;
@@ -586,8 +598,10 @@ class _SuggestionsView extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(children: [
-                Icon(showSuggestions ? Icons.search_rounded : Icons.history_rounded,
-                    color: subColor, size: 20),
+                showSuggestions
+                    ? Icon(Icons.search_rounded, color: subColor, size: 20)
+                    : SvgPicture.string(_iHistory, width: 20, height: 20,
+                        colorFilter: ColorFilter.mode(subColor, BlendMode.srcIn)),
                 const SizedBox(width: 14),
                 Expanded(child: Text(item,
                     style: TextStyle(color: textColor, fontSize: 14.5))),
