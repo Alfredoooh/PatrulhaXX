@@ -1687,6 +1687,21 @@ class FeedFetcher {
     } catch (_) { return []; }
   }
 
+  static Future<List<FeedVideo>> fetchSpankbang(int page) async {
+    try {
+      final term = _terms[Random().nextInt(_terms.length)];
+      final r = await http.get(
+        Uri.parse('https://spankbang.com/api/videos/search/?query=${Uri.encodeComponent(term)}&page=$page&per_page=20'),
+        headers: {'User-Agent': _ua, 'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 12));
+      if (r.statusCode != 200) return [];
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      final videos = data['videos'] as List? ?? data['results'] as List? ?? [];
+      return videos.map((v) => FeedVideo.fromSpankbang(v as Map<String, dynamic>))
+          .whereType<FeedVideo>().toList();
+    } catch (_) { return []; }
+  }
+
   static const _terms = [
     '', 'amateur', 'teen', 'milf', 'blonde', 'brunette', 'asian', 'latina',
     'big', 'hot', 'sexy', 'beautiful', 'young', 'wild', 'homemade',
