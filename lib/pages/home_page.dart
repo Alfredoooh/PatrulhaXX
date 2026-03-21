@@ -17,6 +17,7 @@ import 'downloads_page.dart';
 import 'settings_page.dart';
 import 'search_results_page.dart';
 import 'package:http/http.dart' as http;
+import 'package:xml/xml.dart';
 import '../services/theme_service.dart';
 import 'exibicao_page.dart';
 import '../theme/app_theme.dart';
@@ -1335,7 +1336,10 @@ class _ActionBtn extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Modelo unificado de vídeo
 // ─────────────────────────────────────────────────────────────────────────────
-enum VideoSource { eporner, pornhub, redtube, youporn, xvideos, xhamster, spankbang }
+enum VideoSource {
+  eporner, pornhub, redtube, youporn, xvideos, xhamster, spankbang,
+  bravotube, drtuber, txxx, gotporn, porndig,
+}
 
 class FeedVideo {
   final String title;
@@ -1359,6 +1363,11 @@ class FeedVideo {
       case VideoSource.xvideos:   return 'XVideos';
       case VideoSource.xhamster:  return 'xHamster';
       case VideoSource.spankbang: return 'SpankBang';
+      case VideoSource.bravotube: return 'BravoTube';
+      case VideoSource.drtuber:   return 'DrTuber';
+      case VideoSource.txxx:      return 'TXXX';
+      case VideoSource.gotporn:   return 'GotPorn';
+      case VideoSource.porndig:   return 'PornDig';
     }
   }
 
@@ -1371,6 +1380,11 @@ class FeedVideo {
       case VideoSource.xvideos:   return 'XV';
       case VideoSource.xhamster:  return 'XH';
       case VideoSource.spankbang: return 'SB';
+      case VideoSource.bravotube: return 'BT';
+      case VideoSource.drtuber:   return 'DT';
+      case VideoSource.txxx:      return 'TX';
+      case VideoSource.gotporn:   return 'GP';
+      case VideoSource.porndig:   return 'PD';
     }
   }
 
@@ -1506,6 +1520,25 @@ class FeedVideo {
     );
   }
 
+  // BravoTube, DrTuber, TXXX, GotPorn, PornDig — via RSS, já trazem embedUrl calculado
+  static FeedVideo fromRss({
+    required String title,
+    required String thumb,
+    required String embedUrl,
+    required VideoSource source,
+    String duration = '',
+    String views = '',
+  }) {
+    return FeedVideo(
+      title: cleanTitle(title.isEmpty ? 'Vídeo' : title),
+      thumb: thumb,
+      embedUrl: embedUrl,
+      duration: duration,
+      views: views,
+      source: source,
+    );
+  }
+
   static String _fmtViews(dynamic v) {
     if (v == null) return '';
     final n = int.tryParse(v.toString()) ?? 0;
@@ -1638,6 +1671,179 @@ class FeedFetcher {
     'big', 'hot', 'sexy', 'beautiful', 'young', 'wild', 'homemade',
   ];
 
+  // ── RSS helper ───────────────────────────────────────────────────────────────
+  static String _xml(dynamic el, String tag) {
+    try { return el.findElements(tag).first.innerText.trim(); } catch (_) { return ''; }
+  }
+
+  static String _firstOf(List<String?> values) {
+    for (final v in values) { if (v != null && v.isNotEmpty) return v; }
+    return '';
+  }
+
+  // ── BravoTube RSS ────────────────────────────────────────────────────────────
+  static Future<List<FeedVideo>> fetchBravotube(int page) async {
+    final urls = ['https://www.bravotube.net/rss/new/', 'https://www.bravotube.net/rss/popular/'];
+    final items = <FeedVideo>[];
+    for (final url in urls) {
+      try {
+        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode != 200) continue;
+        final doc = XmlDocument.parse(r.body);
+        for (final item in doc.findAllElements('item')) {
+          final link  = _xml(item, 'link');
+          final title = _xml(item, 'title');
+          final thumb = _firstOf([
+            item.findElements('media:content').firstOrNull?.getAttribute('url'),
+            item.findElements('media:thumbnail').firstOrNull?.getAttribute('url'),
+            item.findElements('enclosure').firstOrNull?.getAttribute('url'),
+          ]);
+          if (link.isEmpty) continue;
+          final match = RegExp(r'-(\d+)\.html').firstMatch(link);
+          if (match == null) continue;
+          items.add(FeedVideo.fromRss(
+            title: title, thumb: thumb,
+            embedUrl: 'https://www.bravotube.net/embed/${match.group(1)}/',
+            source: VideoSource.bravotube,
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  // ── DrTuber RSS ──────────────────────────────────────────────────────────────
+  static Future<List<FeedVideo>> fetchDrtuber(int page) async {
+    final urls = ['https://www.drtuber.com/rss/latest', 'https://www.drtuber.com/rss/popular'];
+    final items = <FeedVideo>[];
+    for (final url in urls) {
+      try {
+        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode != 200) continue;
+        final doc = XmlDocument.parse(r.body);
+        for (final item in doc.findAllElements('item')) {
+          final link  = _xml(item, 'link');
+          final title = _xml(item, 'title');
+          final thumb = _firstOf([
+            item.findElements('media:thumbnail').firstOrNull?.getAttribute('url'),
+            item.findElements('media:content').firstOrNull?.getAttribute('url'),
+            item.findElements('enclosure').firstOrNull?.getAttribute('url'),
+          ]);
+          if (link.isEmpty) continue;
+          final match = RegExp(r'/video/(\d+)').firstMatch(link);
+          if (match == null) continue;
+          items.add(FeedVideo.fromRss(
+            title: title, thumb: thumb,
+            embedUrl: 'https://www.drtuber.com/embed/${match.group(1)}',
+            source: VideoSource.drtuber,
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  // ── TXXX RSS ─────────────────────────────────────────────────────────────────
+  static Future<List<FeedVideo>> fetchTxxx(int page) async {
+    final urls = ['https://www.txxx.com/rss/new/', 'https://www.txxx.com/rss/popular/'];
+    final items = <FeedVideo>[];
+    for (final url in urls) {
+      try {
+        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode != 200) continue;
+        final doc = XmlDocument.parse(r.body);
+        for (final item in doc.findAllElements('item')) {
+          final link  = _xml(item, 'link');
+          final title = _xml(item, 'title');
+          final thumb = _firstOf([
+            item.findElements('media:content').firstOrNull?.getAttribute('url'),
+            item.findElements('enclosure').firstOrNull?.getAttribute('url'),
+          ]);
+          if (link.isEmpty) continue;
+          final match = RegExp(r'-(\d+)/?$').firstMatch(Uri.parse(link).path);
+          if (match == null) continue;
+          items.add(FeedVideo.fromRss(
+            title: title, thumb: thumb,
+            embedUrl: 'https://www.txxx.com/embed/${match.group(1)}/',
+            source: VideoSource.txxx,
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  // ── GotPorn RSS ──────────────────────────────────────────────────────────────
+  static Future<List<FeedVideo>> fetchGotporn(int page) async {
+    final urls = ['https://www.gotporn.com/rss/latest', 'https://www.gotporn.com/rss/popular'];
+    final items = <FeedVideo>[];
+    for (final url in urls) {
+      try {
+        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode != 200) continue;
+        final doc = XmlDocument.parse(r.body);
+        for (final item in doc.findAllElements('item')) {
+          final link  = _xml(item, 'link');
+          final title = _xml(item, 'title');
+          final thumb = _firstOf([
+            item.findElements('media:thumbnail').firstOrNull?.getAttribute('url'),
+            item.findElements('enclosure').firstOrNull?.getAttribute('url'),
+          ]);
+          if (link.isEmpty) continue;
+          final match = RegExp(r'/video-(\d+)').firstMatch(link);
+          if (match == null) continue;
+          items.add(FeedVideo.fromRss(
+            title: title, thumb: thumb,
+            embedUrl: 'https://www.gotporn.com/video/embed/${match.group(1)}',
+            source: VideoSource.gotporn,
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  // ── PornDig RSS ──────────────────────────────────────────────────────────────
+  static Future<List<FeedVideo>> fetchPorndig(int page) async {
+    final urls = ['https://www.porndig.com/rss', 'https://www.porndig.com/rss?category=latest'];
+    final items = <FeedVideo>[];
+    for (final url in urls) {
+      try {
+        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode != 200) continue;
+        final doc = XmlDocument.parse(r.body);
+        for (final item in doc.findAllElements('item')) {
+          final link  = _xml(item, 'link');
+          final title = _xml(item, 'title');
+          final thumb = _firstOf([
+            item.findElements('media:thumbnail').firstOrNull?.getAttribute('url'),
+            item.findElements('media:content').firstOrNull?.getAttribute('url'),
+            item.findElements('enclosure').firstOrNull?.getAttribute('url'),
+          ]);
+          if (link.isEmpty) continue;
+          final match = RegExp(r'-(\d+)\.html').firstMatch(link);
+          if (match == null) continue;
+          items.add(FeedVideo.fromRss(
+            title: title, thumb: thumb,
+            embedUrl: 'https://www.porndig.com/embed/${match.group(1)}',
+            source: VideoSource.porndig,
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
   static Future<List<FeedVideo>> fetchAll(int page) async {
     final rng = Random(DateTime.now().millisecondsSinceEpoch ^ page.hashCode);
     final epPage = rng.nextInt(60) + 1;
@@ -1646,6 +1852,7 @@ class FeedFetcher {
     final ypPage = rng.nextInt(20) + 1;
     final xvPage = rng.nextInt(50) + 1;
     final xhPage = rng.nextInt(30) + 1;
+    final sbPage = rng.nextInt(20) + 1;
 
     final results = await Future.wait([
       fetchEporner(epPage),
@@ -1654,6 +1861,12 @@ class FeedFetcher {
       fetchYouporn(ypPage),
       fetchXvideos(xvPage),
       fetchXhamster(xhPage),
+      fetchSpankbang(sbPage),
+      fetchBravotube(page),
+      fetchDrtuber(page),
+      fetchTxxx(page),
+      fetchGotporn(page),
+      fetchPorndig(page),
     ]);
 
     final merged = <FeedVideo>[];
@@ -1865,6 +2078,11 @@ String faviconForSource(VideoSource src) {
     case VideoSource.xvideos:   return 'https://www.xvideos.com/favicon.ico';
     case VideoSource.xhamster:  return 'https://xhamster.com/favicon.ico';
     case VideoSource.spankbang: return 'https://spankbang.com/favicon.ico';
+    case VideoSource.bravotube: return 'https://www.bravotube.net/favicon.ico';
+    case VideoSource.drtuber:   return 'https://www.drtuber.com/favicon.ico';
+    case VideoSource.txxx:      return 'https://www.txxx.com/favicon.ico';
+    case VideoSource.gotporn:   return 'https://www.gotporn.com/favicon.ico';
+    case VideoSource.porndig:   return 'https://www.porndig.com/favicon.ico';
   }
 }
 
@@ -2049,6 +2267,11 @@ class _VideoCard extends StatelessWidget {
       case VideoSource.xvideos:   return 'https://www.xvideos.com/';
       case VideoSource.xhamster:  return 'https://xhamster.com/';
       case VideoSource.spankbang: return 'https://spankbang.com/';
+      case VideoSource.bravotube: return 'https://www.bravotube.net/';
+      case VideoSource.drtuber:   return 'https://www.drtuber.com/';
+      case VideoSource.txxx:      return 'https://www.txxx.com/';
+      case VideoSource.gotporn:   return 'https://www.gotporn.com/';
+      case VideoSource.porndig:   return 'https://www.porndig.com/';
     }
   }
 

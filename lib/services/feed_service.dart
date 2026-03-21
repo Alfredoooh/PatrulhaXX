@@ -7,22 +7,165 @@ class FeedItem {
   final String id;
   final String title;
   final String thumb;
+  // url = URL da PÁGINA (para exibir título, info, etc.)
   final String url;
+  // embedUrl = URL do EMBED PURO — só o player, sem o site
+  // É ESTE que vai para o InAppWebView
+  final String embedUrl;
   final String duration;
   final String views;
   final String source;
-  final String type; // 'video' | 'article'
+  final String type;
 
   const FeedItem({
     required this.id,
     required this.title,
     required this.thumb,
     required this.url,
+    String? embedUrl,
     this.duration = '',
     this.views    = '',
     required this.source,
     this.type = 'video',
-  });
+  }) : embedUrl = embedUrl ?? url;
+
+  /// Converte uma URL de página para URL de embed puro.
+  /// Cada fonte tem a sua lógica de embed.
+  static String toEmbed(String pageUrl) {
+    if (pageUrl.isEmpty) return pageUrl;
+
+    final uri = Uri.tryParse(pageUrl);
+    if (uri == null) return pageUrl;
+    final host = uri.host.toLowerCase();
+    final path = uri.path;
+
+    // ── RedTube ───────────────────────────────────────────────────────────────
+    // Página:  https://www.redtube.com/123456
+    // Embed:   https://embed.redtube.com/?id=123456
+    if (host.contains('redtube')) {
+      // Extrai o ID numérico do path
+      final match = RegExp(r'/(\d+)').firstMatch(path);
+      if (match != null) {
+        return 'https://embed.redtube.com/?bgcolor=000000&id=${match.group(1)}';
+      }
+    }
+
+    // ── Eporner ───────────────────────────────────────────────────────────────
+    // Página:  https://www.eporner.com/video-ABCDEF/titulo
+    // Embed:   https://www.eporner.com/embed/ABCDEF/
+    if (host.contains('eporner')) {
+      final match = RegExp(r'/video-([A-Za-z0-9]+)').firstMatch(path);
+      if (match != null) {
+        return 'https://www.eporner.com/embed/${match.group(1)}/';
+      }
+    }
+
+    // ── PornHub ───────────────────────────────────────────────────────────────
+    // Página:  https://www.pornhub.com/view_video.php?viewkey=ph5e3c...
+    // Embed:   https://www.pornhub.com/embed/ph5e3c...
+    if (host.contains('pornhub')) {
+      final viewkey = uri.queryParameters['viewkey'] ?? '';
+      if (viewkey.isNotEmpty) {
+        return 'https://www.pornhub.com/embed/$viewkey';
+      }
+      // Algumas URLs têm o viewkey no path
+      final match = RegExp(r'/embed/([A-Za-z0-9]+)').firstMatch(path);
+      if (match != null) return pageUrl; // já é embed
+    }
+
+    // ── XVideos ───────────────────────────────────────────────────────────────
+    // Página:  https://www.xvideos.com/video12345678/titulo
+    // Embed:   https://www.xvideos.com/embedframe/12345678
+    if (host.contains('xvideos')) {
+      final match = RegExp(r'/video(\d+)').firstMatch(path);
+      if (match != null) {
+        return 'https://www.xvideos.com/embedframe/${match.group(1)}';
+      }
+    }
+
+    // ── xHamster ─────────────────────────────────────────────────────────────
+    // Página:  https://xhamster.com/videos/titulo-12345678
+    // Embed:   https://xhamster.com/xembed.php?video=12345678
+    if (host.contains('xhamster')) {
+      final match = RegExp(r'-(\d+)$').firstMatch(path);
+      if (match != null) {
+        return 'https://xhamster.com/xembed.php?video=${match.group(1)}';
+      }
+    }
+
+    // ── YouPorn ───────────────────────────────────────────────────────────────
+    // Página:  https://www.youporn.com/watch/12345678/titulo/
+    // Embed:   https://www.youporn.com/embed/12345678/
+    if (host.contains('youporn')) {
+      final match = RegExp(r'/watch/(\d+)').firstMatch(path);
+      if (match != null) {
+        return 'https://www.youporn.com/embed/${match.group(1)}/';
+      }
+    }
+
+    // ── SpankBang ─────────────────────────────────────────────────────────────
+    // Página:  https://spankbang.com/ABCDE/video/titulo
+    // Embed:   https://spankbang.com/ABCDE/embed/
+    if (host.contains('spankbang')) {
+      final match = RegExp(r'^/([A-Za-z0-9]+)/').firstMatch(path);
+      if (match != null && match.group(1) != 'rss') {
+        return 'https://spankbang.com/${match.group(1)}/embed/';
+      }
+    }
+
+    // ── BravoTube ─────────────────────────────────────────────────────────────
+    // Página:  https://www.bravotube.net/video/titulo-123456.html
+    // Embed:   https://www.bravotube.net/embed/123456/
+    if (host.contains('bravotube')) {
+      final match = RegExp(r'-(\d+)\.html').firstMatch(path);
+      if (match != null) {
+        return 'https://www.bravotube.net/embed/${match.group(1)}/';
+      }
+    }
+
+    // ── DrTuber ───────────────────────────────────────────────────────────────
+    // Página:  https://www.drtuber.com/video/123456/titulo
+    // Embed:   https://www.drtuber.com/embed/123456
+    if (host.contains('drtuber')) {
+      final match = RegExp(r'/video/(\d+)').firstMatch(path);
+      if (match != null) {
+        return 'https://www.drtuber.com/embed/${match.group(1)}';
+      }
+    }
+
+    // ── TXXX ──────────────────────────────────────────────────────────────────
+    // Página:  https://www.txxx.com/videos/titulo-123456/
+    // Embed:   https://www.txxx.com/embed/123456/
+    if (host.contains('txxx')) {
+      final match = RegExp(r'-(\d+)/?$').firstMatch(path);
+      if (match != null) {
+        return 'https://www.txxx.com/embed/${match.group(1)}/';
+      }
+    }
+
+    // ── GotPorn ───────────────────────────────────────────────────────────────
+    // Página:  https://www.gotporn.com/titulo/video-123456
+    // Embed:   https://www.gotporn.com/video/embed/123456
+    if (host.contains('gotporn')) {
+      final match = RegExp(r'/video-(\d+)').firstMatch(path);
+      if (match != null) {
+        return 'https://www.gotporn.com/video/embed/${match.group(1)}';
+      }
+    }
+
+    // ── PornDig ───────────────────────────────────────────────────────────────
+    // Página:  https://www.porndig.com/videos/titulo-123456.html
+    // Embed:   https://www.porndig.com/embed/123456
+    if (host.contains('porndig')) {
+      final match = RegExp(r'-(\d+)\.html').firstMatch(path);
+      if (match != null) {
+        return 'https://www.porndig.com/embed/${match.group(1)}';
+      }
+    }
+
+    // Fallback — devolve a URL original se não souber converter
+    return pageUrl;
+  }
 }
 
 class FeedService {
@@ -37,7 +180,6 @@ class FeedService {
       'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
       '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
 
-  // Termos de pesquisa para variar resultados
   static const _terms = [
     '', 'amateur', 'teen', 'milf', 'blonde', 'brunette', 'asian',
     'latina', 'hot', 'sexy', 'beautiful', 'young', 'wild', 'homemade',
@@ -47,9 +189,6 @@ class FeedService {
   static String _rndTerm() => _terms[Random().nextInt(_terms.length)];
   static int    _rndPage(int max) => Random().nextInt(max) + 1;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // load — carrega todas as fontes em paralelo, mistura e baralha
-  // ─────────────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> load({bool force = false}) async {
     if (_loaded && !force) return _items;
 
@@ -69,7 +208,6 @@ class FeedService {
       _fetchBlogs(),
     ]);
 
-    // Intercala as fontes em vez de concatenar
     final lists = results.where((l) => l.isNotEmpty).toList();
     final all   = <FeedItem>[];
     if (lists.isNotEmpty) {
@@ -89,7 +227,6 @@ class FeedService {
     return _items;
   }
 
-  // Pesquisa local nos itens já carregados
   List<FeedItem> search(String query) {
     if (query.trim().isEmpty) return _items;
     final q = query.toLowerCase();
@@ -100,7 +237,7 @@ class FeedService {
         .toList();
   }
 
-  // ── RedTube JSON API ───────────────────────────────────────────────────────
+  // ── RedTube ─────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchRedTube() async {
     final orders = ['newest', 'mostviewed', 'hottest', 'rating'];
     final items  = <FeedItem>[];
@@ -120,13 +257,16 @@ class FeedService {
         for (final v in videos) {
           final vm    = (v as Map)['video'] as Map<String, dynamic>? ?? {};
           final thumb = vm['thumb'] as String? ?? '';
-          final vUrl  = vm['url']   as String? ?? '';
-          if (thumb.isEmpty || vUrl.isEmpty) continue;
+          final id    = vm['video_id']?.toString() ?? '';
+          if (thumb.isEmpty || id.isEmpty) continue;
+          // Embed directo — sem página do site
+          final embed = 'https://embed.redtube.com/?bgcolor=000000&id=$id';
           items.add(FeedItem(
-            id:       'rt_${vm['video_id'] ?? items.length}',
+            id:       'rt_$id',
             title:    vm['title']    as String? ?? 'Vídeo',
             thumb:    thumb,
-            url:      vUrl,
+            url:      'https://www.redtube.com/$id',
+            embedUrl: embed,
             duration: vm['duration'] as String? ?? '',
             views:    vm['views']    as String? ?? '',
             source:   'RedTube',
@@ -137,11 +277,11 @@ class FeedService {
     return items;
   }
 
-  // ── EPorner API v2 ─────────────────────────────────────────────────────────
+  // ── Eporner ─────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchEporner() async {
-    final orders = ['latest', 'top-weekly', 'top-monthly', 'top-alltime', 'most-viewed'];
+    final orders = ['latest', 'top-weekly', 'top-monthly'];
     final items  = <FeedItem>[];
-    for (final order in orders.take(3)) {
+    for (final order in orders) {
       try {
         final term = _rndTerm();
         final res  = await http.get(
@@ -155,20 +295,24 @@ class FeedService {
         final videos = json['videos'] as List? ?? [];
         for (final v in videos) {
           final vm        = v as Map<String, dynamic>;
+          final id        = vm['id'] as String? ?? '';
+          if (id.isEmpty) continue;
           final thumbList = vm['thumbs'] as List?;
           final thumb = thumbList != null && thumbList.isNotEmpty
               ? (thumbList.last['src'] as String? ?? '')
               : (vm['thumb'] as String? ?? '');
-          final vUrl = vm['url'] as String? ?? '';
-          if (thumb.isEmpty || vUrl.isEmpty) continue;
+          if (thumb.isEmpty) continue;
+          // Embed directo — sem página do site
+          final embed = 'https://www.eporner.com/embed/$id/';
           items.add(FeedItem(
-            id:       'ep_${vm['id'] ?? items.length}',
+            id:       'ep_$id',
             title:    vm['title']      as String? ?? 'Vídeo',
             thumb:    thumb,
-            url:      vUrl.startsWith('http') ? vUrl : 'https://www.eporner.com$vUrl',
+            url:      'https://www.eporner.com/video-$id/',
+            embedUrl: embed,
             duration: vm['length_min'] as String? ?? '',
             views:    vm['views']      as String? ?? '',
-            source:   'EPorner',
+            source:   'Eporner',
           ));
         }
       } catch (_) {}
@@ -176,7 +320,7 @@ class FeedService {
     return items;
   }
 
-  // ── PornHub WebMasters API JSON ────────────────────────────────────────────
+  // ── PornHub ─────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchPornHub() async {
     final orders = ['newest', 'mostviewed', 'rating', 'featured'];
     final items  = <FeedItem>[];
@@ -194,7 +338,7 @@ class FeedService {
         final data   = jsonDecode(res.body) as Map<String, dynamic>;
         final videos = data['videos'] as List? ?? data['video'] as List? ?? [];
         for (final v in videos) {
-          final vm    = v as Map<String, dynamic>;
+          final vm      = v as Map<String, dynamic>;
           final viewkey = vm['video_id'] as String? ?? vm['viewkey'] as String? ?? '';
           if (viewkey.isEmpty) continue;
           String thumb = '';
@@ -204,11 +348,14 @@ class FeedService {
           }
           if (thumb.isEmpty) thumb = vm['default_thumb'] as String? ?? '';
           if (thumb.isEmpty) continue;
+          // Embed directo — player PH sem página
+          final embed = 'https://www.pornhub.com/embed/$viewkey';
           items.add(FeedItem(
             id:       'ph_$viewkey',
             title:    vm['title']    as String? ?? 'Vídeo',
             thumb:    thumb,
             url:      'https://www.pornhub.com/view_video.php?viewkey=$viewkey',
+            embedUrl: embed,
             duration: vm['duration'] as String? ?? '',
             views:    vm['views']    as String? ?? '',
             source:   'PornHub',
@@ -219,7 +366,7 @@ class FeedService {
     return items;
   }
 
-  // ── XVideos RSS + API ──────────────────────────────────────────────────────
+  // ── XVideos ─────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchXVideos() async {
     final endpoints = [
       'https://www.xvideos.com/feeds/rss-new/0',
@@ -237,15 +384,20 @@ class FeedService {
         for (final item in doc.findAllElements('item')) {
           final link  = _xml(item, 'link');
           final title = _xml(item, 'title');
-          final thumb =
-              item.findElements('enclosure').firstOrNull?.getAttribute('url') ?? '';
+          final thumb = item.findElements('enclosure').firstOrNull?.getAttribute('url') ?? '';
           if (link.isEmpty) continue;
+          // Extrai ID do path /videoXXXXXXXX/
+          final match = RegExp(r'/video(\d+)').firstMatch(link);
+          final embed = match != null
+              ? 'https://www.xvideos.com/embedframe/${match.group(1)}'
+              : FeedItem.toEmbed(link);
           items.add(FeedItem(
-            id:     'xv_${link.hashCode}',
-            title:  title.isEmpty ? 'Vídeo' : title,
-            thumb:  thumb,
-            url:    link,
-            source: 'XVideos',
+            id:       'xv_${link.hashCode}',
+            title:    title.isEmpty ? 'Vídeo' : title,
+            thumb:    thumb,
+            url:      link,
+            embedUrl: embed,
+            source:   'XVideos',
           ));
         }
       } catch (_) {}
@@ -253,7 +405,7 @@ class FeedService {
     return items;
   }
 
-  // ── xHamster API JSON ──────────────────────────────────────────────────────
+  // ── xHamster ────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchXHamster() async {
     final items = <FeedItem>[];
     try {
@@ -269,7 +421,7 @@ class FeedService {
         },
       ).timeout(const Duration(seconds: 14));
       if (res.statusCode != 200) return items;
-      final data  = jsonDecode(res.body) as Map<String, dynamic>;
+      final data   = jsonDecode(res.body) as Map<String, dynamic>;
       final models = (data['data']?['videos']?['models'] as List?) ?? [];
       for (final v in models) {
         final vm    = v as Map<String, dynamic>;
@@ -277,11 +429,14 @@ class FeedService {
         final thumb = vm['thumbUrl'] as String? ?? vm['thumb'] as String? ?? '';
         final url   = vm['pageURL'] as String? ?? vm['url'] as String? ?? '';
         if (id.isEmpty || thumb.isEmpty || url.isEmpty) continue;
+        // Embed xHamster
+        final embed = 'https://xhamster.com/xembed.php?video=$id';
         items.add(FeedItem(
           id:       'xh_$id',
           title:    vm['title'] as String? ?? 'Vídeo',
           thumb:    thumb,
           url:      url,
+          embedUrl: embed,
           duration: vm['duration']?.toString() ?? '',
           views:    _fmtViews(vm['views']),
           source:   'xHamster',
@@ -291,7 +446,7 @@ class FeedService {
     return items;
   }
 
-  // ── YouPorn API JSON ───────────────────────────────────────────────────────
+  // ── YouPorn ─────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchYouPorn() async {
     final items = <FeedItem>[];
     try {
@@ -308,11 +463,13 @@ class FeedService {
         final id    = (vm['id'] ?? vm['video_id'] ?? '').toString();
         final thumb = vm['thumb'] as String? ?? vm['default_thumb'] as String? ?? '';
         if (id.isEmpty || id == '0' || thumb.isEmpty) continue;
+        final embed = 'https://www.youporn.com/embed/$id/';
         items.add(FeedItem(
           id:       'yp_$id',
           title:    vm['title'] as String? ?? 'Vídeo',
           thumb:    thumb,
           url:      'https://www.youporn.com/watch/$id/',
+          embedUrl: embed,
           duration: vm['duration'] as String? ?? '',
           views:    _fmtViews(vm['views']),
           source:   'YouPorn',
@@ -322,7 +479,7 @@ class FeedService {
     return items;
   }
 
-  // ── SpankBang RSS ──────────────────────────────────────────────────────────
+  // ── SpankBang ────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchSpankBang() async {
     final endpoints = [
       'https://spankbang.com/rss/',
@@ -345,12 +502,18 @@ class FeedService {
             item.findElements('enclosure').firstOrNull?.getAttribute('url'),
           ]);
           if (link.isEmpty) continue;
+          // Extrai slug do path /SLUG/video/titulo
+          final match = RegExp(r'^/([A-Za-z0-9]+)/').firstMatch(Uri.parse(link).path);
+          final embed = match != null
+              ? 'https://spankbang.com/${match.group(1)}/embed/'
+              : FeedItem.toEmbed(link);
           items.add(FeedItem(
-            id:     'sb_${link.hashCode}',
-            title:  title.isEmpty ? 'Vídeo' : title,
-            thumb:  thumb,
-            url:    link,
-            source: 'SpankBang',
+            id:       'sb_${link.hashCode}',
+            title:    title.isEmpty ? 'Vídeo' : title,
+            thumb:    thumb,
+            url:      link,
+            embedUrl: embed,
+            source:   'SpankBang',
           ));
         }
       } catch (_) {}
@@ -358,7 +521,7 @@ class FeedService {
     return items;
   }
 
-  // ── BravoTube RSS ──────────────────────────────────────────────────────────
+  // ── BravoTube ────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchBravoTube() async {
     final endpoints = [
       'https://www.bravotube.net/rss/new/',
@@ -381,12 +544,17 @@ class FeedService {
             item.findElements('enclosure').firstOrNull?.getAttribute('url'),
           ]);
           if (link.isEmpty) continue;
+          final match = RegExp(r'-(\d+)\.html').firstMatch(link);
+          final embed = match != null
+              ? 'https://www.bravotube.net/embed/${match.group(1)}/'
+              : FeedItem.toEmbed(link);
           items.add(FeedItem(
-            id:     'bt_${link.hashCode}',
-            title:  title.isEmpty ? 'Vídeo' : title,
-            thumb:  thumb,
-            url:    link,
-            source: 'BravoTube',
+            id:       'bt_${link.hashCode}',
+            title:    title.isEmpty ? 'Vídeo' : title,
+            thumb:    thumb,
+            url:      link,
+            embedUrl: embed,
+            source:   'BravoTube',
           ));
         }
       } catch (_) {}
@@ -394,7 +562,7 @@ class FeedService {
     return items;
   }
 
-  // ── DrTuber RSS ────────────────────────────────────────────────────────────
+  // ── DrTuber ──────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchDrTuber() async {
     final endpoints = [
       'https://www.drtuber.com/rss/latest',
@@ -417,12 +585,17 @@ class FeedService {
             item.findElements('enclosure').firstOrNull?.getAttribute('url'),
           ]);
           if (link.isEmpty) continue;
+          final match = RegExp(r'/video/(\d+)').firstMatch(link);
+          final embed = match != null
+              ? 'https://www.drtuber.com/embed/${match.group(1)}'
+              : FeedItem.toEmbed(link);
           items.add(FeedItem(
-            id:     'dt_${link.hashCode}',
-            title:  title.isEmpty ? 'Vídeo' : title,
-            thumb:  thumb,
-            url:    link,
-            source: 'DrTuber',
+            id:       'dt_${link.hashCode}',
+            title:    title.isEmpty ? 'Vídeo' : title,
+            thumb:    thumb,
+            url:      link,
+            embedUrl: embed,
+            source:   'DrTuber',
           ));
         }
       } catch (_) {}
@@ -430,7 +603,7 @@ class FeedService {
     return items;
   }
 
-  // ── TXXX RSS ───────────────────────────────────────────────────────────────
+  // ── TXXX ─────────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchTXXX() async {
     final endpoints = [
       'https://www.txxx.com/rss/new/',
@@ -452,12 +625,17 @@ class FeedService {
             item.findElements('enclosure').firstOrNull?.getAttribute('url'),
           ]);
           if (link.isEmpty) continue;
+          final match = RegExp(r'-(\d+)/?$').firstMatch(Uri.parse(link).path);
+          final embed = match != null
+              ? 'https://www.txxx.com/embed/${match.group(1)}/'
+              : FeedItem.toEmbed(link);
           items.add(FeedItem(
-            id:     'tx_${link.hashCode}',
-            title:  title.isEmpty ? 'Vídeo' : title,
-            thumb:  thumb,
-            url:    link,
-            source: 'TXXX',
+            id:       'tx_${link.hashCode}',
+            title:    title.isEmpty ? 'Vídeo' : title,
+            thumb:    thumb,
+            url:      link,
+            embedUrl: embed,
+            source:   'TXXX',
           ));
         }
       } catch (_) {}
@@ -465,7 +643,7 @@ class FeedService {
     return items;
   }
 
-  // ── GotPorn RSS ────────────────────────────────────────────────────────────
+  // ── GotPorn ──────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchGotPorn() async {
     final endpoints = [
       'https://www.gotporn.com/rss/latest',
@@ -487,12 +665,17 @@ class FeedService {
             item.findElements('enclosure').firstOrNull?.getAttribute('url'),
           ]);
           if (link.isEmpty) continue;
+          final match = RegExp(r'/video-(\d+)').firstMatch(link);
+          final embed = match != null
+              ? 'https://www.gotporn.com/video/embed/${match.group(1)}'
+              : FeedItem.toEmbed(link);
           items.add(FeedItem(
-            id:     'gp_${link.hashCode}',
-            title:  title.isEmpty ? 'Vídeo' : title,
-            thumb:  thumb,
-            url:    link,
-            source: 'GotPorn',
+            id:       'gp_${link.hashCode}',
+            title:    title.isEmpty ? 'Vídeo' : title,
+            thumb:    thumb,
+            url:      link,
+            embedUrl: embed,
+            source:   'GotPorn',
           ));
         }
       } catch (_) {}
@@ -500,7 +683,7 @@ class FeedService {
     return items;
   }
 
-  // ── PornDig RSS ────────────────────────────────────────────────────────────
+  // ── PornDig ──────────────────────────────────────────────────────────────────
   Future<List<FeedItem>> _fetchPornDig() async {
     final endpoints = [
       'https://www.porndig.com/rss',
@@ -523,12 +706,17 @@ class FeedService {
             item.findElements('enclosure').firstOrNull?.getAttribute('url'),
           ]);
           if (link.isEmpty) continue;
+          final match = RegExp(r'-(\d+)\.html').firstMatch(link);
+          final embed = match != null
+              ? 'https://www.porndig.com/embed/${match.group(1)}'
+              : FeedItem.toEmbed(link);
           items.add(FeedItem(
-            id:     'pd_${link.hashCode}',
-            title:  title.isEmpty ? 'Vídeo' : title,
-            thumb:  thumb,
-            url:    link,
-            source: 'PornDig',
+            id:       'pd_${link.hashCode}',
+            title:    title.isEmpty ? 'Vídeo' : title,
+            thumb:    thumb,
+            url:      link,
+            embedUrl: embed,
+            source:   'PornDig',
           ));
         }
         if (items.isNotEmpty) break;
@@ -537,7 +725,8 @@ class FeedService {
     return items;
   }
 
-  // ── Blogs da indústria adulta ──────────────────────────────────────────────
+  // ── Blogs ────────────────────────────────────────────────────────────────────
+  // Artigos não têm embed — usam a URL de página (tipo='article')
   Future<List<FeedItem>> _fetchBlogs() async {
     final sources = <String, String>{
       'https://ainews.xxx/feed/':              'AINews.xxx',
@@ -582,7 +771,7 @@ class FeedService {
     return items;
   }
 
-  // ── helpers ───────────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────────
   String _firstOf(List<String?> values) {
     for (final v in values) { if (v != null && v.isNotEmpty) return v; }
     return '';
