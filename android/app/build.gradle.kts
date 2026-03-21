@@ -24,32 +24,43 @@ android {
 
     defaultConfig {
         applicationId = "com.patrulha.xx"
-        minSdk = 23
+        // minSdk 21 = Android 5.0+ — máxima compatibilidade sem perder features Flutter
+        minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
 
         ndk {
+            // armeabi-v7a cobre 99% dos Android antigos; arm64-v8a cobre modernos
             abiFilters += listOf("armeabi-v7a", "arm64-v8a")
         }
     }
 
     packaging {
         jniLibs {
-            useLegacyPackaging = true
+            // useLegacyPackaging=false → libs comprimidas no APK → menor tamanho
+            useLegacyPackaging = false
             pickFirsts += setOf(
                 "**/libflutter.so",
                 "**/libc++_shared.so",
             )
         }
         resources {
+            // Remove ficheiros desnecessários que inflam o APK
             excludes += setOf(
                 "META-INF/LICENSE",
                 "META-INF/LICENSE.txt",
                 "META-INF/NOTICE",
                 "META-INF/NOTICE.txt",
                 "META-INF/*.kotlin_module",
+                "META-INF/DEPENDENCIES",
+                "META-INF/MANIFEST.MF",
+                "DebugProbesKt.bin",
+                "kotlin-tooling-metadata.json",
+                "**/kotlin/**",
+                "**/*.proto",
+                "**/*.bin",
             )
         }
     }
@@ -66,6 +77,7 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            // R8/ProGuard — reduz código e recursos
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -84,4 +96,3 @@ dependencies {
 flutter {
     source = "../.."
 }
- 
