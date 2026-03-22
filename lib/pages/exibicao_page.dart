@@ -95,241 +95,410 @@ const _svgVolOff =
 // ─────────────────────────────────────────────────────────────────────────────
 // CSS de limpeza — elimina TODOS os players, overlays, banners, headers
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// CSS de limpeza — elimina TODOS os overlays, controls, headers, banners
+// ─────────────────────────────────────────────────────────────────────────────
 String get _kCleanCss => r"""
-  /* Remove controls nativos do browser */
+  /* Remove TODOS os controls nativos do browser */
   video::-webkit-media-controls,
   video::-webkit-media-controls-enclosure,
   video::-webkit-media-controls-panel,
   video::-webkit-media-controls-play-button,
+  video::-webkit-media-controls-start-playback-button,
   video::-webkit-media-controls-timeline,
   video::-webkit-media-controls-current-time-display,
   video::-webkit-media-controls-time-remaining-display,
   video::-webkit-media-controls-mute-button,
   video::-webkit-media-controls-volume-slider,
-  video::-webkit-media-controls-fullscreen-button { display:none!important; visibility:hidden!important; }
+  video::-webkit-media-controls-fullscreen-button,
+  video::-webkit-media-controls-overflow-button,
+  video::-internal-media-controls-download-button,
+  video::--webkit-media-controls-overlay-play-button
+    { display:none!important; visibility:hidden!important; opacity:0!important; pointer-events:none!important; }
 
-  /* Players externos: VideoJS, JW, Plyr, Flowplayer */
+  /* Players externos */
   .vjs-control-bar,.vjs-big-play-button,.vjs-loading-spinner,.vjs-poster,
-  .vjs-overlay,.vjs-modal-dialog,
-  .jw-controls,.jw-display,.jw-nextup-container,.jw-logo,
-  .plyr__controls,.plyr__captions,
-  .fp-controls,.fp-logo,
-  /* Eporner específico */
-  .ep-logo,.ep-controls,.ep-related,.ep-title,
-  #eporner-logo,#ep-logo,
-  /* PornHub específico */
-  .pc-overlay,.pc-info-block,.ph-logo,
-  /* RedTube específico */
-  .redtube-logo,.rt-logo,.site-controls,
-  #redtube_header,.redtube-header,
-  /* Banners/ads/redirects */
+  .vjs-overlay,.vjs-modal-dialog,.vjs-error-display,.vjs-text-track-display,
+  .vjs-playback-rate,.vjs-chapters-button,.vjs-descriptions-button,
+  .jw-controls,.jw-display,.jw-nextup-container,.jw-logo,.jw-dock,
+  .jw-captions,.jw-rightclick,.jw-overlays,
+  .plyr__controls,.plyr__captions,.plyr__menu,
+  .fp-controls,.fp-logo,.fp-fullscreen,.fp-mute,
+  /* Eporner */
+  .ep-logo,.ep-controls,.ep-related,.ep-title,.ep-overlay,
+  #eporner-logo,#ep-logo,.eporner-header,.eporner-footer,
+  .eporner-logo,[class*="eporner-nav"],[id*="eporner-ad"],
+  /* PornHub */
+  .pc-overlay,.pc-info-block,.ph-logo,.pc-header,.pc-footer,
+  .pc-subscribe-now,.pc-age-gate,.ageGate,.age-gate-wrapper,
+  .pcRecoverContent,.removeForEmbed,.pc-overlay-transparent,
+  #pc-user-info,.pc-nav,.pc-tabs,.pc-ad,.pc-rating-wrap,
+  [class*="pcHeader"],[class*="pc-header"],[id*="pc-header"],
+  /* RedTube */
+  .redtube-logo,.rt-logo,.site-controls,.embed-logo,
+  #redtube_header,.redtube-header,.rt-header,.embed-header,
+  .site-branding,.embed-branding,.embed-play-wrap,
+  [class*="redtube"],[id*="redtube"],
+  /* xHamster */
+  .xha-header,.xha-logo,.xha-footer,.xha-overlay,
+  [class*="xha-"],[class*="ham-header"],
+  /* XVideos */
+  .xv-logo,.xvideos-logo,.xv-header,
+  [class*="xvideos-"],[class*="xv-logo"],
+  /* SpankBang */
+  .sb-header,.sb-logo,.sb-footer,[class*="spankbang-"],
+  /* Genérico */
   .redirect-banner,.watch-hd-button,.hd-button,.upgrade-btn,
   .banner,.ad-banner,.popup,.modal,.overlay-redirect,
+  .age-gate,.age-gate-container,.age-verification,.agewall,
+  .cookie-consent,.gdpr,.consent-banner,
   [class*="redirect"],[class*="watch-hd"],[class*="upgrade"],
-  [class*="notification"],[id*="banner"],[id*="ad_"],
-  /* Headers de site */
+  [class*="notification"],[class*="ageGate"],[class*="age-gate"],
+  [class*="age_gate"],[id*="banner"],[id*="ad_"],[id*="ageGate"],
   .site-header,.main-header,#header,.topbar,
-  header,[class*="header"]:not(video):not(source),
-  nav,.navigation,.nav-bar,
-  /* Outros blocos indesejados */
+  header,[class*="header"]:not(video):not(source):not(iframe),
+  nav,.navigation,.nav-bar,.navbar,
   .related-videos,.suggestions,.recommendations,
-  footer,.footer { display:none!important; visibility:hidden!important; }
+  footer,.footer,.embed-footer { display:none!important; visibility:hidden!important; opacity:0!important; }
 
-  /* Fundo preto, sem scroll lateral */
+  /* Base */
   *,*::before,*::after { box-sizing:border-box!important; }
   html,body {
     background:#000!important; margin:0!important; padding:0!important;
     overflow:hidden!important; width:100vw!important; height:100vh!important;
+    position:fixed!important; top:0!important; left:0!important;
   }
 
-  /* Vídeo a ecrã completo */
+  /* Vídeo ecrã completo */
   video {
-    width:100vw!important; height:100vh!important; object-fit:contain!important;
-    display:block!important; position:fixed!important;
-    top:0!important; left:0!important; z-index:99999!important;
-    background:#000!important;
+    width:100vw!important; height:100vh!important;
+    object-fit:contain!important; display:block!important;
+    position:fixed!important; top:0!important; left:0!important;
+    z-index:99999!important; background:#000!important;
+    pointer-events:none!important;
+  }
+
+  /* iframe ecrã completo (RedTube usa iframe interno) */
+  iframe {
+    width:100vw!important; height:100vh!important;
+    position:fixed!important; top:0!important; left:0!important;
+    border:none!important; z-index:9999!important;
   }
 """;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// JS principal — injeta na página após load
-// Objectivos:
-//  1. Aplica CSS de limpeza
-//  2. Remove DOM indesejado e observa mutações
-//  3. Força o <video> a reproduzir inline, sem controls
-//  4. Implementa play/pause via postMessage (Flutter → WebView)
-//  5. Tratamento especial por fonte (RedTube, Eporner, etc.)
-//  6. hls.js para streams HLS com qualidade reduzida
+// JS de injeção por fonte — invocado em onLoadStart, onLoadStop e onLoadError
+// Cada fonte tem tratamento específico e agressivo
 // ─────────────────────────────────────────────────────────────────────────────
 String get _kPlayerInitJs => r"""
 (function(){
   if(window.__pxDone) return;
   window.__pxDone = true;
 
-  // ── 1. CSS de limpeza ──────────────────────────────────────────────────────
-  var st = document.createElement('style');
-  st.id = '__pxStyle';
-  st.textContent = window.__pxCss || '';
-  (document.head || document.documentElement).appendChild(st);
+  var host = (location.hostname||'').toLowerCase();
 
-  // ── 2. Limpeza de DOM ─────────────────────────────────────────────────────
+  // ── Utilidades ──────────────────────────────────────────────────────────────
+  function injectCss(){
+    var existing = document.getElementById('__pxStyle');
+    if(existing) return;
+    var st = document.createElement('style');
+    st.id = '__pxStyle';
+    st.textContent = window.__pxCss||'';
+    (document.head||document.documentElement).appendChild(st);
+  }
+
   var _removeSelectors = [
     '.redirect-overlay','[class*="redirect"]','[class*="watch-hd"]',
     '.hd-notifier','.upgrade','.notification',
     'header','nav','.header','#header','#redtube_header',
     '.site-header','.main-header','.topbar',
-    '.ad','.ads','[id*="ad_"]',
-    '.vjs-big-play-button','.vjs-overlay',
-    '.ep-logo','#eporner-logo','#ep-logo',
-    '.jw-logo','.jw-display',
+    '.ad','.ads','[id*="ad_"]','[id*="banner"]',
+    '.vjs-big-play-button','.vjs-overlay','.vjs-error-display',
+    '.ep-logo','#eporner-logo','#ep-logo','.eporner-header',
+    '.jw-logo','.jw-display','.jw-dock',
+    '.pc-overlay','.pc-info-block','.ageGate','.age-gate',
+    '.age-gate-container','.age-verification',
+    '.redtube-logo','.rt-logo','.embed-logo','.embed-header',
+    '.cookie-consent','.gdpr','.consent-banner',
     '.related-videos','.recommendations',
-    '.redtube-logo','.rt-logo',
-    'footer','.footer',
+    'footer','.footer','.embed-footer',
   ];
-  function clean(){
+
+  function cleanDom(){
+    injectCss();
     _removeSelectors.forEach(function(s){
       try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
     });
-    // Textos de redirect
-    document.querySelectorAll('a,span,div,p').forEach(function(el){
+    // Remove qualquer texto de redirect
+    document.querySelectorAll('a,span,div,p,button').forEach(function(el){
       var txt=(el.innerText||'').toLowerCase();
-      if(txt.includes('redirect')||txt.includes('watch in hd')||txt.includes('watch hd')||
-         txt.includes('upgrade')){
+      if(txt.includes('redirect')||txt.includes('watch in hd')||
+         txt.includes('watch hd')||txt.includes('upgrade')||
+         txt.includes('age verification')||txt.includes('verify age')){
         try{ el.style.cssText='display:none!important'; }catch(_){}
       }
     });
+    document.body&&(document.body.style.cssText='background:#000!important;overflow:hidden!important;margin:0!important;padding:0!important;');
   }
-  clean();
-  new MutationObserver(function(){ clean(); }).observe(
-    document.documentElement, {childList:true, subtree:true});
 
-  // ── 3. Prepara o <video> ──────────────────────────────────────────────────
+  cleanDom();
+  new MutationObserver(function(){ cleanDom(); }).observe(
+    document.documentElement||document.body, {childList:true, subtree:true, attributes:true});
+
+  // ── Prepara video ────────────────────────────────────────────────────────────
   function prepareVideo(v){
-    if(!v||v.__pxReady) return;
-    v.__pxReady = true;
+    if(!v) return;
     v.removeAttribute('controls');
     v.setAttribute('playsinline','');
     v.setAttribute('webkit-playsinline','');
-    v.muted = window.__pxMuted || false;
-    // Autoplay imediato
+    v.setAttribute('x-webkit-airplay','allow');
+    v.muted = window.__pxMuted||false;
+    v.style.cssText='width:100vw!important;height:100vh!important;position:fixed!important;top:0!important;left:0!important;z-index:99999!important;background:#000!important;object-fit:contain!important;pointer-events:none!important;';
     var p = v.play();
-    if(p && p.catch) p.catch(function(){});
+    if(p&&p.catch) p.catch(function(){});
+    // Forçar ao entrar em stall/waiting
+    v.addEventListener('stalled',function(){ v.load(); var pp=v.play(); if(pp&&pp.catch)pp.catch(function(){}); },{once:false});
+    v.addEventListener('waiting',function(){ var pp=v.play(); if(pp&&pp.catch)pp.catch(function(){}); },{once:false});
+    v.addEventListener('suspend',function(){ var pp=v.play(); if(pp&&pp.catch)pp.catch(function(){}); },{once:false});
   }
 
   function prepareAll(){
+    cleanDom();
     document.querySelectorAll('video').forEach(prepareVideo);
   }
   prepareAll();
-  setTimeout(prepareAll,500);
-  setTimeout(prepareAll,1500);
-  setTimeout(prepareAll,3000);
+  [300,600,1000,1500,2500,4000].forEach(function(ms){ setTimeout(prepareAll,ms); });
 
-  // ── 4. postMessage bridge: Flutter → WebView ──────────────────────────────
-  // Flutter chama: _webCtrl.evaluateJavascript(source: "window.postMessage('px:pause','*')")
+  // Observer para novos vídeos adicionados ao DOM
+  new MutationObserver(function(mutations){
+    mutations.forEach(function(m){
+      m.addedNodes&&m.addedNodes.forEach&&m.addedNodes.forEach(function(n){
+        if(n.tagName==='VIDEO') prepareVideo(n);
+        if(n.querySelectorAll) n.querySelectorAll('video').forEach(prepareVideo);
+      });
+    });
+  }).observe(document.documentElement||document.body, {childList:true, subtree:true});
+
+  // ── postMessage bridge Flutter ↔ WebView ────────────────────────────────────
   window.addEventListener('message', function(e){
     var v = document.querySelector('video');
     if(!v) return;
-    if(e.data === 'px:pause') { v.pause(); }
-    if(e.data === 'px:play')  { v.play && v.play().catch(function(){}); }
-    if(e.data === 'px:mute')  { v.muted = true;  window.__pxMuted = true;  }
-    if(e.data === 'px:unmute'){ v.muted = false; window.__pxMuted = false; }
+    if(e.data==='px:pause'){ v.pause(); }
+    if(e.data==='px:play') { var p=v.play(); if(p&&p.catch)p.catch(function(){}); }
+    if(e.data==='px:mute')  { v.muted=true;  window.__pxMuted=true;  }
+    if(e.data==='px:unmute'){ v.muted=false; window.__pxMuted=false; }
   });
 
-  // ── 5. Tratamento por fonte ────────────────────────────────────────────────
-  var host = (location.hostname || '').toLowerCase();
+  // ── REDTUBE ──────────────────────────────────────────────────────────────────
+  // Problema: RedTube embed usa iframe interno + bloqueio de autoplay
+  // Solução: injecta no iframe interno + força cookies de age-verify
+  if(host.indexOf('redtube')>=0){
+    // Cookies de verificação de idade
+    var exp='; expires='+new Date(Date.now()+9e11).toUTCString()+'; path=/; domain=.redtube.com';
+    ['age_verified=1','platform=pc','accessAgeDisclaimer=1','redtube_session=1'].forEach(function(c){
+      document.cookie=c+exp;
+    });
+    // Remove blocos de age-gate imediatamente
+    function rtClean(){
+      ['.age-gate','.age-gate-container','#age-gate','.age-verification',
+       '.embed-header','.embed-footer','[class*="redtube"]','.site-branding',
+       '.embed-branding','[class*="embed-logo"]'].forEach(function(s){
+        try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
+      });
+      // O player do RedTube usa um wrapper — remove background preto do wrapper
+      document.querySelectorAll('[class*="player"]').forEach(function(el){
+        el.style.background='#000';
+      });
+    }
+    rtClean();
+    [200,500,800,1200,2000,3500].forEach(function(ms){ setTimeout(rtClean,ms); });
 
-  // RedTube: scroll para esconder header + aguarda o iframe do player
-  if(host.indexOf('redtube') >= 0){
-    setTimeout(function(){
-      try{ window.scrollTo({top:200, behavior:'instant'}); }catch(_){}
-      // RedTube usa um <iframe> interno — injeta nele também
+    // Inject dentro do iframe interno do RedTube (onde está o vídeo real)
+    function injectIntoRtIframes(){
       document.querySelectorAll('iframe').forEach(function(fr){
         try{
-          var d=fr.contentDocument||fr.contentWindow&&fr.contentWindow.document;
-          if(!d) return;
-          var s=d.createElement('style');
-          s.textContent = window.__pxCss||'';
-          (d.head||d.documentElement).appendChild(s);
+          var d=fr.contentDocument||(fr.contentWindow&&fr.contentWindow.document);
+          if(!d||!d.body) return;
+          // CSS no iframe interno
+          var st=d.getElementById('__pxInnerStyle');
+          if(!st){ st=d.createElement('style'); st.id='__pxInnerStyle'; (d.head||d.documentElement).appendChild(st); }
+          st.textContent=(window.__pxCss||'');
+          // Vídeos no iframe
           d.querySelectorAll('video').forEach(function(v){
             v.removeAttribute('controls');
             v.setAttribute('playsinline','');
-            v.play&&v.play().catch(function(){});
+            v.muted=window.__pxMuted||false;
+            v.style.cssText='width:100vw!important;height:100vh!important;position:fixed!important;top:0!important;left:0!important;object-fit:contain!important;z-index:99999!important;';
+            var p=v.play(); if(p&&p.catch)p.catch(function(){});
+          });
+          // Limpa DOM do iframe
+          ['.embed-header','.embed-footer','[class*="logo"]','[class*="branding"]',
+           'header','nav','footer'].forEach(function(s){
+            try{ d.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
           });
         }catch(_){}
       });
-    }, 800);
-    setTimeout(function(){
-      try{ window.scrollTo({top:200, behavior:'instant'}); }catch(_){}
-    }, 2000);
+    }
+    [500,1000,1500,2500,4000].forEach(function(ms){ setTimeout(injectIntoRtIframes,ms); });
+    new MutationObserver(injectIntoRtIframes).observe(document.documentElement,{childList:true,subtree:true});
   }
 
-  // Eporner: remove logo e título sobrepostos, força play
-  if(host.indexOf('eporner') >= 0){
-    setTimeout(function(){
-      ['#eporner-logo','#ep-logo','.ep-logo','.ep-title','.ep-related']
-        .forEach(function(s){ try{ document.querySelector(s)&&document.querySelector(s).remove(); }catch(_){} });
-      document.querySelectorAll('video').forEach(function(v){
-        try{ v.play&&v.play().catch(function(){}); }catch(_){}
-      });
-    }, 1000);
-  }
-
-  // PornHub: remove overlay de verificação de idade e pc-overlay
-  if(host.indexOf('pornhub') >= 0){
-    setTimeout(function(){
-      ['.pc-overlay','.age-gate','.age-gate-container','.pc-info-block']
-        .forEach(function(s){ try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){} });
-      document.querySelectorAll('video').forEach(function(v){
-        try{ v.play&&v.play().catch(function(){}); }catch(_){}
-      });
-    }, 800);
-  }
-
-  // Xvideos / SpankBang / genérico: força play
-  setTimeout(function(){
-    document.querySelectorAll('video').forEach(function(v){
-      try{
-        v.removeAttribute('controls');
-        v.setAttribute('playsinline','');
-        if(v.paused) v.play&&v.play().catch(function(){});
-      }catch(_){}
+  // ── PORNHUB ──────────────────────────────────────────────────────────────────
+  // Problema: PornHub embed mostra os seus próprios controlos + overlay de premium
+  // Solução: cookies de sessão + remover overlays + forçar o player nativo deles a não aparecer
+  if(host.indexOf('pornhub')>=0){
+    var exp2='; expires='+new Date(Date.now()+9e11).toUTCString()+'; path=/; domain=.pornhub.com';
+    ['age_verified=1','accessAgeDisclaimerPH=1','accessPH=1','platform=pc',
+     'hasVisited=1','cookieConsent=1','_tc=1'].forEach(function(c){
+      document.cookie=c+exp2;
     });
-  }, 1200);
+    function phClean(){
+      ['.pc-overlay','.pc-info-block','.ageGate','.age-gate',
+       '.age-gate-container','.pcRecoverContent','.removeForEmbed',
+       '.pc-overlay-transparent','.pc-subscribe-now','#pc-user-info',
+       '.pc-nav','.pc-tabs','.pc-ad','.pc-rating-wrap','.ph-logo',
+       '.pc-header','.pc-footer','[class*="pcHeader"]','[class*="pc-header"]',
+       // Remove os controlos próprios do PH
+       '.vjs-control-bar','.vjs-big-play-button','.vjs-loading-spinner',
+       '.vjs-overlay','.vjs-modal-dialog','.vjs-error-display',
+       '#player-controls','.player-controls','.playerControlBar',
+       '.playbackControls','.playerOverlay','[class*="playerControl"]',
+       '[class*="controls-bar"]','[id*="controls"]'].forEach(function(s){
+        try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
+      });
+      // Força fundo preto
+      document.body&&(document.body.style.cssText='background:#000!important;overflow:hidden!important;margin:0!important;');
+    }
+    phClean();
+    [300,700,1200,2000,3500,5000].forEach(function(ms){ setTimeout(phClean,ms); });
+    new MutationObserver(phClean).observe(document.documentElement,{childList:true,subtree:true,attributes:true});
 
-  // ── 6. hls.js — qualidade reduzida para streams HLS ───────────────────────
-  function setupHls(){
-    var v = document.querySelector('video');
+    // PornHub usa VideoJS — desactiva os controlos deles pela API
+    function disableVjsControls(){
+      try{
+        // API VideoJS
+        if(window.videojs){
+          var players=Object.values(window.videojs.players||{});
+          players.forEach(function(p){
+            if(!p) return;
+            try{ p.controls(false); }catch(_){}
+            try{ p.bigPlayButton&&p.bigPlayButton.hide(); }catch(_){}
+            try{ p.controlBar&&p.controlBar.hide(); }catch(_){}
+            try{ p.errorDisplay&&p.errorDisplay.hide(); }catch(_){}
+            try{ var v=p.el_&&p.el_.querySelector('video'); if(v){ v.removeAttribute('controls'); var pp=v.play(); if(pp&&pp.catch)pp.catch(function(){}); } }catch(_){}
+          });
+        }
+      }catch(_){}
+    }
+    [800,1500,2500,4000].forEach(function(ms){ setTimeout(disableVjsControls,ms); });
+  }
+
+  // ── XHAMSTER ─────────────────────────────────────────────────────────────────
+  if(host.indexOf('xhamster')>=0){
+    var exp3='; expires='+new Date(Date.now()+9e11).toUTCString()+'; path=/; domain=.xhamster.com';
+    ['age_verified=1','platform=pc','hasVisited=1'].forEach(function(c){ document.cookie=c+exp3; });
+    function xhClean(){
+      ['.xha-header','.xha-logo','.xha-footer','.xha-overlay',
+       '[class*="xha-"]','[class*="ham-header"]',
+       '.vjs-control-bar','.vjs-big-play-button'].forEach(function(s){
+        try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
+      });
+    }
+    xhClean();
+    [500,1200,2500].forEach(function(ms){ setTimeout(xhClean,ms); });
+  }
+
+  // ── XVIDEOS ──────────────────────────────────────────────────────────────────
+  if(host.indexOf('xvideos')>=0){
+    function xvClean(){
+      ['.xv-logo','.xvideos-logo','.xv-header','[class*="xvideos-"]',
+       '.vjs-control-bar','.vjs-big-play-button'].forEach(function(s){
+        try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
+      });
+    }
+    xvClean();
+    [500,1500,3000].forEach(function(ms){ setTimeout(xvClean,ms); });
+  }
+
+  // ── SPANKBANG ────────────────────────────────────────────────────────────────
+  if(host.indexOf('spankbang')>=0){
+    function sbClean(){
+      ['.sb-header','.sb-logo','.sb-footer','[class*="spankbang-"]',
+       '.vjs-control-bar','.vjs-big-play-button'].forEach(function(s){
+        try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
+      });
+    }
+    sbClean();
+    [500,1500,3000].forEach(function(ms){ setTimeout(sbClean,ms); });
+  }
+
+  // ── EPORNER ───────────────────────────────────────────────────────────────────
+  if(host.indexOf('eporner')>=0){
+    function epClean(){
+      ['#eporner-logo','#ep-logo','.ep-logo','.ep-title','.ep-related',
+       '.ep-overlay','.eporner-header','.eporner-footer',
+       '[class*="eporner-nav"]','[id*="eporner-ad"]'].forEach(function(s){
+        try{ var el=document.querySelector(s); if(el) el.remove(); }catch(_){}
+      });
+    }
+    epClean();
+    [500,1200,2500].forEach(function(ms){ setTimeout(epClean,ms); });
+  }
+
+  // ── YOUPORN ──────────────────────────────────────────────────────────────────
+  if(host.indexOf('youporn')>=0){
+    var exp4='; expires='+new Date(Date.now()+9e11).toUTCString()+'; path=/; domain=.youporn.com';
+    ['age_verified=1','platform=pc','hasVisited=1'].forEach(function(c){ document.cookie=c+exp4; });
+    function ypClean(){
+      ['.age-gate','.age-gate-container','[class*="ageGate"]',
+       '.yp-header','.yp-footer','.vjs-control-bar'].forEach(function(s){
+        try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
+      });
+    }
+    ypClean();
+    [500,1500,3000].forEach(function(ms){ setTimeout(ypClean,ms); });
+  }
+
+  // ── hls.js — streams HLS com qualidade controlada ─────────────────────────
+  function setupHls(v){
     if(!v) return;
-    var src = v.currentSrc||v.src||'';
+    var src=v.currentSrc||v.src||'';
     if(!src){ var s=v.querySelector('source[src]'); if(s) src=s.src; }
     if(!src) src=v.getAttribute('data-src')||v.getAttribute('data-hls-url')||'';
-    if(src.indexOf('.m3u8') < 0) return;
-    if(typeof Hls === 'undefined'||!Hls.isSupported()) return;
+    if(src.indexOf('.m3u8')<0) return;
+    if(typeof Hls==='undefined'||!Hls.isSupported()) return;
     if(v.__hls){ try{ v.__hls.destroy(); }catch(_){} }
-    var hls = new Hls({
-      maxBufferLength:8, maxMaxBufferLength:16,
-      startLevel:0, autoLevelCapping:1,
+    var hls=new Hls({
+      maxBufferLength:10, maxMaxBufferLength:20,
+      startLevel:0, autoLevelCapping:2,
       capLevelToPlayerSize:true, lowLatencyMode:false,
+      fragLoadingTimeOut:10000, manifestLoadingTimeOut:10000,
       xhrSetup:function(xhr){ xhr.withCredentials=false; }
     });
     hls.loadSource(src);
     hls.attachMedia(v);
-    v.__hls = hls;
-    hls.on(Hls.Events.MANIFEST_PARSED, function(){ v.play&&v.play().catch(function(){}); });
+    v.__hls=hls;
+    hls.on(Hls.Events.MANIFEST_PARSED,function(){ var p=v.play(); if(p&&p.catch)p.catch(function(){}); });
+    hls.on(Hls.Events.ERROR,function(ev,data){
+      if(data.fatal){
+        if(data.type===Hls.ErrorTypes.NETWORK_ERROR){ hls.startLoad(); }
+        else if(data.type===Hls.ErrorTypes.MEDIA_ERROR){ hls.recoverMediaError(); }
+      }
+    });
   }
-  if(typeof Hls === 'undefined'){
+  function trySetupHls(){
+    document.querySelectorAll('video').forEach(setupHls);
+  }
+  if(typeof Hls==='undefined'){
     var sc=document.createElement('script');
     sc.src='https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js';
-    sc.onload=setupHls;
+    sc.onload=trySetupHls;
     (document.head||document.documentElement).appendChild(sc);
-  } else { setupHls(); }
+  } else { trySetupHls(); }
 
 })();
 """;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shimmer
-// ─────────────────────────────────────────────────────────────────────────────
 class _Shimmer extends StatefulWidget {
   final double width, height;
   final double radius;
@@ -546,7 +715,9 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   }
 
   Future<void> _injectJs(InAppWebViewController ctrl) async {
-    // Passa o CSS e o estado de mudo antes do JS principal
+    // Reset da flag — permite re-injecção em cada load de página
+    await ctrl.evaluateJavascript(source: "window.__pxDone=false;");
+    // CSS imediato antes do JS completo
     final escapedCss = _kCleanCss
         .replaceAll('\\', '\\\\')
         .replaceAll("'", "\\'")
@@ -554,6 +725,16 @@ class _ExibicaoPageState extends State<ExibicaoPage>
         .replaceAll('\r', '');
     await ctrl.evaluateJavascript(source: "window.__pxCss='$escapedCss';");
     await ctrl.evaluateJavascript(source: "window.__pxMuted=${_muted};");
+    // CSS de limpeza imediato
+    await ctrl.evaluateJavascript(source:
+      "(function(){"
+      "var st=document.getElementById('__pxStyleEarly');"
+      "if(!st){st=document.createElement('style');st.id='__pxStyleEarly';"
+      "(document.head||document.documentElement).appendChild(st);}"
+      "st.textContent=window.__pxCss||'';" 
+      "document.body&&(document.body.style.cssText='background:#000!important;overflow:hidden!important;margin:0!important;padding:0!important;');"
+      "})()");
+    // JS principal
     await ctrl.evaluateJavascript(source: _kPlayerInitJs);
   }
 
@@ -634,6 +815,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                           initialUrlRequest: URLRequest(
                               url: WebUri(widget.embedUrl!)),
                           initialSettings: InAppWebViewSettings(
+                          initialSettings: InAppWebViewSettings(
                             javaScriptEnabled: true,
                             mediaPlaybackRequiresUserGesture: false,
                             allowsInlineMediaPlayback: true,
@@ -646,13 +828,40 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                             displayZoomControls: false,
                             horizontalScrollBarEnabled: false,
                             verticalScrollBarEnabled: false,
+                            // Android: permite mixed content (http dentro de https)
+                            mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+                            // Permite que o vídeo do PornHub/RedTube toque sem gesto
+                            allowFileAccessFromFileURLs: true,
+                            allowUniversalAccessFromFileURLs: true,
+                            // Desactiva safe-browsing para não bloquear os embeds
+                            safeBrowsingEnabled: false,
+                            // Cookies de terceiros (essencial para PH/RT)
+                            thirdPartyCookiesEnabled: true,
+                            // DOM storage para cookies de verificação de idade
+                            domStorageEnabled: true,
+                            databaseEnabled: true,
+                            // Evita que o WebView abra o app de browser externo
+                            useOnLoadResource: true,
+                            useShouldInterceptRequest: false,
                             userAgent:
                                 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
                                 'AppleWebKit/537.36 (KHTML, like Gecko) '
                                 'Chrome/124.0.0.0 Mobile Safari/537.36',
                           ),
-                          onWebViewCreated: (ctrl) {
                             _webCtrl = ctrl;
+                          },
+                          onLoadStart: (ctrl, url) async {
+                            // Injeta CSS imediatamente no início do load
+                            await ctrl.evaluateJavascript(
+                              source:
+                                "(function(){"
+                                "var st=document.getElementById('__pxStyleEarly');"
+                                "if(!st){st=document.createElement('style');st.id='__pxStyleEarly';"
+                                "(document.head||document.documentElement).appendChild(st);}"
+                                "st.textContent=window.__pxCss||'';"
+                                "document.body&&(document.body.style.background='#000');"
+                                "})()",
+                            );
                           },
                           onLoadStop: (ctrl, _) async {
                             await _injectJs(ctrl);
