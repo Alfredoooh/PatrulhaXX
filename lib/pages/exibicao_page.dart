@@ -788,9 +788,9 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     final video   = widget.currentVideo;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
+      value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: t.statusBar,
+        statusBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: t.bg,
@@ -814,7 +814,6 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                           key: ValueKey(widget.embedUrl),
                           initialUrlRequest: URLRequest(
                               url: WebUri(widget.embedUrl!)),
-                          initialSettings: InAppWebViewSettings(
                           initialSettings: InAppWebViewSettings(
                             javaScriptEnabled: true,
                             mediaPlaybackRequiresUserGesture: false,
@@ -848,6 +847,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                                 'AppleWebKit/537.36 (KHTML, like Gecko) '
                                 'Chrome/124.0.0.0 Mobile Safari/537.36',
                           ),
+                          onWebViewCreated: (ctrl) {
                             _webCtrl = ctrl;
                           },
                           onLoadStart: (ctrl, url) async {
@@ -920,7 +920,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                 // Thumbnail de loading
                 if (!_isEmpty && _playerLoading)
                   Positioned.fill(
-                    child: Stack(children: [
+                    child: Stack(children: <Widget>[
                       if (video?.thumb != null && video!.thumb.isNotEmpty)
                         Image.network(video.thumb,
                           fit: BoxFit.cover,
