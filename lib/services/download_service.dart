@@ -223,6 +223,9 @@ class DownloadService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Remover item completado ────────────────────────────────────────────────
+  Future<void> removeCompleted(String id) => delete(id);
+
   // ── Cancelar download activo ───────────────────────────────────────────────
   void cancel(String id) {
     _active[id]?.cancelToken.cancel('user cancelled');

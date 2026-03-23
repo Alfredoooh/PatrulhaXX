@@ -1957,7 +1957,8 @@ class FeedFetcher {
     try {
       final desc = _xml(item, 'description');
       if (desc.isNotEmpty) {
-        final m = RegExp(r'<img[^>]+src=["']([^"']+)["']').firstMatch(desc);
+        final rx = RegExp('<img[^>]+src=["\'](.*?)["\']');
+        final m = rx.firstMatch(desc);
         if (m != null) return m.group(1) ?? '';
       }
     } catch (_) {}
@@ -2907,10 +2908,7 @@ class _PhotoCardState extends State<_PhotoCard> {
                   color: t.iconSub, size: 40)),
             ),
             loadingBuilder: (_, child, p) => p == null ? child
-                : _Shimmer(
-                    width: double.infinity,
-                    height: MediaQuery.of(context).size.width * 3 / 4,
-                  ),
+                : const _ThumbShimmer(),
           ),
         ),
 
