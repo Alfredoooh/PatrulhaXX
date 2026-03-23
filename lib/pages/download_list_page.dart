@@ -123,6 +123,23 @@ class DownloadListPage extends StatelessWidget {
                             Text('Nenhum download em curso',
                                 style: TextStyle(
                                     color: t.emptyText, fontSize: 13.5)),
+                            const SizedBox(height: 20),
+                            GestureDetector(
+                              onTap: () => Navigator.pop(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.ytRed,
+                                  borderRadius: BorderRadius.circular(100),
+                                ),
+                                child: const Text('Fechar',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13)),
+                              ),
+                            ),
                           ],
                         ),
                       )
@@ -191,6 +208,10 @@ class _ActiveDownloadCard extends StatelessWidget {
                 valueListenable: item.status,
                 builder: (_, status, __) {
                   if (status == DownloadStatus.done) {
+                    // Auto-remover após 1.5s de "Concluído"
+                    Future.delayed(const Duration(milliseconds: 1500), () {
+                      DownloadService.instance.removeCompleted(item.id);
+                    });
                     return Row(children: [
                       const Icon(Icons.check_circle_rounded,
                           color: Color(0xFF34C759), size: 14),

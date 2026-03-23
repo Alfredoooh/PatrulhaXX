@@ -11,6 +11,7 @@ import '../widgets/site_icon_widget.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import 'downloads_page.dart';
+import 'download_list_page.dart';
 
 // SVGs
 const _svgMenuCopy =
@@ -216,10 +217,11 @@ class _BrowserPageState extends State<BrowserPage> {
         thumb: thumb,
         site: widget.site,
         onSuccess: () {
-          // Navega para a tela de downloads após guardar
+          // Abre DownloadListPage (downloads em curso)
+          // Quando o download termina, o item desaparece da lista automaticamente
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const DownloadsPage()),
+            MaterialPageRoute(builder: (_) => const DownloadListPage()),
           );
         },
       ),
@@ -264,16 +266,11 @@ class _BrowserPageState extends State<BrowserPage> {
           backgroundColor: t.bg,
           body: Column(children: [
 
-            // ── Status bar padding com cor do appBar ──────────────────
+            // ── AppBar + Status bar — contentor único sem junções ─────
             Container(
               color: t.appBar,
-              height: topPad,
-            ),
-
-            // ── AppBar ────────────────────────────────────────────────
-            Container(
-              color: t.appBar,
-              height: 52,
+              padding: EdgeInsets.only(top: topPad),
+              height: topPad + 52,
               child: Row(children: [
 
                 // X fechar
@@ -361,6 +358,8 @@ class _BrowserPageState extends State<BrowserPage> {
                     cacheEnabled: true,
                     allowFileAccessFromFileURLs: true,
                     allowUniversalAccessFromFileURLs: true,
+                    // Sem fundo branco antes de carregar — Android mostra branco por omissão
+                    transparentBackground: true,
                     userAgent:
                         'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
                         '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
@@ -760,22 +759,17 @@ class _DownloadSheetState extends State<_DownloadSheet> {
 
   Future<void> _doDownload() async {
     setState(() { _downloading = true; _error = null; });
-    final item = await DownloadService.instance
-        .download(url: widget.src, type: widget.type, context: context);
+    // Lança o download em background — não aguarda a conclusão aqui
+    DownloadService.instance
+        .download(url: widget.src, type: widget.type, context: context)
+        .then((item) {
+      // Quando terminar, o item fica em DownloadService.activeList
+      // A DownloadListPage já detecta o fim via ValueListenable
+    }).catchError((_) {});
+    // Fechar sheet e navegar imediatamente sem esperar pelo download
     if (!mounted) return;
-    if (item != null) {
-      setState(() { _downloading = false; _done = true; });
-      await Future.delayed(const Duration(milliseconds: 900));
-      if (!mounted) return;
-      Navigator.pop(context);
-      // Navega para a tela de downloads
-      widget.onSuccess();
-    } else {
-      setState(() {
-        _downloading = false;
-        _error = 'Falhou. Tenta novamente.';
-      });
-    }
+    Navigator.pop(context);
+    widget.onSuccess();
   }
 
   @override
@@ -882,81 +876,62 @@ class _DownloadSheetState extends State<_DownloadSheet> {
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Text(_error!,
-                  style:
-                      TextStyle(color: AppTheme.error, fontSize: 13)),
+                  style: TextStyle(color: AppTheme.error, fontSize: 13)),
             ),
 
-          if (_downloading)
-            Column(children: [
-              // Cor única — t.text em vez de primaryColor por site
-              LinearProgressIndicator(
-                backgroundColor: t.divider,
-                valueColor: AlwaysStoppedAnimation(t.text),
-                borderRadius: BorderRadius.circular(6),
-                minHeight: 5,
-              ),
-              const SizedBox(height: 10),
-              Text('A baixar...',
-                  style: TextStyle(color: t.textTertiary, fontSize: 12)),
-            ])
-          else if (_done)
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.check_circle_rounded,
-                  color: AppTheme.success, size: 22),
-              const SizedBox(width: 8),
-              Text('Guardado!',
-                  style: TextStyle(
-                      color: AppTheme.success, fontSize: 14)),
-            ])
-          else
-            Row(children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    height: 48,
-                    decoration: BoxDecoration(
-                        color: t.btnGhost,
-                        borderRadius: BorderRadius.circular(24)),
-                    child: Center(
-                      child: Text('Cancelar',
-                          style: TextStyle(
-                              color: t.textSecondary,
-                              fontWeight: FontWeight.w500)),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: GestureDetector(
-                  onTap: _doDownload,
-                  child: Container(
-                    height: 48,
-                    decoration: BoxDecoration(
-                        color: t.text,
-                        borderRadius: BorderRadius.circular(24)),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                      SvgPicture.string(_svgMenuDownloads,
-                          width: 18, height: 18,
-                          colorFilter: ColorFilter.mode(
-                              t.textInvert, BlendMode.srcIn)),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Baixar ${isVideo ? 'vídeo' : 'imagem'}',
+          // Botões — o sheet fecha imediatamente ao confirmar
+          // O progresso é visível na DownloadListPage
+          Row(children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                      color: t.btnGhost,
+                      borderRadius: BorderRadius.circular(24)),
+                  child: Center(
+                    child: Text('Cancelar',
                         style: TextStyle(
-                            color: t.textInvert,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14),
-                      ),
-                    ]),
+                            color: t.textSecondary,
+                            fontWeight: FontWeight.w500)),
                   ),
                 ),
               ),
-            ]),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: GestureDetector(
+                onTap: _downloading ? null : _doDownload,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  height: 48,
+                  decoration: BoxDecoration(
+                      color: _downloading
+                          ? t.text.withOpacity(0.5)
+                          : t.text,
+                      borderRadius: BorderRadius.circular(24)),
+                  child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                    SvgPicture.string(_svgMenuDownloads,
+                        width: 18, height: 18,
+                        colorFilter: ColorFilter.mode(
+                            t.textInvert, BlendMode.srcIn)),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Baixar ${isVideo ? 'vídeo' : 'imagem'}',
+                      style: TextStyle(
+                          color: t.textInvert,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
+          ]),
         ]),
       ),
     );
