@@ -291,7 +291,7 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
     final screenH = MediaQuery.of(context).size.height;
     final botPad  = MediaQuery.of(context).padding.bottom;
     final topPad  = MediaQuery.of(context).padding.top;
-    final keypadH = screenH * 0.55;
+    final keypadH = screenH * 0.50;
 
     return Scaffold(
       backgroundColor: t.bg,
@@ -417,7 +417,7 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
             child: SafeArea(
               top: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(32, 28, 32, 12),
+                padding: const EdgeInsets.fromLTRB(32, 8, 32, 8),
                 child: _Keypad(
                   btnColor: t.cardAlt,
                   textColor: t.text,
@@ -471,7 +471,7 @@ class _Keypad extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
         AnimatedOpacity(
           opacity: processing ? 1.0 : 0.0,
@@ -508,7 +508,7 @@ class _Keypad extends StatelessWidget {
                 style: TextStyle(
                     color: textColor,
                     fontSize: 28,
-                    fontWeight: FontWeight.w300)),
+                    fontWeight: FontWeight.w500)),
           ),
           _KeyBtn(
             btnColor: btnColor,
@@ -532,7 +532,7 @@ class _Keypad extends StatelessWidget {
                       style: TextStyle(
                           color: textColor,
                           fontSize: 28,
-                          fontWeight: FontWeight.w300)),
+                          fontWeight: FontWeight.w500)),
                 ))
             .toList(),
       );

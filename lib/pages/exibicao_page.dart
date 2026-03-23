@@ -156,7 +156,6 @@ String get _kCleanCss => r"""
   [class*="notification"],[class*="ageGate"],[class*="age-gate"],
   [class*="age_gate"],[id*="banner"],[id*="ad_"],[id*="ageGate"],
   .site-header,.main-header,#header,.topbar,
-  header,[class*="header"]:not(video):not(source):not(iframe),
   nav,.navigation,.nav-bar,.navbar,
   .related-videos,.suggestions,.recommendations,
   footer,.footer,.embed-footer { display:none!important; visibility:hidden!important; opacity:0!important; }
@@ -165,24 +164,22 @@ String get _kCleanCss => r"""
   *,*::before,*::after { box-sizing:border-box!important; }
   html,body {
     background:#000!important; margin:0!important; padding:0!important;
-    overflow:hidden!important; width:100vw!important; height:100vh!important;
-    position:fixed!important; top:0!important; left:0!important;
+    overflow:hidden!important; width:100%!important; height:100%!important;
   }
 
-  /* Vídeo ecrã completo */
+  /* Vídeo — ocupa todo o espaço disponível, não força position:fixed
+     para não quebrar players que vivem dentro de iframes */
   video {
-    width:100vw!important; height:100vh!important;
+    width:100%!important; height:100%!important;
     object-fit:contain!important; display:block!important;
-    position:fixed!important; top:0!important; left:0!important;
-    z-index:99999!important; background:#000!important;
-    pointer-events:none!important;
+    background:#000!important; max-width:100vw!important;
+    max-height:100vh!important;
   }
 
-  /* iframe ecrã completo (RedTube usa iframe interno) */
+  /* iframe — ecrã completo mas sem quebrar posicionamento do player pai */
   iframe {
-    width:100vw!important; height:100vh!important;
-    position:fixed!important; top:0!important; left:0!important;
-    border:none!important; z-index:9999!important;
+    width:100%!important; height:100%!important;
+    border:none!important;
   }
 """;
 
@@ -210,7 +207,7 @@ String get _kPlayerInitJs => r"""
   var _removeSelectors = [
     '.redirect-overlay','[class*="redirect"]','[class*="watch-hd"]',
     '.hd-notifier','.upgrade','.notification',
-    'header','nav','.header','#header','#redtube_header',
+    'nav','#header','#redtube_header',
     '.site-header','.main-header','.topbar',
     '.ad','.ads','[id*="ad_"]','[id*="banner"]',
     '.vjs-big-play-button','.vjs-overlay','.vjs-error-display',
@@ -253,7 +250,7 @@ String get _kPlayerInitJs => r"""
     v.setAttribute('webkit-playsinline','');
     v.setAttribute('x-webkit-airplay','allow');
     v.muted = window.__pxMuted||false;
-    v.style.cssText='width:100vw!important;height:100vh!important;position:fixed!important;top:0!important;left:0!important;z-index:99999!important;background:#000!important;object-fit:contain!important;pointer-events:none!important;';
+    v.style.cssText='width:100%!important;height:100%!important;background:#000!important;object-fit:contain!important;';
     var p = v.play();
     if(p&&p.catch) p.catch(function(){});
     // Forçar ao entrar em stall/waiting
@@ -328,7 +325,7 @@ String get _kPlayerInitJs => r"""
             v.removeAttribute('controls');
             v.setAttribute('playsinline','');
             v.muted=window.__pxMuted||false;
-            v.style.cssText='width:100vw!important;height:100vh!important;position:fixed!important;top:0!important;left:0!important;object-fit:contain!important;z-index:99999!important;';
+            v.style.cssText='width:100%!important;height:100%!important;object-fit:contain!important;background:#000!important;';
             var p=v.play(); if(p&&p.catch)p.catch(function(){});
           });
           // Limpa DOM do iframe
@@ -550,7 +547,13 @@ List<Widget> _skeletonCards(int n) => List.generate(n, (_) =>
 // ─────────────────────────────────────────────────────────────────────────────
 class _LocalAssetPlayer extends StatefulWidget {
   final bool muted;
-  const _LocalAssetPlayer({required this.muted});
+  final bool playing;
+  final void Function(VideoPlayerController) onReady;
+  const _LocalAssetPlayer({
+    required this.muted,
+    required this.playing,
+    required this.onReady,
+  });
   @override State<_LocalAssetPlayer> createState() => _LocalAssetPlayerState();
 }
 class _LocalAssetPlayerState extends State<_LocalAssetPlayer> {
@@ -564,12 +567,16 @@ class _LocalAssetPlayerState extends State<_LocalAssetPlayer> {
         setState(() => _initialized = true);
         _ctrl.setLooping(true);
         _ctrl.setVolume(widget.muted ? 0.0 : 1.0);
-        _ctrl.play();
+        if (widget.playing) _ctrl.play();
+        widget.onReady(_ctrl);
       });
   }
   @override void didUpdateWidget(_LocalAssetPlayer old) {
     super.didUpdateWidget(old);
     if (old.muted != widget.muted) _ctrl.setVolume(widget.muted ? 0.0 : 1.0);
+    if (old.playing != widget.playing && _initialized) {
+      widget.playing ? _ctrl.play() : _ctrl.pause();
+    }
   }
   @override void dispose() { _ctrl.dispose(); super.dispose(); }
   @override Widget build(BuildContext context) {
@@ -611,6 +618,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   final List<FeedVideo> _related = [];
   bool   _loadingRelated = false;
   InAppWebViewController? _webCtrl;
+  VideoPlayerController? _localCtrl; // ctrl do vídeo local (estado vazio)
   bool   _titleExpanded  = false;
   bool   _muted          = false;
   // _playing começa true — o vídeo vai tocar ao carregar
@@ -623,7 +631,19 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 
   @override void initState() {
     super.initState();
-    if (!_isEmpty) _loadRelated();
+    if (!_isEmpty) {
+      _loadRelated();
+      _startPlayerTimeout();
+    }
+  }
+
+  // Timeout de segurança: se o player não carregar em 10s, esconde o loading
+  void _startPlayerTimeout() {
+    Future.delayed(const Duration(seconds: 10), () {
+      if (mounted && _playerLoading) {
+        setState(() => _playerLoading = false);
+      }
+    });
   }
 
   @override
@@ -636,6 +656,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
         _playing = true; // novo vídeo começa a tocar
       });
       _loadRelated();
+      _startPlayerTimeout();
     }
     // Pausa/retoma ao mudar de tab
     if (widget.isActive != old.isActive) {
@@ -701,7 +722,17 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   // ── Play/pause — SEMPRE controlado pelo flutter, nunca pelo player nativo ──
   void _togglePlay() {
     setState(() => _playing = !_playing);
-    _webSend(_playing ? 'px:play' : 'px:pause');
+    if (_isEmpty) {
+      // Player local — controlar directamente via VideoPlayerController
+      if (_playing) {
+        _localCtrl?.play();
+      } else {
+        _localCtrl?.pause();
+      }
+    } else {
+      // WebView embed — controlar via postMessage
+      _webSend(_playing ? 'px:play' : 'px:pause');
+    }
   }
 
   void _toggleMute() {
@@ -809,7 +840,13 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                 // WebView ou player local
                 Positioned.fill(
                   child: _isEmpty
-                      ? _LocalAssetPlayer(muted: _muted)
+                      ? _LocalAssetPlayer(
+                          muted: _muted,
+                          playing: _playing,
+                          onReady: (ctrl) {
+                            if (mounted) setState(() => _localCtrl = ctrl);
+                          },
+                        )
                       : InAppWebView(
                           key: ValueKey(widget.embedUrl),
                           initialUrlRequest: URLRequest(
@@ -851,17 +888,17 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                             _webCtrl = ctrl;
                           },
                           onLoadStart: (ctrl, url) async {
-                            // Injeta CSS imediatamente no início do load
-                            await ctrl.evaluateJavascript(
-                              source:
-                                "(function(){"
+                            // Injeta fundo preto imediatamente (silencia erros se DOM ainda não existe)
+                            try {
+                              await ctrl.evaluateJavascript(source:
+                                "try{(function(){"
                                 "var st=document.getElementById('__pxStyleEarly');"
                                 "if(!st){st=document.createElement('style');st.id='__pxStyleEarly';"
                                 "(document.head||document.documentElement).appendChild(st);}"
                                 "st.textContent=window.__pxCss||'';"
-                                "document.body&&(document.body.style.background='#000');"
-                                "})()",
-                            );
+                                "if(document.body)document.body.style.background='#000';"
+                                "})()}catch(e){}");
+                            } catch (_) {}
                           },
                           onLoadStop: (ctrl, _) async {
                             await _injectJs(ctrl);
@@ -872,47 +909,29 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                             if (mounted) setState(() => _playerLoading = false);
                           },
                           shouldOverrideUrlLoading: (ctrl, action) async {
-                            final url =
-                                action.request.url?.toString() ?? '';
-                            // Permite: embeds de todas as fontes + blobs + data
-                            final ok = url.isEmpty ||
-                                url.startsWith('about:') ||
-                                url.startsWith('blob:') ||
-                                url.startsWith('data:') ||
-                                url == widget.embedUrl ||
-                                // Eporner
-                                url.contains('eporner.com/embed/') ||
-                                // PornHub
-                                url.contains('pornhub.com/embed/') ||
-                                // RedTube
-                                url.contains('embed.redtube.com') ||
-                                // YouPorn
-                                url.contains('youporn.com/embed/') ||
-                                // XVideos
-                                url.contains('xvideos.com/embedframe/') ||
-                                // xHamster
-                                url.contains('xhamster.com/xembed.php') ||
-                                // SpankBang
-                                url.contains('spankbang.com') &&
-                                    url.contains('/embed/') ||
-                                // BravoTube
-                                url.contains('bravotube.net/embed/') ||
-                                // DrTuber
-                                url.contains('drtuber.com/embed/') ||
-                                // TXXX
-                                url.contains('txxx.com/embed/') ||
-                                // GotPorn
-                                url.contains('gotporn.com/video/embed/') ||
-                                // PornDig
-                                url.contains('porndig.com/embed/') ||
-                                // CDN / media
-                                url.contains('.m3u8') ||
-                                url.contains('.mp4') ||
-                                url.contains('cdn.') ||
-                                url.contains('/cdn-cgi/');
-                            return ok
-                                ? NavigationActionPolicy.ALLOW
-                                : NavigationActionPolicy.CANCEL;
+                            final url = action.request.url?.toString() ?? '';
+                            final navType = action.navigationType;
+
+                            // Bloqueia APENAS navegação por clique do utilizador
+                            // que sairia do domínio do embed para página externa.
+                            // Tudo o resto (recursos, CDN, iframes, scripts) é PERMITIDO.
+                            if (navType == NavigationType.LINK_ACTIVATED ||
+                                navType == NavigationType.FORM_SUBMITTED) {
+                              // Domínios dos embeds conhecidos — permitir navegação interna
+                              final embedDomains = [
+                                'eporner.com', 'pornhub.com', 'redtube.com',
+                                'embed.redtube.com', 'youporn.com', 'xvideos.com',
+                                'xhamster.com', 'spankbang.com', 'bravotube.net',
+                                'drtuber.com', 'txxx.com', 'gotporn.com',
+                                'porndig.com', 'xnxx.com', 'xvideos2.com',
+                              ];
+                              final isEmbedDomain = embedDomains.any(
+                                  (d) => url.contains(d));
+                              if (!isEmbedDomain && url.startsWith('http')) {
+                                return NavigationActionPolicy.CANCEL;
+                              }
+                            }
+                            return NavigationActionPolicy.ALLOW;
                           },
                         ),
                 ),
@@ -939,8 +958,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                 // ── Botão play/pause — SEMPRE visível, toca/pausa ao clicar ─
                 // FIX: era invisível quando _playing=true. Agora é sempre visível
                 // mas com opacidade reduzida quando a reproduzir.
-                if (!_isEmpty)
-                  Positioned.fill(
+                Positioned.fill(
                     child: GestureDetector(
                       onTap: _togglePlay,
                       behavior: HitTestBehavior.opaque,
@@ -1003,26 +1021,18 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
 
-                            // Título clicável (expandir/colapsar)
-                            GestureDetector(
-                              onTap: () => setState(
-                                  () => _titleExpanded = !_titleExpanded),
-                              child: Text(video!.title,
-                                style: TextStyle(
-                                    color: t.text,
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.3),
-                                maxLines: _titleExpanded ? null : 2,
-                                overflow: _titleExpanded
-                                    ? TextOverflow.visible
-                                    : TextOverflow.ellipsis,
-                              ),
+                            // Título — sempre expandido, sem colapso
+                            Text(video!.title,
+                              style: TextStyle(
+                                  color: t.text,
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.3),
                             ),
 
                             const SizedBox(height: 6),
 
-                            // Fonte + visualizações
+                            // Fonte + visualizações — sempre visível
                             Row(children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(6),
@@ -1042,17 +1052,6 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                                 Text('  ·  ${video.views} vis.',
                                     style: TextStyle(
                                         color: t.textHint, fontSize: 11.5)),
-                              if (_titleExpanded) ...[
-                                const Spacer(),
-                                GestureDetector(
-                                  onTap: () => setState(
-                                      () => _titleExpanded = false),
-                                  child: Text('menos',
-                                      style: TextStyle(
-                                          color: t.textSecondary,
-                                          fontSize: 11.5)),
-                                ),
-                              ],
                             ]),
 
                             const SizedBox(height: 12),
@@ -1232,79 +1231,195 @@ class _RelatedCard extends StatelessWidget {
   final void Function(Offset) onMenuTap;
   const _RelatedCard({required this.video, required this.onTap, required this.onMenuTap});
 
+  static Map<String, String> _headers(VideoSource src) {
+    const ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
+    final origins = {
+      VideoSource.eporner:   'https://www.eporner.com/',
+      VideoSource.pornhub:   'https://www.pornhub.com/',
+      VideoSource.redtube:   'https://www.redtube.com/',
+      VideoSource.youporn:   'https://www.youporn.com/',
+      VideoSource.xvideos:   'https://www.xvideos.com/',
+      VideoSource.xhamster:  'https://xhamster.com/',
+      VideoSource.spankbang: 'https://spankbang.com/',
+      VideoSource.bravotube: 'https://www.bravotube.net/',
+      VideoSource.drtuber:   'https://www.drtuber.com/',
+      VideoSource.txxx:      'https://www.txxx.com/',
+      VideoSource.gotporn:   'https://www.gotporn.com/',
+      VideoSource.porndig:   'https://www.porndig.com/',
+    };
+    return {
+      'User-Agent': ua,
+      'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+      'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+      if (origins[src] != null) 'Referer': origins[src]!,
+    };
+  }
+
   @override Widget build(BuildContext context) {
     final t = AppTheme.current;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 8, 14),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        padding: const EdgeInsets.only(bottom: 20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-          // Thumbnail
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: Stack(children: [
-              SizedBox(width: 160, height: 90,
-                child: Image.network(video.thumb, fit: BoxFit.cover, cacheWidth: 320,
-                  headers: const {'User-Agent': 'Mozilla/5.0'},
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 160, height: 90, color: t.card,
-                    child: Center(child: Icon(Icons.play_circle_outline_rounded,
-                        color: t.iconSub, size: 28))),
-                  loadingBuilder: (_, child, p) =>
-                      p == null ? child : _Shimmer(width: 160, height: 90),
-                ),
+          // ── Thumbnail grande 16:9 — igual ao feed ──────────────────────────
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Stack(fit: StackFit.expand, children: [
+              _Thumb(
+                url: video.thumb,
+                headers: _headers(video.source),
+                bg: t.thumbBg,
               ),
               if (video.duration.isNotEmpty)
-                Positioned(bottom: 4, right: 4,
+                Positioned(
+                  bottom: 6, right: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                     decoration: BoxDecoration(
                         color: Colors.black87,
                         borderRadius: BorderRadius.circular(3)),
                     child: Text(video.duration,
                         style: const TextStyle(
-                            color: Colors.white, fontSize: 10,
+                            color: Colors.white, fontSize: 11,
                             fontWeight: FontWeight.w600)),
                   ),
                 ),
+              Center(child: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.45),
+                    shape: BoxShape.circle),
+                child: const Icon(Icons.play_arrow_rounded,
+                    color: Colors.white, size: 28),
+              )),
             ]),
           ),
 
-          const SizedBox(width: 10),
-
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(video.title,
-              style: TextStyle(color: t.text, fontSize: 12.5,
-                  fontWeight: FontWeight.w500, height: 1.35),
-              maxLines: 2, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 5),
-            Row(children: [
+          // ── Info — igual ao feed ────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 8, 0),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Avatar favicon circular
               ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: Image.network(faviconForSource(video.source),
-                    width: 12, height: 12,
-                    errorBuilder: (_, __, ___) => const SizedBox(width: 12, height: 12))),
-              const SizedBox(width: 4),
-              Expanded(child: Text(
-                '${video.sourceLabel}'
-                '${video.views.isNotEmpty ? "  ·  ${video.views} vis." : ""}',
-                style: TextStyle(color: t.textHint, fontSize: 11),
-                maxLines: 1, overflow: TextOverflow.ellipsis)),
+                borderRadius: BorderRadius.circular(18),
+                child: Image.network(
+                  faviconForSource(video.source),
+                  width: 36, height: 36,
+                  gaplessPlayback: true,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(color: t.avatarBg, shape: BoxShape.circle),
+                    child: Center(child: Text(
+                      video.sourceInitial,
+                      style: TextStyle(color: t.textSecondary, fontSize: 13,
+                          fontWeight: FontWeight.w600),
+                    )),
+                  ),
+                  loadingBuilder: (_, child, p) => p == null ? child : Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(color: t.avatarBg, shape: BoxShape.circle),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(video.title,
+                    style: TextStyle(color: t.text, fontSize: 13.5,
+                        fontWeight: FontWeight.w500, height: 1.3),
+                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${video.sourceLabel}${video.views.isNotEmpty ? "  ·  ${video.views} vis." : ""}',
+                    style: TextStyle(color: t.textSecondary, fontSize: 11.5)),
+                ],
+              )),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapUp: (d) => onMenuTap(d.globalPosition),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Icon(Icons.more_vert_rounded, color: t.iconTertiary, size: 20),
+                ),
+              ),
             ]),
-          ])),
-
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapUp: (d) => onMenuTap(d.globalPosition),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Icon(Icons.more_vert_rounded, color: t.iconTertiary, size: 18),
-            ),
           ),
         ]),
       ),
     );
   }
+}
+
+// ── Thumbnail com retry — cópia local para não depender do home_page ──────────
+class _Thumb extends StatefulWidget {
+  final String url;
+  final Map<String, String> headers;
+  final Color bg;
+  const _Thumb({required this.url, required this.headers, required this.bg});
+  @override State<_Thumb> createState() => _ThumbState();
+}
+class _ThumbState extends State<_Thumb> {
+  int _attempt = 0;
+  bool _failed  = false;
+  @override Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    if (widget.url.isEmpty || _failed) {
+      return Container(color: widget.bg,
+        child: Center(child: Icon(Icons.play_circle_outline_rounded,
+            color: t.iconSub, size: 40)));
+    }
+    return Image.network(
+      _attempt == 0 ? widget.url : '${widget.url}?_r=$_attempt',
+      key: ValueKey('${widget.url}_$_attempt'),
+      fit: BoxFit.cover,
+      headers: widget.headers,
+      errorBuilder: (_, __, ___) {
+        if (_attempt < 1) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _attempt++);
+          });
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _failed = true);
+          });
+        }
+        return Container(color: widget.bg,
+          child: Center(child: Icon(Icons.play_circle_outline_rounded,
+              color: t.iconSub, size: 40)));
+      },
+      loadingBuilder: (_, child, p) {
+        if (p == null) return child;
+        return _ShimmerBox();
+      },
+    );
+  }
+}
+class _ShimmerBox extends StatefulWidget {
+  @override State<_ShimmerBox> createState() => _ShimmerBoxState();
+}
+class _ShimmerBoxState extends State<_ShimmerBox> with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _a;
+  @override void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
+    _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+  }
+  @override void dispose() { _c.dispose(); super.dispose(); }
+  @override Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _a,
+    builder: (_, __) => Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment(_a.value - 1, 0), end: Alignment(_a.value + 1, 0),
+          colors: AppTheme.current.shimmer,
+        ),
+      ),
+    ),
+  );
 }
