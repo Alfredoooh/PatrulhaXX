@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,8 +7,8 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
-import 'home_page.dart' show kPrimaryColor, FeedVideo, FeedFetcher,
-    VideoSource, svgExibicaoOutline, faviconForSource;
+import 'home_page.dart'
+    show kPrimaryColor, FeedVideo, FeedFetcher, VideoSource, svgExibicaoOutline, faviconForSource;
 import '../services/theme_service.dart';
 import '../services/download_service.dart';
 import 'download_list_page.dart';
@@ -34,7 +35,6 @@ const _svgSaveLater =
     'm-3.022 3.067a1 1 0 1 1 1.17-.8 1 1 0 0 1 -1.17.8z'
     'm-3.939 1.656a1 1 0 1 1 1.17-.795 1 1 0 0 1 -1.17.791z'
     'm9.659-9.756a1 1 0 1 1 -1-1 1 1 0 0 1 1 1z"/></svg>';
-
 const _svgPlaylist =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M1,6H23a1,1,0,0,0,0-2H1A1,1,0,0,0,1,6Z"/>'
@@ -43,15 +43,12 @@ const _svgPlaylist =
     '<path d="M23,14H9a1,1,0,0,0,0,2H23a1,1,0,0,0,0-2Z"/>'
     '<path d="M1.707,16.245l2.974-2.974a1.092,1.092,0,0,0,0-1.542L1.707,8.755'
     'A1,1,0,0,0,0,9.463v6.074A1,1,0,0,0,1.707,16.245Z"/></svg>';
-
 const _svgPlayNext =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M5,20c0,1.381-1.119,2.5-2.5,2.5S0,21.381,0,20s1.119-2.5,2.5-2.5S5,18.619,5,20Z"/>'
     '<path d="M20.5,14H7a2.5,2.5,0,0,1,0-5H16.728l-1.293,1.293a1,1,0,0,0,1.414,1.414'
     'l1.972-1.972a2.5,2.5,0,0,0,0-3.535L16.849.793A1,1,0,0,0,15.435,2.207L16.728,3.5H7'
-    'a4.5,4.5,0,0,0,0,9H20.5a2.5,2.5,0,0,1,0,5H18a1,1,0,0,0,0,2h2.5a4.5,4.5,0,0,0,0-9Z"/>'
-    '</svg>';
-
+    'a4.5,4.5,0,0,0,0,9H20.5a2.5,2.5,0,0,1,0,5H18a1,1,0,0,0,0,2h2.5a4.5,4.5,0,0,0,0-9Z"/></svg>';
 const _svgDl =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M9.878,18.122a3,3,0,0,0,4.244,0l3.211-3.211A1,1,0,0,0,15.919,13.5'
@@ -59,18 +56,14 @@ const _svgDl =
     'a1,1,0,0,0-1.414,1.415Z"/>'
     '<path d="M23,16h0a1,1,0,0,0-1,1v4a1,1,0,0,1-1,1H3a1,1,0,0,1-1-1V17a1,1,0,0,0-1-1H1'
     'a1,1,0,0,0-1,1v4a3,3,0,0,0,3,3H21a3,3,0,0,0,3-3V17A1,1,0,0,0,23,16Z"/></svg>';
-
 const _svgPlay =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M20.492,7.969,8.967.8A4.322,4.322,0,0,0,2.735,4.344V19.667A4.294,4.294,0,0,0,7,24'
     'a4.357,4.357,0,0,0,2.232-.62l11.526-7.165a4.321,4.321,0,0,0-.266-8.246Z"/></svg>';
-
 const _svgPause =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M6.5,0A3.5,3.5,0,0,0,3,3.5v17a3.5,3.5,0,0,0,7,0V3.5A3.5,3.5,0,0,0,6.5,0Z"/>'
-    '<path d="M17.5,0A3.5,3.5,0,0,0,14,3.5v17a3.5,3.5,0,0,0,7,0V3.5A3.5,3.5,0,0,0,17.5,0Z"/>'
-    '</svg>';
-
+    '<path d="M17.5,0A3.5,3.5,0,0,0,14,3.5v17a3.5,3.5,0,0,0,7,0V3.5A3.5,3.5,0,0,0,17.5,0Z"/></svg>';
 const _svgVolOn =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M20.807,4.29a1,1,0,0,0-1.415,1.415,8.913,8.913,0,0,1,0,12.59'
@@ -82,7 +75,6 @@ const _svgVolOn =
     'a1,1,0,0,0,1-1V1.186A1,1,0,0,0,13.82.2ZM13,21.535a10.083,10.083,0,0,1-5.371-4.08'
     'A1,1,0,0,0,6.792,17H5a3,3,0,0,1-3-3V10A3,3,0,0,1,5,7h1.8'
     'a1,1,0,0,0,.837-.453A10.079,10.079,0,0,1,13,2.465Z"/></svg>';
-
 const _svgVolOff =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M13.82.2A12.054,12.054,0,0,0,6.266,5H5a5.008,5.008,0,0,0-5,5v4'
@@ -92,414 +84,522 @@ const _svgVolOff =
     'L18.586,11l-1.293,1.293a1,1,0,1,0,1.414,1.414L20,12.414l1.293,1.293a1,1,0,0,0,1.414-1.414'
     'L21.414,11l1.293-1.293A1,1,0,0,0,22.707,8.293Z"/></svg>';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CSS de limpeza — elimina TODOS os players, overlays, banners, headers
-// ─────────────────────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────────
-// CSS de limpeza — elimina TODOS os overlays, controls, headers, banners
-// ─────────────────────────────────────────────────────────────────────────────
-String get _kCleanCss => r"""
-  /* Remove TODOS os controls nativos do browser */
-  video::-webkit-media-controls,
-  video::-webkit-media-controls-enclosure,
-  video::-webkit-media-controls-panel,
-  video::-webkit-media-controls-play-button,
+// ═══════════════════════════════════════════════════════════════════════════════
+//  MOTOR DE TAKEOVER AVANÇADO — 5 CAMADAS
+//
+//  CAMADA 0  CSS STEALTH — oculta controlos antes do DOM existir
+//  CAMADA 1  FINGERPRINTER — analisa o DOM e identifica o engine do player
+//  CAMADA 2  API HIJACKER — usa a API interna de cada engine para desactivar
+//            controlos (não só CSS) e interceptar prototype methods
+//  CAMADA 3  DOM SENTINEL — MutationObserver triplo reaplica takeover em
+//            qualquer mudança de DOM, attributes ou style
+//  CAMADA 4  BRIDGE Flutter↔WebView — postMessage com referência directa ao
+//            videoElement real detectado pelo fingerprinter
+// ═══════════════════════════════════════════════════════════════════════════════
+
+String get _kCss0Stealth => r"""
+  video::-webkit-media-controls,video::-webkit-media-controls-enclosure,
+  video::-webkit-media-controls-panel,video::-webkit-media-controls-play-button,
   video::-webkit-media-controls-start-playback-button,
-  video::-webkit-media-controls-timeline,
-  video::-webkit-media-controls-current-time-display,
+  video::-webkit-media-controls-timeline,video::-webkit-media-controls-current-time-display,
   video::-webkit-media-controls-time-remaining-display,
-  video::-webkit-media-controls-mute-button,
-  video::-webkit-media-controls-volume-slider,
+  video::-webkit-media-controls-mute-button,video::-webkit-media-controls-volume-slider,
   video::-webkit-media-controls-fullscreen-button,
   video::-webkit-media-controls-overflow-button,
   video::-internal-media-controls-download-button,
-  video::--webkit-media-controls-overlay-play-button
-    { display:none!important; visibility:hidden!important; opacity:0!important; pointer-events:none!important; }
-
-  /* Players externos */
+  video::-webkit-media-controls-overlay-play-button,
+  video::-webkit-media-controls-overlay-enclosure {
+    display:none!important;visibility:hidden!important;
+    opacity:0!important;pointer-events:none!important;
+  }
   .vjs-control-bar,.vjs-big-play-button,.vjs-loading-spinner,.vjs-poster,
   .vjs-overlay,.vjs-modal-dialog,.vjs-error-display,.vjs-text-track-display,
-  .vjs-playback-rate,.vjs-chapters-button,.vjs-descriptions-button,
+  .vjs-playback-rate,.vjs-chapters-button,.vjs-progress-control,
+  .video-js .vjs-big-play-button{display:none!important;}
   .jw-controls,.jw-display,.jw-nextup-container,.jw-logo,.jw-dock,
-  .jw-captions,.jw-rightclick,.jw-overlays,
-  .plyr__controls,.plyr__captions,.plyr__menu,
-  .fp-controls,.fp-logo,.fp-fullscreen,.fp-mute,
-  /* Eporner */
+  .jw-captions,.jw-rightclick,.jw-overlays,.jw-controlbar,.jw-icon,
+  .jw-button-container{display:none!important;}
+  .plyr__controls,.plyr__captions,.plyr__menu,.plyr__progress,.plyr__volume{display:none!important;}
   .ep-logo,.ep-controls,.ep-related,.ep-title,.ep-overlay,
   #eporner-logo,#ep-logo,.eporner-header,.eporner-footer,
-  .eporner-logo,[class*="eporner-nav"],[id*="eporner-ad"],
-  /* PornHub */
+  [class*="eporner-nav"],[id*="eporner-ad"]{display:none!important;}
   .pc-overlay,.pc-info-block,.ph-logo,.pc-header,.pc-footer,
   .pc-subscribe-now,.pc-age-gate,.ageGate,.age-gate-wrapper,
   .pcRecoverContent,.removeForEmbed,.pc-overlay-transparent,
   #pc-user-info,.pc-nav,.pc-tabs,.pc-ad,.pc-rating-wrap,
   [class*="pcHeader"],[class*="pc-header"],[id*="pc-header"],
-  /* RedTube */
+  #player-controls,.player-controls,.playerControlBar,
+  .playbackControls,.playerOverlay,[class*="playerControl"],
+  [class*="controls-bar"],[id*="controls"]{display:none!important;}
   .redtube-logo,.rt-logo,.site-controls,.embed-logo,
   #redtube_header,.redtube-header,.rt-header,.embed-header,
   .site-branding,.embed-branding,.embed-play-wrap,
-  [class*="redtube"],[id*="redtube"],
-  /* xHamster */
+  [class*="redtube"],[id*="redtube"]{display:none!important;}
   .xha-header,.xha-logo,.xha-footer,.xha-overlay,
-  [class*="xha-"],[class*="ham-header"],
-  /* XVideos */
+  [class*="xha-"],[class*="ham-header"]{display:none!important;}
   .xv-logo,.xvideos-logo,.xv-header,
-  [class*="xvideos-"],[class*="xv-logo"],
-  /* SpankBang */
-  .sb-header,.sb-logo,.sb-footer,[class*="spankbang-"],
-  /* Genérico */
-  .redirect-banner,.watch-hd-button,.hd-button,.upgrade-btn,
-  .banner,.ad-banner,.popup,.modal,.overlay-redirect,
-  .age-gate,.age-gate-container,.age-verification,.agewall,
-  .cookie-consent,.gdpr,.consent-banner,
+  [class*="xvideos-"],[class*="xv-logo"]{display:none!important;}
+  .sb-header,.sb-logo,.sb-footer,[class*="spankbang-"]{display:none!important;}
+  .redirect-banner,.watch-hd-button,.hd-button,.upgrade-btn,.banner,.ad-banner,
+  .popup,.modal,.overlay-redirect,.age-gate,.age-gate-container,
+  .age-verification,.agewall,.cookie-consent,.gdpr,.consent-banner,
   [class*="redirect"],[class*="watch-hd"],[class*="upgrade"],
   [class*="notification"],[class*="ageGate"],[class*="age-gate"],
   [class*="age_gate"],[id*="banner"],[id*="ad_"],[id*="ageGate"],
-  .site-header,.main-header,#header,.topbar,
-  nav,.navigation,.nav-bar,.navbar,
+  .site-header,.main-header,#header,.topbar,nav,.navigation,.nav-bar,.navbar,
   .related-videos,.suggestions,.recommendations,
-  footer,.footer,.embed-footer { display:none!important; visibility:hidden!important; opacity:0!important; }
-
-  /* Base */
-  *,*::before,*::after { box-sizing:border-box!important; }
-  html,body {
-    background:#000!important; margin:0!important; padding:0!important;
-    overflow:hidden!important; width:100%!important; height:100%!important;
-  }
-
-  /* Vídeo — ocupa todo o espaço disponível, não força position:fixed
-     para não quebrar players que vivem dentro de iframes */
-  video {
-    width:100%!important; height:100%!important;
-    object-fit:contain!important; display:block!important;
-    background:#000!important; max-width:100vw!important;
-    max-height:100vh!important;
-  }
-
-  /* iframe — ecrã completo mas sem quebrar posicionamento do player pai */
-  iframe {
-    width:100%!important; height:100%!important;
-    border:none!important;
-  }
+  footer,.footer,.embed-footer{display:none!important;visibility:hidden!important;}
+  *,*::before,*::after{box-sizing:border-box!important;}
+  html,body{background:#000!important;margin:0!important;padding:0!important;
+    overflow:hidden!important;width:100%!important;height:100%!important;}
+  video{width:100%!important;height:100%!important;object-fit:contain!important;
+    display:block!important;background:#000!important;
+    max-width:100vw!important;max-height:100vh!important;}
+  iframe{width:100%!important;height:100%!important;border:none!important;}
 """;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// JS de injeção por fonte — invocado em onLoadStart, onLoadStop e onLoadError
-// Cada fonte tem tratamento específico e agressivo
-// ─────────────────────────────────────────────────────────────────────────────
-String get _kPlayerInitJs => r"""
+String get _kJsEngine => r"""
 (function(){
-  if(window.__pxDone) return;
-  window.__pxDone = true;
+'use strict';
+if(window.__pxEngine){window.__pxEngine.destroy();}
 
-  var host = (location.hostname||'').toLowerCase();
+var ENGINE={
+  host:(location.hostname||'').toLowerCase(),
+  muted:window.__pxMuted||false,
+  videoEl:null,
+  apiObj:null,
+  engine:'unknown',
+  observers:[],
+  timers:[],
+  commandedPause:false,
+  destroyed:false,
+};
+window.__pxEngine=ENGINE;
 
-  // ── Utilidades ──────────────────────────────────────────────────────────────
-  function injectCss(){
-    var existing = document.getElementById('__pxStyle');
-    if(existing) return;
-    var st = document.createElement('style');
-    st.id = '__pxStyle';
-    st.textContent = window.__pxCss||'';
-    (document.head||document.documentElement).appendChild(st);
+function after(ms,fn){
+  if(ENGINE.destroyed)return;
+  var t=setTimeout(fn,ms);ENGINE.timers.push(t);return t;
+}
+function observe(target,opts,fn){
+  if(!target)return;
+  var mo=new MutationObserver(fn);mo.observe(target,opts);ENGINE.observers.push(mo);
+}
+ENGINE.destroy=function(){
+  ENGINE.destroyed=true;
+  ENGINE.observers.forEach(function(o){try{o.disconnect();}catch(_){}});
+  ENGINE.timers.forEach(function(t){clearTimeout(t);});
+  // Restaura prototype.pause se foi interceptado
+  if(HTMLMediaElement.__origPausePx){
+    HTMLMediaElement.prototype.pause=HTMLMediaElement.__origPausePx;
+    delete HTMLMediaElement.__origPausePx;
+  }
+};
+
+// ── CAMADA 0: CSS ────────────────────────────────────────────────────────────
+function applyCss(doc){
+  doc=doc||document;
+  var id='__pxStealth';
+  var el=doc.getElementById(id);
+  if(!el){el=doc.createElement('style');el.id=id;(doc.head||doc.documentElement).appendChild(el);}
+  el.textContent=window.__pxCss||'';
+  if(doc.body){
+    doc.body.style.setProperty('background','#000','important');
+    doc.body.style.setProperty('overflow','hidden','important');
+    doc.body.style.setProperty('margin','0','important');
+  }
+}
+applyCss();
+
+// ── CAMADA 1: FINGERPRINTER ───────────────────────────────────────────────────
+// Analisa globals JS + DOM para identificar qual engine de player está activo.
+// Devolve fingerprint com: engine, videoEl, containerEl, apiObj, iframeDoc, domInfo.
+function fingerprint(){
+  var fp={engine:'html5',videoEl:null,containerEl:null,apiObj:null,hasIframe:false,iframeDoc:null,domInfo:{}};
+
+  // Detecta iframes same-origin (RedTube, alguns PH)
+  var iframes=document.querySelectorAll('iframe');
+  for(var i=0;i<iframes.length;i++){
+    try{
+      var d=iframes[i].contentDocument||(iframes[i].contentWindow&&iframes[i].contentWindow.document);
+      if(d&&d.querySelector('video')){fp.hasIframe=true;fp.iframeDoc=d;break;}
+    }catch(_){}
   }
 
-  var _removeSelectors = [
-    '.redirect-overlay','[class*="redirect"]','[class*="watch-hd"]',
-    '.hd-notifier','.upgrade','.notification',
-    'nav','#header','#redtube_header',
-    '.site-header','.main-header','.topbar',
-    '.ad','.ads','[id*="ad_"]','[id*="banner"]',
-    '.vjs-big-play-button','.vjs-overlay','.vjs-error-display',
-    '.ep-logo','#eporner-logo','#ep-logo','.eporner-header',
-    '.jw-logo','.jw-display','.jw-dock',
-    '.pc-overlay','.pc-info-block','.ageGate','.age-gate',
-    '.age-gate-container','.age-verification',
-    '.redtube-logo','.rt-logo','.embed-logo','.embed-header',
-    '.cookie-consent','.gdpr','.consent-banner',
-    '.related-videos','.recommendations',
-    'footer','.footer','.embed-footer',
-  ];
+  // VideoJS (usa window.videojs.players registry)
+  if(window.videojs&&window.videojs.players){
+    var vjsArr=Object.values(window.videojs.players).filter(Boolean);
+    if(vjsArr.length>0){
+      var vp=vjsArr[0];
+      fp.engine='videojs';fp.apiObj=vp;
+      try{fp.videoEl=vp.el()?vp.el().querySelector('video'):null;}catch(_){}
+      try{fp.containerEl=vp.el();}catch(_){}
+      fp.domInfo.vjsVersion=window.videojs.VERSION||'?';
+    }
+  }
 
-  function cleanDom(){
-    injectCss();
-    _removeSelectors.forEach(function(s){
-      try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
-    });
-    // Remove qualquer texto de redirect
-    document.querySelectorAll('a,span,div,p,button').forEach(function(el){
-      var txt=(el.innerText||'').toLowerCase();
-      if(txt.includes('redirect')||txt.includes('watch in hd')||
-         txt.includes('watch hd')||txt.includes('upgrade')||
-         txt.includes('age verification')||txt.includes('verify age')){
-        try{ el.style.cssText='display:none!important'; }catch(_){}
+  // JWPlayer (usa window.jwplayer() API)
+  if(fp.engine==='html5'&&window.jwplayer){
+    try{
+      var jw=window.jwplayer();
+      if(jw&&typeof jw.getState==='function'){
+        fp.engine='jwplayer';fp.apiObj=jw;
+        var jwMedia=document.querySelector('.jw-media');
+        fp.containerEl=jwMedia||document.getElementById('player');
+        fp.videoEl=jwMedia?jwMedia.querySelector('video'):null;
+        fp.domInfo.jwState=jw.getState();
       }
-    });
-    document.body&&(document.body.style.cssText='background:#000!important;overflow:hidden!important;margin:0!important;padding:0!important;');
+    }catch(_){}
   }
 
-  cleanDom();
-  new MutationObserver(function(){ cleanDom(); }).observe(
-    document.documentElement||document.body, {childList:true, subtree:true, attributes:true});
+  // Plyr (usa .plyr container + window.Plyr)
+  if(fp.engine==='html5'&&window.Plyr){
+    var plyrEl=document.querySelector('.plyr');
+    if(plyrEl){
+      fp.engine='plyr';fp.containerEl=plyrEl;
+      fp.videoEl=plyrEl.querySelector('video');
+      try{fp.apiObj=window.__plyrInstance||null;}catch(_){}
+    }
+  }
 
-  // ── Prepara video ────────────────────────────────────────────────────────────
-  function prepareVideo(v){
-    if(!v) return;
+  // Shaka Player (referência em video.__shaka_player__)
+  if(fp.engine==='html5'&&window.shaka){
+    var shakaV=document.querySelector('video');
+    if(shakaV&&shakaV.__shaka_player__){
+      fp.engine='shaka';fp.videoEl=shakaV;fp.apiObj=shakaV.__shaka_player__;
+    }
+  }
+
+  // Flowplayer
+  if(fp.engine==='html5'&&window.flowplayer){
+    var fpEl=document.querySelector('.fp-player');
+    if(fpEl){fp.engine='flowplayer';fp.containerEl=fpEl;fp.videoEl=fpEl.querySelector('video');}
+  }
+
+  // Fallback: pega o <video> com maior área visível
+  if(!fp.videoEl){
+    var all=Array.from(document.querySelectorAll('video'));
+    if(fp.iframeDoc)all=all.concat(Array.from(fp.iframeDoc.querySelectorAll('video')));
+    all.sort(function(a,b){
+      var ra=a.getBoundingClientRect(),rb=b.getBoundingClientRect();
+      return(rb.width*rb.height)-(ra.width*ra.height);
+    });
+    fp.videoEl=all[0]||null;
+    if(fp.videoEl)fp.containerEl=fp.videoEl.parentElement;
+  }
+
+  fp.domInfo.hasAgeGate=!!(document.querySelector('.age-gate,.ageGate,.age-verification,[id*="age"]'));
+  fp.domInfo.totalVideos=document.querySelectorAll('video').length;
+  fp.domInfo.totalIframes=iframes.length;
+
+  // Reporta fingerprint para Flutter
+  try{
+    window.flutter_inappwebview&&window.flutter_inappwebview.callHandler(
+      'pxFingerprint',JSON.stringify({engine:fp.engine,hasVideo:!!fp.videoEl,hasIframe:fp.hasIframe,domInfo:fp.domInfo})
+    );
+  }catch(_){}
+  return fp;
+}
+
+// ── CAMADA 2: API HIJACKER ────────────────────────────────────────────────────
+// Usa a API interna real de cada engine — muito mais robusto do que só CSS.
+function hijack(fp){
+  if(!fp)return;
+  if(fp.videoEl){ENGINE.videoEl=fp.videoEl;ENGINE.engine=fp.engine;ENGINE.apiObj=fp.apiObj;}
+
+  // Takeover genérico de qualquer <video> HTML5
+  function takeoverVideo(v){
+    if(!v||v.__pxTaken)return;
+    v.__pxTaken=true;
     v.removeAttribute('controls');
     v.setAttribute('playsinline','');
     v.setAttribute('webkit-playsinline','');
-    v.setAttribute('x-webkit-airplay','allow');
-    v.muted = window.__pxMuted||false;
-    v.style.cssText='width:100%!important;height:100%!important;background:#000!important;object-fit:contain!important;';
-    var p = v.play();
-    if(p&&p.catch) p.catch(function(){});
-    // Forçar ao entrar em stall/waiting
-    v.addEventListener('stalled',function(){ v.load(); var pp=v.play(); if(pp&&pp.catch)pp.catch(function(){}); },{once:false});
-    v.addEventListener('waiting',function(){ var pp=v.play(); if(pp&&pp.catch)pp.catch(function(){}); },{once:false});
-    v.addEventListener('suspend',function(){ var pp=v.play(); if(pp&&pp.catch)pp.catch(function(){}); },{once:false});
-  }
+    v.muted=ENGINE.muted;
+    v.style.setProperty('width','100%','important');
+    v.style.setProperty('height','100%','important');
+    v.style.setProperty('object-fit','contain','important');
+    v.style.setProperty('background','#000','important');
 
-  function prepareAll(){
-    cleanDom();
-    document.querySelectorAll('video').forEach(prepareVideo);
-  }
-  prepareAll();
-  [300,600,1000,1500,2500,4000].forEach(function(ms){ setTimeout(prepareAll,ms); });
+    // Bloqueia reposição do atributo "controls" via setAttribute
+    var origSet=v.setAttribute.bind(v);
+    v.setAttribute=function(name,val){if(name==='controls')return;return origSet(name,val);};
 
-  // Observer para novos vídeos adicionados ao DOM
-  new MutationObserver(function(mutations){
-    mutations.forEach(function(m){
-      m.addedNodes&&m.addedNodes.forEach&&m.addedNodes.forEach(function(n){
-        if(n.tagName==='VIDEO') prepareVideo(n);
-        if(n.querySelectorAll) n.querySelectorAll('video').forEach(prepareVideo);
-      });
+    // Bloqueia controls via getter/setter da propriedade
+    try{Object.defineProperty(v,'controls',{get:function(){return false;},set:function(){},configurable:true});}catch(_){}
+
+    // Autoplay com retry exponencial (máx 3 tentativas)
+    function tryPlay(n){
+      if(ENGINE.destroyed)return;
+      var p=v.play();
+      if(p&&p.catch)p.catch(function(){if(n<3)after(400*Math.pow(2,n),function(){tryPlay(n+1);});});
+    }
+    tryPlay(0);
+
+    v.addEventListener('stalled',function(){v.load();tryPlay(0);});
+    v.addEventListener('waiting',function(){tryPlay(0);});
+    v.addEventListener('suspend',function(){tryPlay(0);});
+    v.addEventListener('error',function(){
+      var src=v.currentSrc||v.src;
+      if(src)after(1000,function(){v.src=src;v.load();tryPlay(0);});
     });
-  }).observe(document.documentElement||document.body, {childList:true, subtree:true});
 
-  // ── postMessage bridge Flutter ↔ WebView ────────────────────────────────────
-  window.addEventListener('message', function(e){
-    var v = document.querySelector('video');
-    if(!v) return;
-    if(e.data==='px:pause'){ v.pause(); }
-    if(e.data==='px:play') { var p=v.play(); if(p&&p.catch)p.catch(function(){}); }
-    if(e.data==='px:mute')  { v.muted=true;  window.__pxMuted=true;  }
-    if(e.data==='px:unmute'){ v.muted=false; window.__pxMuted=false; }
+    // Intercepta HTMLMediaElement.prototype.pause para bloquear pausa de terceiros
+    if(!HTMLMediaElement.__origPausePx){
+      HTMLMediaElement.__origPausePx=HTMLMediaElement.prototype.pause;
+      HTMLMediaElement.prototype.pause=function(){
+        if(ENGINE.commandedPause){ENGINE.commandedPause=false;return HTMLMediaElement.__origPausePx.call(this);}
+        // bloqueia pausa não pedida pelo Flutter
+      };
+    }
+  }
+
+  // VideoJS: usa API para desactivar controlos + intercepta prototype
+  function hijackVjs(api){
+    if(!api)return;
+    try{api.controls(false);}catch(_){}
+    try{api.bigPlayButton&&api.bigPlayButton.hide();}catch(_){}
+    try{api.controlBar&&api.controlBar.hide();}catch(_){}
+    try{api.errorDisplay&&api.errorDisplay.hide();}catch(_){}
+    try{api.loadingSpinner&&api.loadingSpinner.hide();}catch(_){}
+    try{api.posterImage&&api.posterImage.hide();}catch(_){}
+    // Bloqueia reactivação de controlos via prototype
+    try{
+      var proto=Object.getPrototypeOf(api);
+      if(proto&&proto.controls&&!proto.__pxControlsBlocked){
+        proto.__pxControlsBlocked=true;
+        var orig=proto.controls;
+        proto.controls=function(b){if(b===true)return false;return orig.call(this,b);};
+      }
+    }catch(_){}
+    if(fp.videoEl)takeoverVideo(fp.videoEl);
+  }
+
+  // JWPlayer: usa setControls(false) + intercepta setup
+  function hijackJw(api){
+    if(!api)return;
+    try{api.setControls(false);}catch(_){}
+    try{api.setMute(ENGINE.muted);}catch(_){}
+    try{
+      var oSetup=api.setup;
+      api.setup=function(cfg){cfg=cfg||{};cfg.controls=false;return oSetup.call(this,cfg);};
+    }catch(_){}
+    if(fp.videoEl)takeoverVideo(fp.videoEl);
+  }
+
+  // Plyr: esconde container de controlos via api.elements
+  function hijackPlyr(api){
+    if(api&&api.elements&&api.elements.controls){
+      api.elements.controls.style.setProperty('display','none','important');
+    }
+    if(fp.videoEl)takeoverVideo(fp.videoEl);
+  }
+
+  switch(fp.engine){
+    case 'videojs':  hijackVjs(fp.apiObj);  break;
+    case 'jwplayer': hijackJw(fp.apiObj);   break;
+    case 'plyr':     hijackPlyr(fp.apiObj); break;
+    default:         if(fp.videoEl)takeoverVideo(fp.videoEl); break;
+  }
+
+  // Takeover em TODOS os <video> do documento
+  document.querySelectorAll('video').forEach(takeoverVideo);
+  if(fp.iframeDoc){
+    applyCss(fp.iframeDoc);
+    fp.iframeDoc.querySelectorAll('video').forEach(takeoverVideo);
+  }
+}
+
+// ── CAMADA 3: DOM SENTINEL ────────────────────────────────────────────────────
+var KILL=[
+  '.vjs-control-bar','.vjs-big-play-button','.vjs-loading-spinner','.vjs-poster',
+  '.vjs-overlay','.vjs-modal-dialog','.vjs-error-display','.vjs-progress-control',
+  '.jw-controls','.jw-display','.jw-nextup-container','.jw-logo','.jw-dock',
+  '.jw-captions','.jw-rightclick','.jw-overlays','.jw-controlbar',
+  '.plyr__controls','.plyr__captions','.plyr__menu','.plyr__progress',
+  '.fp-controls','.fp-logo',
+  '.ep-logo','.ep-controls','.ep-related','.ep-title','.ep-overlay',
+  '#eporner-logo','#ep-logo','.eporner-header','.eporner-footer',
+  '.pc-overlay','.pc-info-block','.ph-logo','.pc-header','.pc-footer',
+  '.pc-subscribe-now','.ageGate','.age-gate-wrapper','.pcRecoverContent',
+  '.removeForEmbed','.pc-overlay-transparent','#pc-user-info',
+  '.pc-nav','.pc-tabs','.pc-ad','.pc-rating-wrap',
+  '#player-controls','.player-controls','.playerControlBar','.playbackControls',
+  '.playerOverlay','[class*="playerControl"]','[class*="controls-bar"]','[id*="controls"]',
+  '.redtube-logo','.rt-logo','.site-controls','.embed-logo',
+  '#redtube_header','.redtube-header','.rt-header','.embed-header',
+  '.site-branding','.embed-branding','.embed-play-wrap',
+  '.xha-header','.xha-logo','.xha-footer','.xha-overlay',
+  '.xv-logo','.xvideos-logo','.xv-header',
+  '.sb-header','.sb-logo','.sb-footer',
+  '.redirect-banner','.watch-hd-button','.hd-button','.upgrade-btn',
+  '.age-gate','.age-gate-container','.age-verification','.agewall',
+  '.cookie-consent','.gdpr','.consent-banner',
+  '[id*="banner"]','[id*="ad_"]','[id*="ageGate"]',
+  '.site-header','.main-header','#header','.topbar',
+  'nav','.navigation','.nav-bar','.navbar',
+  '.related-videos','.suggestions','.recommendations',
+  'footer','.footer','.embed-footer',
+];
+
+function killUnwanted(){
+  KILL.forEach(function(s){
+    try{document.querySelectorAll(s).forEach(function(el){
+      var v=ENGINE.videoEl;
+      if(v&&el.contains(v)){el.style.setProperty('background','transparent','important');return;}
+      el.remove();
+    });}catch(_){}
   });
-
-  // ── REDTUBE ──────────────────────────────────────────────────────────────────
-  // Problema: RedTube embed usa iframe interno + bloqueio de autoplay
-  // Solução: injecta no iframe interno + força cookies de age-verify
-  if(host.indexOf('redtube')>=0){
-    // Cookies de verificação de idade
-    var exp='; expires='+new Date(Date.now()+9e11).toUTCString()+'; path=/; domain=.redtube.com';
-    ['age_verified=1','platform=pc','accessAgeDisclaimer=1','redtube_session=1'].forEach(function(c){
-      document.cookie=c+exp;
-    });
-    // Remove blocos de age-gate imediatamente
-    function rtClean(){
-      ['.age-gate','.age-gate-container','#age-gate','.age-verification',
-       '.embed-header','.embed-footer','[class*="redtube"]','.site-branding',
-       '.embed-branding','[class*="embed-logo"]'].forEach(function(s){
-        try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
-      });
-      // O player do RedTube usa um wrapper — remove background preto do wrapper
-      document.querySelectorAll('[class*="player"]').forEach(function(el){
-        el.style.background='#000';
-      });
+  document.querySelectorAll('a,span,div,p,button').forEach(function(el){
+    var txt=(el.innerText||'').toLowerCase().trim();
+    if(!txt||txt.length>120)return;
+    if(/redirect|watch.?in.?hd|upgrade|age.?verif|verify.?age/.test(txt)){
+      el.style.setProperty('display','none','important');
     }
-    rtClean();
-    [200,500,800,1200,2000,3500].forEach(function(ms){ setTimeout(rtClean,ms); });
+  });
+}
 
-    // Inject dentro do iframe interno do RedTube (onde está o vídeo real)
-    function injectIntoRtIframes(){
-      document.querySelectorAll('iframe').forEach(function(fr){
-        try{
-          var d=fr.contentDocument||(fr.contentWindow&&fr.contentWindow.document);
-          if(!d||!d.body) return;
-          // CSS no iframe interno
-          var st=d.getElementById('__pxInnerStyle');
-          if(!st){ st=d.createElement('style'); st.id='__pxInnerStyle'; (d.head||d.documentElement).appendChild(st); }
-          st.textContent=(window.__pxCss||'');
-          // Vídeos no iframe
-          d.querySelectorAll('video').forEach(function(v){
-            v.removeAttribute('controls');
-            v.setAttribute('playsinline','');
-            v.muted=window.__pxMuted||false;
-            v.style.cssText='width:100%!important;height:100%!important;object-fit:contain!important;background:#000!important;';
-            var p=v.play(); if(p&&p.catch)p.catch(function(){});
-          });
-          // Limpa DOM do iframe
-          ['.embed-header','.embed-footer','[class*="logo"]','[class*="branding"]',
-           'header','nav','footer'].forEach(function(s){
-            try{ d.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
-          });
-        }catch(_){}
-      });
-    }
-    [500,1000,1500,2500,4000].forEach(function(ms){ setTimeout(injectIntoRtIframes,ms); });
-    new MutationObserver(injectIntoRtIframes).observe(document.documentElement,{childList:true,subtree:true});
-  }
-
-  // ── PORNHUB ──────────────────────────────────────────────────────────────────
-  // Problema: PornHub embed mostra os seus próprios controlos + overlay de premium
-  // Solução: cookies de sessão + remover overlays + forçar o player nativo deles a não aparecer
-  if(host.indexOf('pornhub')>=0){
-    var exp2='; expires='+new Date(Date.now()+9e11).toUTCString()+'; path=/; domain=.pornhub.com';
-    ['age_verified=1','accessAgeDisclaimerPH=1','accessPH=1','platform=pc',
-     'hasVisited=1','cookieConsent=1','_tc=1'].forEach(function(c){
-      document.cookie=c+exp2;
-    });
-    function phClean(){
-      ['.pc-overlay','.pc-info-block','.ageGate','.age-gate',
-       '.age-gate-container','.pcRecoverContent','.removeForEmbed',
-       '.pc-overlay-transparent','.pc-subscribe-now','#pc-user-info',
-       '.pc-nav','.pc-tabs','.pc-ad','.pc-rating-wrap','.ph-logo',
-       '.pc-header','.pc-footer','[class*="pcHeader"]','[class*="pc-header"]',
-       // Remove os controlos próprios do PH
-       '.vjs-control-bar','.vjs-big-play-button','.vjs-loading-spinner',
-       '.vjs-overlay','.vjs-modal-dialog','.vjs-error-display',
-       '#player-controls','.player-controls','.playerControlBar',
-       '.playbackControls','.playerOverlay','[class*="playerControl"]',
-       '[class*="controls-bar"]','[id*="controls"]'].forEach(function(s){
-        try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
-      });
-      // Força fundo preto
-      document.body&&(document.body.style.cssText='background:#000!important;overflow:hidden!important;margin:0!important;');
-    }
-    phClean();
-    [300,700,1200,2000,3500,5000].forEach(function(ms){ setTimeout(phClean,ms); });
-    new MutationObserver(phClean).observe(document.documentElement,{childList:true,subtree:true,attributes:true});
-
-    // PornHub usa VideoJS — desactiva os controlos deles pela API
-    function disableVjsControls(){
-      try{
-        // API VideoJS
-        if(window.videojs){
-          var players=Object.values(window.videojs.players||{});
-          players.forEach(function(p){
-            if(!p) return;
-            try{ p.controls(false); }catch(_){}
-            try{ p.bigPlayButton&&p.bigPlayButton.hide(); }catch(_){}
-            try{ p.controlBar&&p.controlBar.hide(); }catch(_){}
-            try{ p.errorDisplay&&p.errorDisplay.hide(); }catch(_){}
-            try{ var v=p.el_&&p.el_.querySelector('video'); if(v){ v.removeAttribute('controls'); var pp=v.play(); if(pp&&pp.catch)pp.catch(function(){}); } }catch(_){}
-          });
+// Observer 1 — nós adicionados/removidos no documento
+observe(document.documentElement,{childList:true,subtree:true},function(muts){
+  muts.forEach(function(m){
+    m.addedNodes.forEach(function(n){
+      if(n.nodeType!==1)return;
+      if(n.tagName==='VIDEO'){ENGINE.videoEl=n;hijack(fingerprint());return;}
+      if(n.tagName==='IFRAME'){after(400,function(){hijack(fingerprint());});}
+      if(n.className&&typeof n.className==='string'){
+        if(/vjs-|jw-|plyr|overlay|age.gate|redirect|controls|banner/i.test(n.className)){
+          try{n.remove();}catch(_){}
         }
-      }catch(_){}
-    }
-    [800,1500,2500,4000].forEach(function(ms){ setTimeout(disableVjsControls,ms); });
-  }
-
-  // ── XHAMSTER ─────────────────────────────────────────────────────────────────
-  if(host.indexOf('xhamster')>=0){
-    var exp3='; expires='+new Date(Date.now()+9e11).toUTCString()+'; path=/; domain=.xhamster.com';
-    ['age_verified=1','platform=pc','hasVisited=1'].forEach(function(c){ document.cookie=c+exp3; });
-    function xhClean(){
-      ['.xha-header','.xha-logo','.xha-footer','.xha-overlay',
-       '[class*="xha-"]','[class*="ham-header"]',
-       '.vjs-control-bar','.vjs-big-play-button'].forEach(function(s){
-        try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
-      });
-    }
-    xhClean();
-    [500,1200,2500].forEach(function(ms){ setTimeout(xhClean,ms); });
-  }
-
-  // ── XVIDEOS ──────────────────────────────────────────────────────────────────
-  if(host.indexOf('xvideos')>=0){
-    function xvClean(){
-      ['.xv-logo','.xvideos-logo','.xv-header','[class*="xvideos-"]',
-       '.vjs-control-bar','.vjs-big-play-button'].forEach(function(s){
-        try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
-      });
-    }
-    xvClean();
-    [500,1500,3000].forEach(function(ms){ setTimeout(xvClean,ms); });
-  }
-
-  // ── SPANKBANG ────────────────────────────────────────────────────────────────
-  if(host.indexOf('spankbang')>=0){
-    function sbClean(){
-      ['.sb-header','.sb-logo','.sb-footer','[class*="spankbang-"]',
-       '.vjs-control-bar','.vjs-big-play-button'].forEach(function(s){
-        try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
-      });
-    }
-    sbClean();
-    [500,1500,3000].forEach(function(ms){ setTimeout(sbClean,ms); });
-  }
-
-  // ── EPORNER ───────────────────────────────────────────────────────────────────
-  if(host.indexOf('eporner')>=0){
-    function epClean(){
-      ['#eporner-logo','#ep-logo','.ep-logo','.ep-title','.ep-related',
-       '.ep-overlay','.eporner-header','.eporner-footer',
-       '[class*="eporner-nav"]','[id*="eporner-ad"]'].forEach(function(s){
-        try{ var el=document.querySelector(s); if(el) el.remove(); }catch(_){}
-      });
-    }
-    epClean();
-    [500,1200,2500].forEach(function(ms){ setTimeout(epClean,ms); });
-  }
-
-  // ── YOUPORN ──────────────────────────────────────────────────────────────────
-  if(host.indexOf('youporn')>=0){
-    var exp4='; expires='+new Date(Date.now()+9e11).toUTCString()+'; path=/; domain=.youporn.com';
-    ['age_verified=1','platform=pc','hasVisited=1'].forEach(function(c){ document.cookie=c+exp4; });
-    function ypClean(){
-      ['.age-gate','.age-gate-container','[class*="ageGate"]',
-       '.yp-header','.yp-footer','.vjs-control-bar'].forEach(function(s){
-        try{ document.querySelectorAll(s).forEach(function(e){ e.remove(); }); }catch(_){}
-      });
-    }
-    ypClean();
-    [500,1500,3000].forEach(function(ms){ setTimeout(ypClean,ms); });
-  }
-
-  // ── hls.js — streams HLS com qualidade controlada ─────────────────────────
-  function setupHls(v){
-    if(!v) return;
-    var src=v.currentSrc||v.src||'';
-    if(!src){ var s=v.querySelector('source[src]'); if(s) src=s.src; }
-    if(!src) src=v.getAttribute('data-src')||v.getAttribute('data-hls-url')||'';
-    if(src.indexOf('.m3u8')<0) return;
-    if(typeof Hls==='undefined'||!Hls.isSupported()) return;
-    if(v.__hls){ try{ v.__hls.destroy(); }catch(_){} }
-    var hls=new Hls({
-      maxBufferLength:10, maxMaxBufferLength:20,
-      startLevel:0, autoLevelCapping:2,
-      capLevelToPlayerSize:true, lowLatencyMode:false,
-      fragLoadingTimeOut:10000, manifestLoadingTimeOut:10000,
-      xhrSetup:function(xhr){ xhr.withCredentials=false; }
-    });
-    hls.loadSource(src);
-    hls.attachMedia(v);
-    v.__hls=hls;
-    hls.on(Hls.Events.MANIFEST_PARSED,function(){ var p=v.play(); if(p&&p.catch)p.catch(function(){}); });
-    hls.on(Hls.Events.ERROR,function(ev,data){
-      if(data.fatal){
-        if(data.type===Hls.ErrorTypes.NETWORK_ERROR){ hls.startLoad(); }
-        else if(data.type===Hls.ErrorTypes.MEDIA_ERROR){ hls.recoverMediaError(); }
       }
     });
+  });
+  killUnwanted();
+});
+
+// Observer 2 — atributos do body (player repõe background/overflow)
+observe(document.body||document.documentElement,{attributes:true,attributeFilter:['style','class']},function(){
+  if(document.body){
+    document.body.style.setProperty('background','#000','important');
+    document.body.style.setProperty('overflow','hidden','important');
   }
-  function trySetupHls(){
-    document.querySelectorAll('video').forEach(setupHls);
-  }
-  if(typeof Hls==='undefined'){
+});
+
+// Observer 3 — atributos nos elementos <video> (reposição de "controls")
+function observeVideoEl(v){
+  if(!v||v.__pxObserved)return;
+  v.__pxObserved=true;
+  observe(v,{attributes:true,attributeFilter:['controls','style','class']},function(muts){
+    muts.forEach(function(m){
+      if(m.attributeName==='controls')v.removeAttribute('controls');
+      if(m.attributeName==='style'){
+        v.style.setProperty('width','100%','important');
+        v.style.setProperty('height','100%','important');
+        v.style.setProperty('object-fit','contain','important');
+      }
+    });
+  });
+}
+
+// Cookies de age-verification por domínio
+(function(){
+  var cfg={
+    redtube: {d:'.redtube.com',   k:['age_verified=1','platform=pc','accessAgeDisclaimer=1','redtube_session=1']},
+    pornhub: {d:'.pornhub.com',   k:['age_verified=1','accessAgeDisclaimerPH=1','accessPH=1','platform=pc','hasVisited=1','cookieConsent=1','_tc=1']},
+    xhamster:{d:'.xhamster.com',  k:['age_verified=1','platform=pc','hasVisited=1']},
+    youporn: {d:'.youporn.com',   k:['age_verified=1','platform=pc','hasVisited=1']},
+    xvideos: {d:'.xvideos.com',   k:['age_verified=1','platform=pc']},
+    spankbang:{d:'.spankbang.com',k:['age_verified=1']},
+  };
+  Object.keys(cfg).forEach(function(key){
+    if(ENGINE.host.indexOf(key)<0)return;
+    var e='; expires='+new Date(Date.now()+9e11).toUTCString()+'; path=/; domain='+cfg[key].d;
+    cfg[key].k.forEach(function(c){document.cookie=c+e;});
+  });
+})();
+
+// HLS.js para streams adaptativos
+function setupHls(v){
+  if(!v)return;
+  var src=v.currentSrc||v.src||'';
+  if(!src){var s=v.querySelector('source[src]');if(s)src=s.src;}
+  if(!src)src=v.getAttribute('data-src')||v.getAttribute('data-hls-url')||'';
+  if(src.indexOf('.m3u8')<0)return;
+  if(typeof Hls==='undefined'||!Hls.isSupported())return;
+  if(v.__hls){try{v.__hls.destroy();}catch(_){}}
+  var hls=new Hls({maxBufferLength:10,maxMaxBufferLength:20,startLevel:0,autoLevelCapping:2,
+    capLevelToPlayerSize:true,lowLatencyMode:false,fragLoadingTimeOut:10000,manifestLoadingTimeOut:10000,
+    xhrSetup:function(xhr){xhr.withCredentials=false;}});
+  hls.loadSource(src);hls.attachMedia(v);v.__hls=hls;
+  hls.on(Hls.Events.MANIFEST_PARSED,function(){var p=v.play();if(p&&p.catch)p.catch(function(){});});
+  hls.on(Hls.Events.ERROR,function(ev,data){
+    if(data.fatal){
+      if(data.type===Hls.ErrorTypes.NETWORK_ERROR)hls.startLoad();
+      else if(data.type===Hls.ErrorTypes.MEDIA_ERROR)hls.recoverMediaError();
+    }
+  });
+}
+function loadHls(){
+  if(typeof Hls!=='undefined'){document.querySelectorAll('video').forEach(setupHls);}
+  else{
     var sc=document.createElement('script');
     sc.src='https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js';
-    sc.onload=trySetupHls;
+    sc.onload=function(){document.querySelectorAll('video').forEach(setupHls);};
     (document.head||document.documentElement).appendChild(sc);
-  } else { trySetupHls(); }
+  }
+}
+
+// ── CAMADA 4: BRIDGE Flutter↔WebView ─────────────────────────────────────────
+// Actua no ENGINE.videoEl real (fingerprinter) — não num querySelector genérico
+window.addEventListener('message',function(e){
+  var v=ENGINE.videoEl||document.querySelector('video');
+  if(!v)return;
+  if(e.data==='px:play'){var p=v.play();if(p&&p.catch)p.catch(function(){});}
+  if(e.data==='px:pause'){
+    ENGINE.commandedPause=true;
+    if(HTMLMediaElement.__origPausePx)HTMLMediaElement.__origPausePx.call(v);
+    else{try{Object.getPrototypeOf(HTMLMediaElement).pause?Object.getPrototypeOf(HTMLMediaElement).pause.call(v):v.pause();}catch(_){v.pause();}}
+  }
+  if(e.data==='px:mute'){
+    ENGINE.muted=true;window.__pxMuted=true;v.muted=true;
+    try{ENGINE.apiObj&&ENGINE.apiObj.muted&&ENGINE.apiObj.muted(true);}catch(_){}
+    try{ENGINE.apiObj&&ENGINE.apiObj.setMute&&ENGINE.apiObj.setMute(true);}catch(_){}
+  }
+  if(e.data==='px:unmute'){
+    ENGINE.muted=false;window.__pxMuted=false;v.muted=false;
+    try{ENGINE.apiObj&&ENGINE.apiObj.muted&&ENGINE.apiObj.muted(false);}catch(_){}
+    try{ENGINE.apiObj&&ENGINE.apiObj.setMute&&ENGINE.apiObj.setMute(false);}catch(_){}
+  }
+  if(e.data==='px:getState'){
+    var st={engine:ENGINE.engine,paused:v.paused,muted:v.muted,
+      currentTime:v.currentTime,duration:v.duration||0,
+      src:v.currentSrc||v.src||'',readyState:v.readyState};
+    try{window.flutter_inappwebview&&window.flutter_inappwebview.callHandler('pxState',JSON.stringify(st));}catch(_){}
+  }
+});
+
+// ── ARRANQUE ──────────────────────────────────────────────────────────────────
+function fullRun(){
+  if(ENGINE.destroyed)return;
+  killUnwanted();
+  var fp=fingerprint();
+  hijack(fp);
+  if(ENGINE.videoEl)observeVideoEl(ENGINE.videoEl);
+  document.querySelectorAll('video').forEach(observeVideoEl);
+  loadHls();
+}
+
+fullRun();
+[300,700,1200,2000,3500,6000].forEach(function(ms){after(ms,fullRun);});
 
 })();
 """;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Shimmer unificado
+// ─────────────────────────────────────────────────────────────────────────────
 class _Shimmer extends StatefulWidget {
-  final double width, height;
+  final double? width;
+  final double? height;
   final double radius;
-  const _Shimmer({required this.width, required this.height, this.radius = 6});
+  const _Shimmer({this.width, this.height, this.radius = 6});
   @override State<_Shimmer> createState() => _ShimmerState();
 }
 class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin {
@@ -507,7 +607,7 @@ class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin 
   late final Animation<double> _a;
   @override void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1300))..repeat();
     _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
   }
   @override void dispose() { _c.dispose(); super.dispose(); }
@@ -527,9 +627,9 @@ class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin 
 }
 
 List<Widget> _skeletonCards(int n) => List.generate(n, (_) =>
-  Padding(padding: const EdgeInsets.fromLTRB(12,0,12,14),
+  Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
     child: Row(children: [
-      _Shimmer(width: 160, height: 90),
+      _Shimmer(width: 160, height: 90, radius: 6),
       const SizedBox(width: 10),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _Shimmer(width: double.infinity, height: 13),
@@ -543,17 +643,13 @@ List<Widget> _skeletonCards(int n) => List.generate(n, (_) =>
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Player de vídeo local (estado vazio)
+// Player local (estado vazio)
 // ─────────────────────────────────────────────────────────────────────────────
 class _LocalAssetPlayer extends StatefulWidget {
   final bool muted;
   final bool playing;
   final void Function(VideoPlayerController) onReady;
-  const _LocalAssetPlayer({
-    required this.muted,
-    required this.playing,
-    required this.onReady,
-  });
+  const _LocalAssetPlayer({required this.muted, required this.playing, required this.onReady});
   @override State<_LocalAssetPlayer> createState() => _LocalAssetPlayerState();
 }
 class _LocalAssetPlayerState extends State<_LocalAssetPlayer> {
@@ -581,14 +677,74 @@ class _LocalAssetPlayerState extends State<_LocalAssetPlayer> {
   @override void dispose() { _ctrl.dispose(); super.dispose(); }
   @override Widget build(BuildContext context) {
     if (!_initialized) return const ColoredBox(color: Colors.black);
-    return FittedBox(
-      fit: BoxFit.cover,
-      child: SizedBox(
-        width: _ctrl.value.size.width, height: _ctrl.value.size.height,
-        child: VideoPlayer(_ctrl),
-      ),
-    );
+    return FittedBox(fit: BoxFit.cover,
+      child: SizedBox(width: _ctrl.value.size.width, height: _ctrl.value.size.height,
+        child: VideoPlayer(_ctrl)));
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Play/Pause overlay — auto-hide, não bloqueia WebView
+// ─────────────────────────────────────────────────────────────────────────────
+class _PlayPauseOverlay extends StatefulWidget {
+  final bool playing;
+  final VoidCallback onTap;
+  const _PlayPauseOverlay({required this.playing, required this.onTap});
+  @override State<_PlayPauseOverlay> createState() => _PlayPauseOverlayState();
+}
+class _PlayPauseOverlayState extends State<_PlayPauseOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ac;
+  late final Animation<double> _opacity;
+  Timer? _hideTimer;
+
+  @override void initState() {
+    super.initState();
+    _ac = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+    _opacity = CurvedAnimation(parent: _ac, curve: Curves.easeOut);
+    _showTemporarily();
+  }
+
+  void _showTemporarily() {
+    _hideTimer?.cancel();
+    _ac.forward();
+    if (widget.playing) {
+      _hideTimer = Timer(const Duration(milliseconds: 2500), () {
+        if (mounted) _ac.reverse();
+      });
+    }
+  }
+
+  void _handleTap() { widget.onTap(); _showTemporarily(); }
+
+  @override void didUpdateWidget(_PlayPauseOverlay old) {
+    super.didUpdateWidget(old);
+    if (!widget.playing && old.playing) { _hideTimer?.cancel(); _ac.forward(); }
+    if (widget.playing && !old.playing) _showTemporarily();
+  }
+
+  @override void dispose() { _hideTimer?.cancel(); _ac.dispose(); super.dispose(); }
+
+  @override Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.translucent,
+    onTap: _handleTap,
+    child: FadeTransition(
+      opacity: _opacity,
+      child: Center(
+        child: Container(
+          width: 72, height: 72,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.72),
+            shape: BoxShape.circle,
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, spreadRadius: 4)],
+          ),
+          child: Center(child: SvgPicture.string(
+            widget.playing ? _svgPause : _svgPlay, width: 28, height: 28,
+            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn))),
+        ),
+      ),
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -599,15 +755,8 @@ class ExibicaoPage extends StatefulWidget {
   final FeedVideo? currentVideo;
   final void Function(FeedVideo) onVideoTap;
   final bool isActive;
-
-  const ExibicaoPage({
-    super.key,
-    this.embedUrl,
-    this.currentVideo,
-    required this.onVideoTap,
-    this.isActive = true,
-  });
-
+  const ExibicaoPage({super.key, this.embedUrl, this.currentVideo,
+      required this.onVideoTap, this.isActive = true});
   @override State<ExibicaoPage> createState() => _ExibicaoPageState();
 }
 
@@ -618,59 +767,41 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   final List<FeedVideo> _related = [];
   bool   _loadingRelated = false;
   InAppWebViewController? _webCtrl;
-  VideoPlayerController? _localCtrl; // ctrl do vídeo local (estado vazio)
-  bool   _titleExpanded  = false;
+  VideoPlayerController? _localCtrl;
   bool   _muted          = false;
-  // _playing começa true — o vídeo vai tocar ao carregar
-  // O botão é SEMPRE visível (não some quando playing)
   bool   _playing        = true;
   bool   _playerLoading  = true;
   FeedVideo? _nextVideo;
+  String _detectedEngine = '—';
 
   bool get _isEmpty => widget.embedUrl == null || widget.currentVideo == null;
 
   @override void initState() {
     super.initState();
-    if (!_isEmpty) {
-      _loadRelated();
-      _startPlayerTimeout();
-    }
+    if (!_isEmpty) { _loadRelated(); _startPlayerTimeout(); }
   }
 
-  // Timeout de segurança: se o player não carregar em 10s, esconde o loading
   void _startPlayerTimeout() {
-    Future.delayed(const Duration(seconds: 10), () {
-      if (mounted && _playerLoading) {
-        setState(() => _playerLoading = false);
-      }
+    Future.delayed(const Duration(seconds: 12), () {
+      if (mounted && _playerLoading) setState(() => _playerLoading = false);
     });
   }
 
-  @override
-  void didUpdateWidget(ExibicaoPage old) {
+  @override void didUpdateWidget(ExibicaoPage old) {
     super.didUpdateWidget(old);
     if (widget.currentVideo != old.currentVideo && !_isEmpty) {
-      setState(() {
-        _titleExpanded = false;
-        _playerLoading = true;
-        _playing = true; // novo vídeo começa a tocar
-      });
+      setState(() { _playerLoading = true; _playing = true; _detectedEngine = '—'; });
       _loadRelated();
       _startPlayerTimeout();
     }
-    // Pausa/retoma ao mudar de tab
     if (widget.isActive != old.isActive) {
       _webSend(widget.isActive ? 'px:play' : 'px:pause');
-      if (!widget.isActive) setState(() => _playing = false);
-      else setState(() => _playing = true);
+      setState(() => _playing = widget.isActive);
     }
   }
 
-  // Envia postMessage ao WebView
-  void _webSend(String msg) {
-    _webCtrl?.evaluateJavascript(
-        source: "window.postMessage('$msg','*')");
-  }
+  void _webSend(String msg) =>
+      _webCtrl?.evaluateJavascript(source: "window.postMessage('$msg','*')");
 
   Future<void> _loadRelated() async {
     if (!mounted) return;
@@ -678,9 +809,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     final videos = await FeedFetcher.fetchAll(Random().nextInt(30) + 1);
     if (!mounted) return;
     setState(() {
-      _related
-        ..clear()
-        ..addAll(videos.where((v) => v.embedUrl != widget.embedUrl).take(20));
+      _related..clear()..addAll(videos.where((v) => v.embedUrl != widget.embedUrl).take(20));
       _loadingRelated = false;
     });
   }
@@ -689,10 +818,8 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     final t = AppTheme.current;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg, style: TextStyle(color: t.toastText)),
-      backgroundColor: t.toastBg,
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 2),
-    ));
+      backgroundColor: t.toastBg, behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 2)));
   }
 
   Future<void> _forceDownload() async {
@@ -700,44 +827,38 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     final video = widget.currentVideo; if (video == null) return;
     _snack('A capturar link do vídeo...');
     try {
+      // Usa ENGINE.videoEl real detectado pelo fingerprinter
       final result = await _webCtrl!.evaluateJavascript(source: r'''
         (function(){
-          var v=document.querySelector('video');
-          if(v&&v.src&&v.src.startsWith('http'))return v.src;
-          if(v&&v.currentSrc&&v.currentSrc.startsWith('http'))return v.currentSrc;
-          var s=document.querySelector('source[src]');
-          if(s&&s.src&&s.src.startsWith('http'))return s.src;
-          return '__none__';
+          var E=window.__pxEngine;
+          var v=(E&&E.videoEl)||document.querySelector('video');
+          if(!v)return '__none__';
+          var s=v.currentSrc||v.src||'';
+          if(s&&s.startsWith('http'))return s;
+          var src=document.querySelector('source[src]');
+          return src&&src.src&&src.src.startsWith('http')?src.src:'__none__';
         })()''');
-      final src = result?.toString().replaceAll('"','').trim() ?? '__none__';
+      final src = result?.toString().replaceAll('"', '').trim() ?? '__none__';
       if (!mounted) return;
       if (src == '__none__' || src.isEmpty) { _snack('Inicia a reprodução antes.'); return; }
-      DownloadService.instance.startDownload(
-        url: src, title: video.title, type: 'video',
-        thumbUrl: video.thumb, sourceUrl: video.embedUrl);
+      DownloadService.instance.startDownload(url: src, title: video.title,
+          type: 'video', thumbUrl: video.thumb, sourceUrl: video.embedUrl);
       _snack('Download iniciado');
     } catch (_) { if (mounted) _snack('Erro ao capturar o vídeo.'); }
   }
 
-  // ── Play/pause — SEMPRE controlado pelo flutter, nunca pelo player nativo ──
   void _togglePlay() {
-    setState(() => _playing = !_playing);
-    if (_isEmpty) {
-      // Player local — controlar directamente via VideoPlayerController
-      if (_playing) {
-        _localCtrl?.play();
-      } else {
-        _localCtrl?.pause();
-      }
-    } else {
-      // WebView embed — controlar via postMessage
-      _webSend(_playing ? 'px:play' : 'px:pause');
-    }
+    final np = !_playing;
+    setState(() => _playing = np);
+    if (_isEmpty) { np ? _localCtrl?.play() : _localCtrl?.pause(); }
+    else { _webSend(np ? 'px:play' : 'px:pause'); }
   }
 
   void _toggleMute() {
-    setState(() => _muted = !_muted);
-    _webSend(_muted ? 'px:mute' : 'px:unmute');
+    final nm = !_muted;
+    setState(() => _muted = nm);
+    if (_isEmpty) { _localCtrl?.setVolume(nm ? 0.0 : 1.0); }
+    else { _webSend(nm ? 'px:mute' : 'px:unmute'); }
   }
 
   Future<void> _openAdsUrl() async {
@@ -745,41 +866,46 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _injectJs(InAppWebViewController ctrl) async {
-    // Reset da flag — permite re-injecção em cada load de página
-    await ctrl.evaluateJavascript(source: "window.__pxDone=false;");
-    // CSS imediato antes do JS completo
-    final escapedCss = _kCleanCss
-        .replaceAll('\\', '\\\\')
-        .replaceAll("'", "\\'")
-        .replaceAll('\n', '\\n')
-        .replaceAll('\r', '');
-    await ctrl.evaluateJavascript(source: "window.__pxCss='$escapedCss';");
-    await ctrl.evaluateJavascript(source: "window.__pxMuted=${_muted};");
-    // CSS de limpeza imediato
-    await ctrl.evaluateJavascript(source:
-      "(function(){"
-      "var st=document.getElementById('__pxStyleEarly');"
-      "if(!st){st=document.createElement('style');st.id='__pxStyleEarly';"
-      "(document.head||document.documentElement).appendChild(st);}"
-      "st.textContent=window.__pxCss||'';" 
-      "document.body&&(document.body.style.cssText='background:#000!important;overflow:hidden!important;margin:0!important;padding:0!important;');"
-      "})()");
-    // JS principal
-    await ctrl.evaluateJavascript(source: _kPlayerInitJs);
+  // FASE A: CSS stealth (onLoadStart) — zero JS pesado, só estilo imediato
+  Future<void> _injectPhaseA(InAppWebViewController ctrl) async {
+    try {
+      await ctrl.evaluateJavascript(source:
+          "if(window.__pxEngine){window.__pxEngine.destroy();window.__pxEngine=null;}");
+      final esc = _kCss0Stealth
+          .replaceAll('\\', '\\\\').replaceAll("'", "\\'")
+          .replaceAll('\n', '\\n').replaceAll('\r', '');
+      await ctrl.evaluateJavascript(source:
+          "window.__pxCss='$esc';window.__pxMuted=$_muted;");
+      await ctrl.evaluateJavascript(source:
+          "(function(){var s=document.getElementById('__pxStealth');"
+          "if(!s){s=document.createElement('style');s.id='__pxStealth';"
+          "(document.head||document.documentElement).appendChild(s);}"
+          "s.textContent=window.__pxCss||'';"
+          "if(document.body){document.body.style.background='#000';"
+          "document.body.style.overflow='hidden';}})()");
+    } catch (_) {}
   }
 
-  void _showVideoMenu(BuildContext ctx, FeedVideo v, Offset globalPos) {
+  // FASE B: motor completo (onLoadStop) — fingerprinter + hijacker + sentinels
+  Future<void> _injectPhaseB(InAppWebViewController ctrl) async {
+    try {
+      await _injectPhaseA(ctrl);
+      await ctrl.evaluateJavascript(source: _kJsEngine);
+      if (_playing) {
+        await Future.delayed(const Duration(milliseconds: 900));
+        if (mounted) _webSend('px:play');
+      }
+    } catch (_) {}
+  }
+
+  void _showVideoMenu(BuildContext ctx, FeedVideo v, Offset pos) {
     final t = AppTheme.current;
     final RenderBox overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
     showMenu<String>(
-      context: ctx,
-      color: t.popup, elevation: 6,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+      context: ctx, color: t.popup, elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10),
           side: BorderSide(color: t.borderSoft)),
-      position: RelativeRect.fromRect(
-          globalPos & const Size(1,1), Offset.zero & overlay.size),
+      position: RelativeRect.fromRect(pos & const Size(1,1), Offset.zero & overlay.size),
       items: [
         _popItem('save',     _svgSaveLater, 'Guardar para assistir mais tarde', t),
         _popItem('playlist', _svgPlaylist,  'Adicionar na minha playlist',      t),
@@ -790,374 +916,290 @@ class _ExibicaoPageState extends State<ExibicaoPage>
       switch (val) {
         case 'save':     _snack('Guardado para assistir mais tarde'); break;
         case 'playlist': _snack('Adicionado à playlist'); break;
-        case 'next':
-          setState(() => _nextVideo = v);
-          _snack('Será exibido a seguir');
-          break;
+        case 'next':     setState(() => _nextVideo = v); _snack('Será exibido a seguir'); break;
       }
     });
   }
 
   PopupMenuItem<String> _popItem(String val, String svg, String label, AppTheme t) =>
-    PopupMenuItem<String>(
-      value: val, height: 46,
+    PopupMenuItem<String>(value: val, height: 46,
       child: Row(children: [
         SvgPicture.string(svg, width: 18, height: 18,
             colorFilter: ColorFilter.mode(t.iconSub, BlendMode.srcIn)),
         const SizedBox(width: 12),
         Expanded(child: Text(label, style: TextStyle(color: t.text, fontSize: 13.5))),
-      ]),
-    );
+      ]));
 
-  @override
-  Widget build(BuildContext context) {
+  @override Widget build(BuildContext context) {
     super.build(context);
-    final t       = AppTheme.current;
-    final topPad  = MediaQuery.of(context).padding.top;
+    final t = AppTheme.current;
+    final overlayStyle = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: t.isDark ? Brightness.light : Brightness.dark,
+    );
     final screenW = MediaQuery.of(context).size.width;
     final playerH = screenW * 9 / 16;
     final video   = widget.currentVideo;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-      ),
+      value: overlayStyle,
       child: Scaffold(
         backgroundColor: t.bg,
-        body: Column(children: [
+        body: SafeArea(
+          bottom: false,
+          child: Column(children: [
 
-          SizedBox(height: topPad),
+            // ── Player ────────────────────────────────────────────────────────
+            SizedBox(width: screenW, height: playerH,
+              child: ColoredBox(color: Colors.black,
+                child: Stack(children: [
 
-          // ── Player ────────────────────────────────────────────────────────
-          SizedBox(
-            width: screenW,
-            height: playerH,
-            child: ColoredBox(
-              color: Colors.black,
-              child: Stack(children: [
-
-                // WebView ou player local
-                Positioned.fill(
-                  child: _isEmpty
-                      ? _LocalAssetPlayer(
-                          muted: _muted,
-                          playing: _playing,
-                          onReady: (ctrl) {
-                            if (mounted) setState(() => _localCtrl = ctrl);
-                          },
-                        )
-                      : InAppWebView(
-                          key: ValueKey(widget.embedUrl),
-                          initialUrlRequest: URLRequest(
-                              url: WebUri(widget.embedUrl!)),
-                          initialSettings: InAppWebViewSettings(
-                            javaScriptEnabled: true,
-                            mediaPlaybackRequiresUserGesture: false,
-                            allowsInlineMediaPlayback: true,
-                            transparentBackground: true,
-                            disableDefaultErrorPage: true,
-                            disableHorizontalScroll: true,
-                            disableVerticalScroll: false,
-                            supportZoom: false,
-                            builtInZoomControls: false,
-                            displayZoomControls: false,
-                            horizontalScrollBarEnabled: false,
-                            verticalScrollBarEnabled: false,
-                            // Android: permite mixed content (http dentro de https)
-                            mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
-                            // Permite que o vídeo do PornHub/RedTube toque sem gesto
-                            allowFileAccessFromFileURLs: true,
-                            allowUniversalAccessFromFileURLs: true,
-                            // Desactiva safe-browsing para não bloquear os embeds
-                            safeBrowsingEnabled: false,
-                            // Cookies de terceiros (essencial para PH/RT)
-                            thirdPartyCookiesEnabled: true,
-                            // DOM storage para cookies de verificação de idade
-                            domStorageEnabled: true,
-                            databaseEnabled: true,
-                            // Evita que o WebView abra o app de browser externo
-                            useOnLoadResource: true,
-                            useShouldInterceptRequest: false,
-                            userAgent:
-                                'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
-                                'AppleWebKit/537.36 (KHTML, like Gecko) '
-                                'Chrome/124.0.0.0 Mobile Safari/537.36',
-                          ),
-                          onWebViewCreated: (ctrl) {
-                            _webCtrl = ctrl;
-                          },
-                          onLoadStart: (ctrl, url) async {
-                            // Injeta fundo preto imediatamente (silencia erros se DOM ainda não existe)
-                            try {
-                              await ctrl.evaluateJavascript(source:
-                                "try{(function(){"
-                                "var st=document.getElementById('__pxStyleEarly');"
-                                "if(!st){st=document.createElement('style');st.id='__pxStyleEarly';"
-                                "(document.head||document.documentElement).appendChild(st);}"
-                                "st.textContent=window.__pxCss||'';"
-                                "if(document.body)document.body.style.background='#000';"
-                                "})()}catch(e){}");
-                            } catch (_) {}
-                          },
-                          onLoadStop: (ctrl, _) async {
-                            await _injectJs(ctrl);
-                            if (mounted) setState(() => _playerLoading = false);
-                          },
-                          onLoadError: (ctrl, url, code, msg) async {
-                            await _injectJs(ctrl);
-                            if (mounted) setState(() => _playerLoading = false);
-                          },
-                          shouldOverrideUrlLoading: (ctrl, action) async {
-                            final url = action.request.url?.toString() ?? '';
-                            final navType = action.navigationType;
-
-                            // Bloqueia APENAS navegação por clique do utilizador
-                            // que sairia do domínio do embed para página externa.
-                            // Tudo o resto (recursos, CDN, iframes, scripts) é PERMITIDO.
-                            if (navType == NavigationType.LINK_ACTIVATED ||
-                                navType == NavigationType.FORM_SUBMITTED) {
-                              // Domínios dos embeds conhecidos — permitir navegação interna
-                              final embedDomains = [
-                                'eporner.com', 'pornhub.com', 'redtube.com',
-                                'embed.redtube.com', 'youporn.com', 'xvideos.com',
-                                'xhamster.com', 'spankbang.com', 'bravotube.net',
-                                'drtuber.com', 'txxx.com', 'gotporn.com',
-                                'porndig.com', 'xnxx.com', 'xvideos2.com',
-                              ];
-                              final isEmbedDomain = embedDomains.any(
-                                  (d) => url.contains(d));
-                              if (!isEmbedDomain && url.startsWith('http')) {
-                                return NavigationActionPolicy.CANCEL;
-                              }
-                            }
-                            return NavigationActionPolicy.ALLOW;
-                          },
-                        ),
-                ),
-
-                // Thumbnail de loading
-                if (!_isEmpty && _playerLoading)
                   Positioned.fill(
-                    child: Stack(children: <Widget>[
-                      if (video?.thumb != null && video!.thumb.isNotEmpty)
-                        Image.network(video.thumb,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                          headers: const {'User-Agent': 'Mozilla/5.0'},
-                          errorBuilder: (_, __, ___) =>
-                              const ColoredBox(color: Colors.black),
-                        ),
-                      Container(color: Colors.black45),
-                      const Center(child: CircularProgressIndicator(
-                          color: Colors.white70, strokeWidth: 1.5)),
-                    ]),
-                  ),
-
-                // ── Botão play/pause — SEMPRE visível, toca/pausa ao clicar ─
-                // FIX: era invisível quando _playing=true. Agora é sempre visível
-                // mas com opacidade reduzida quando a reproduzir.
-                Positioned.fill(
-                    child: GestureDetector(
-                      onTap: _togglePlay,
-                      behavior: HitTestBehavior.opaque,
-                      child: Center(
-                        child: AnimatedOpacity(
-                          // Visível sempre: 1.0 pausado, 0.35 a reproduzir
-                          opacity: _playing ? 0.35 : 1.0,
-                          duration: const Duration(milliseconds: 200),
-                          child: Container(
-                            width: 56, height: 56,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.65),
-                              shape: BoxShape.circle,
+                    child: _isEmpty
+                        ? _LocalAssetPlayer(
+                            muted: _muted, playing: _playing,
+                            onReady: (ctrl) { if (mounted) setState(() => _localCtrl = ctrl); })
+                        : InAppWebView(
+                            key: ValueKey(widget.embedUrl),
+                            initialUrlRequest: URLRequest(url: WebUri(widget.embedUrl!)),
+                            initialSettings: InAppWebViewSettings(
+                              javaScriptEnabled: true,
+                              mediaPlaybackRequiresUserGesture: false,
+                              allowsInlineMediaPlayback: true,
+                              transparentBackground: true,
+                              disableDefaultErrorPage: true,
+                              disableHorizontalScroll: true,
+                              disableVerticalScroll: false,
+                              supportZoom: false,
+                              builtInZoomControls: false,
+                              displayZoomControls: false,
+                              horizontalScrollBarEnabled: false,
+                              verticalScrollBarEnabled: false,
+                              mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+                              allowFileAccessFromFileURLs: true,
+                              allowUniversalAccessFromFileURLs: true,
+                              safeBrowsingEnabled: false,
+                              thirdPartyCookiesEnabled: true,
+                              domStorageEnabled: true,
+                              databaseEnabled: true,
+                              useOnLoadResource: true,
+                              useShouldInterceptRequest: false,
+                              userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
+                                  'AppleWebKit/537.36 (KHTML, like Gecko) '
+                                  'Chrome/124.0.0.0 Mobile Safari/537.36',
                             ),
-                            child: Center(
-                              child: SvgPicture.string(
-                                _playing ? _svgPause : _svgPlay,
-                                width: 22, height: 22,
-                                colorFilter: const ColorFilter.mode(
-                                    Colors.white, BlendMode.srcIn),
-                              ),
-                            ),
+                            onWebViewCreated: (ctrl) {
+                              _webCtrl = ctrl;
+                              // Canal: fingerprint reportado pelo motor JS
+                              ctrl.addJavaScriptHandler(
+                                handlerName: 'pxFingerprint',
+                                callback: (args) {
+                                  if (!mounted || args.isEmpty) return;
+                                  try {
+                                    final data = args[0] is String
+                                        ? Map<String,dynamic>.from({})
+                                        : args[0] as Map<String,dynamic>;
+                                    // args[0] pode vir como String JSON
+                                    String eng = '?';
+                                    if (args[0] is String) {
+                                      eng = RegExp(r'"engine":"([^"]+)"')
+                                          .firstMatch(args[0] as String)?.group(1) ?? '?';
+                                    } else {
+                                      eng = (args[0] as Map)['engine']?.toString() ?? '?';
+                                    }
+                                    setState(() => _detectedEngine = eng);
+                                  } catch (_) {}
+                                },
+                              );
+                              // Canal: estado do player reportado pelo motor
+                              ctrl.addJavaScriptHandler(
+                                handlerName: 'pxState',
+                                callback: (args) {
+                                  if (!mounted || args.isEmpty) return;
+                                  try {
+                                    final raw = args[0];
+                                    bool paused = false;
+                                    if (raw is String) {
+                                      paused = raw.contains('"paused":true');
+                                    } else if (raw is Map) {
+                                      paused = raw['paused'] == true;
+                                    }
+                                    if (mounted && _playing == paused) {
+                                      setState(() => _playing = !paused);
+                                    }
+                                  } catch (_) {}
+                                },
+                              );
+                            },
+                            onLoadStart: (ctrl, url) async { await _injectPhaseA(ctrl); },
+                            onLoadStop: (ctrl, _) async {
+                              await _injectPhaseB(ctrl);
+                              if (mounted) setState(() => _playerLoading = false);
+                            },
+                            onLoadError: (ctrl, url, code, msg) async {
+                              await _injectPhaseB(ctrl);
+                              if (mounted) setState(() => _playerLoading = false);
+                            },
+                            shouldOverrideUrlLoading: (ctrl, action) async {
+                              final url = action.request.url?.toString() ?? '';
+                              final navType = action.navigationType;
+                              if (navType == NavigationType.LINK_ACTIVATED ||
+                                  navType == NavigationType.FORM_SUBMITTED) {
+                                final embedDomains = ['eporner.com','pornhub.com','redtube.com',
+                                  'embed.redtube.com','youporn.com','xvideos.com','xhamster.com',
+                                  'spankbang.com','bravotube.net','drtuber.com','txxx.com',
+                                  'gotporn.com','porndig.com','xnxx.com','xvideos2.com'];
+                                if (!embedDomains.any((d)=>url.contains(d)) && url.startsWith('http')) {
+                                  return NavigationActionPolicy.CANCEL;
+                                }
+                              }
+                              return NavigationActionPolicy.ALLOW;
+                            },
                           ),
-                        ),
-                      ),
-                    ),
                   ),
 
-                // Botões bottom-right: mudo + download
-                Positioned(
-                  bottom: 8, right: 8,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _PlayerBtn(
-                          svg: _muted ? _svgVolOff : _svgVolOn,
-                          onTap: _toggleMute),
+                  // Thumbnail de loading
+                  if (!_isEmpty && _playerLoading)
+                    Positioned.fill(child: Stack(children: [
+                      if (video?.thumb != null && video!.thumb.isNotEmpty)
+                        Image.network(video.thumb, fit: BoxFit.cover,
+                          width: double.infinity, height: double.infinity,
+                          headers: const {'User-Agent': 'Mozilla/5.0'},
+                          errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black)),
+                      Container(color: Colors.black54),
+                      const Center(child: CircularProgressIndicator(color: Colors.white70, strokeWidth: 1.5)),
+                    ])),
+
+                  // Play/Pause overlay (auto-hide, não bloqueia WebView)
+                  Positioned.fill(child: _PlayPauseOverlay(playing: _playing, onTap: _togglePlay)),
+
+                  // Gradiente inferior para legibilidade dos botões
+                  Positioned(left:0,right:0,bottom:0,
+                    child: Container(height: 72,
+                      decoration: const BoxDecoration(gradient: LinearGradient(
+                        begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                        colors: [Color(0xCC000000), Colors.transparent])))),
+
+                  // Badge engine detectado (canto sup esq)
+                  if (!_isEmpty && _detectedEngine != '—')
+                    Positioned(top:6, left:8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(4)),
+                        child: Text('⚙ $_detectedEngine',
+                          style: const TextStyle(color: Colors.white70,
+                              fontSize: 9, fontWeight: FontWeight.w600)))),
+
+                  // Botões bottom-right
+                  Positioned(bottom:8, right:8,
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      _PlayerBtn(svg: _muted ? _svgVolOff : _svgVolOn, onTap: _toggleMute),
                       const SizedBox(height: 8),
                       _PlayerBtn(svg: _svgDl, onTap: _forceDownload),
-                    ],
-                  ),
-                ),
-              ]),
+                    ])),
+                ]),
+              ),
             ),
-          ),
 
-          // ── Corpo ─────────────────────────────────────────────────────────
-          Expanded(
-            child: _isEmpty
-                ? _EmptyBody(onAdsLinkTap: _openAdsUrl)
-                : ListView(
-                    padding: EdgeInsets.zero,
-                    physics: const ClampingScrollPhysics(),
-                    children: [
+            // ── Corpo ─────────────────────────────────────────────────────────
+            Expanded(
+              child: _isEmpty
+                  ? _EmptyBody(onAdsLinkTap: _openAdsUrl)
+                  : ListView(
+                      padding: EdgeInsets.zero,
+                      physics: const ClampingScrollPhysics(),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-                      // ── Bloco de descrição — estilo YouTube com curvatura ──
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-
-                            // Título — sempre expandido, sem colapso
-                            Text(video!.title,
-                              style: TextStyle(
-                                  color: t.text,
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.3),
-                            ),
-
+                            Text(video!.title, style: TextStyle(color: t.text, fontSize: 14.5,
+                                fontWeight: FontWeight.w600, height: 1.3)),
                             const SizedBox(height: 6),
 
-                            // Fonte + visualizações — sempre visível
                             Row(children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(6),
-                                child: Image.network(
-                                    faviconForSource(video.source),
+                              ClipRRect(borderRadius: BorderRadius.circular(6),
+                                child: Image.network(faviconForSource(video.source),
                                     width: 14, height: 14,
-                                    errorBuilder: (_, __, ___) =>
-                                        const SizedBox(width: 14, height: 14)),
-                              ),
+                                    errorBuilder: (_, __, ___) => const SizedBox(width: 14, height: 14))),
                               const SizedBox(width: 5),
-                              Text(video.sourceLabel,
-                                  style: TextStyle(
-                                      color: t.textSecondary,
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w500)),
+                              Text(video.sourceLabel, style: TextStyle(
+                                  color: t.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w500)),
                               if (video.views.isNotEmpty)
                                 Text('  ·  ${video.views} vis.',
-                                    style: TextStyle(
-                                        color: t.textHint, fontSize: 11.5)),
+                                    style: TextStyle(color: t.textHint, fontSize: 11.5)),
+                              if (_detectedEngine != '—') ...[
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.ytRed.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(4)),
+                                  child: Text(_detectedEngine, style: TextStyle(
+                                      color: AppTheme.ytRed, fontSize: 10, fontWeight: FontWeight.w700))),
+                              ],
                             ]),
 
                             const SizedBox(height: 12),
                             Divider(color: t.divider, thickness: 1, height: 1),
                             const SizedBox(height: 10),
 
-                            // Card do próximo vídeo (playlist) — rosa
                             if (_nextVideo != null) ...[
                               GestureDetector(
-                                onTap: () {
-                                  widget.onVideoTap(_nextVideo!);
-                                  setState(() => _nextVideo = null);
-                                },
+                                onTap: () { widget.onVideoTap(_nextVideo!); setState(() => _nextVideo = null); },
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 10),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                   decoration: BoxDecoration(
-                                    color: t.isDark
-                                        ? const Color(0xFF2A1A1A)
-                                        : const Color(0xFFFFF0F0),
+                                    color: t.isDark ? const Color(0xFF2A1A1A) : const Color(0xFFFFF0F0),
                                     borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: t.isDark
-                                          ? const Color(0xFF5A2020)
-                                          : const Color(0xFFFFCCCC),
-                                    ),
-                                  ),
+                                    border: Border.all(color: t.isDark ? const Color(0xFF5A2020) : const Color(0xFFFFCCCC))),
                                   child: Row(children: [
-                                    SvgPicture.string(_svgPlaylist,
-                                        width: 15, height: 15,
-                                        colorFilter: ColorFilter.mode(
-                                            AppTheme.ytRed, BlendMode.srcIn)),
+                                    SvgPicture.string(_svgPlaylist, width: 15, height: 15,
+                                        colorFilter: ColorFilter.mode(AppTheme.ytRed, BlendMode.srcIn)),
                                     const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text('Seguinte:',
-                                              style: TextStyle(
-                                                  color: AppTheme.ytRed,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w700)),
-                                          const SizedBox(height: 2),
-                                          Text(_nextVideo!.title,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                  color: t.text,
-                                                  fontSize: 12.5,
-                                                  fontWeight:
-                                                      FontWeight.w600)),
-                                          Text(_nextVideo!.sourceLabel,
-                                              style: TextStyle(
-                                                  color: t.textSecondary,
-                                                  fontSize: 11)),
-                                        ],
-                                      ),
-                                    ),
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Text('Seguinte:', style: TextStyle(color: AppTheme.ytRed,
+                                          fontSize: 11, fontWeight: FontWeight.w700)),
+                                      const SizedBox(height: 2),
+                                      Text(_nextVideo!.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(color: t.text, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                                      Text(_nextVideo!.sourceLabel,
+                                          style: TextStyle(color: t.textSecondary, fontSize: 11)),
+                                    ])),
                                     GestureDetector(
-                                      onTap: () =>
-                                          setState(() => _nextVideo = null),
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(left: 8),
-                                        child: Icon(Icons.close_rounded,
-                                            color: t.iconTertiary, size: 18),
-                                      ),
-                                    ),
+                                      onTap: () => setState(() => _nextVideo = null),
+                                      child: Padding(padding: const EdgeInsets.only(left: 8),
+                                          child: Icon(Icons.close_rounded, color: t.iconTertiary, size: 18))),
                                   ]),
                                 ),
                               ),
                               const SizedBox(height: 10),
                             ],
 
-                            // Label Relacionados
-                            Text('Relacionados',
-                                style: TextStyle(
-                                    color: t.text,
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w600)),
+                            Text('Relacionados', style: TextStyle(color: t.text,
+                                fontSize: 13.5, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 8),
-                          ],
+                          ]),
                         ),
-                      ),
 
-                      // Vídeos relacionados
-                      if (_loadingRelated)
-                        Column(children: _skeletonCards(5))
-                      else
-                        ..._related.map((v) => _RelatedCard(
+                        if (_loadingRelated)
+                          Column(children: _skeletonCards(5))
+                        else
+                          ..._related.map((v) => _RelatedCard(
                               video: v,
                               onTap: () {
-                                if (_nextVideo?.embedUrl == v.embedUrl) {
-                                  setState(() => _nextVideo = null);
-                                }
+                                if (_nextVideo?.embedUrl == v.embedUrl) setState(() => _nextVideo = null);
                                 widget.onVideoTap(v);
                               },
-                              onMenuTap: (pos) =>
-                                  _showVideoMenu(context, v, pos),
-                            )),
+                              onMenuTap: (pos) => _showVideoMenu(context, v, pos))),
 
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-          ),
-        ]),
+                        const SizedBox(height: 24),
+                      ]),
+            ),
+          ]),
+        ),
       ),
     );
   }
@@ -1171,60 +1213,45 @@ class _PlayerBtn extends StatelessWidget {
   @override Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: Container(
-      width: 36, height: 36,
+      width: 40, height: 40,
       decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
-      child: Center(child: SvgPicture.string(svg, width: 17, height: 17,
-          colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn))),
-    ),
-  );
+        color: Colors.black.withOpacity(0.7), shape: BoxShape.circle,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8)]),
+      child: Center(child: SvgPicture.string(svg, width: 18, height: 18,
+          colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)))));
 }
 
 // ─── Estado vazio ─────────────────────────────────────────────────────────────
 class _EmptyBody extends StatelessWidget {
   final VoidCallback onAdsLinkTap;
   const _EmptyBody({required this.onAdsLinkTap});
-
   @override Widget build(BuildContext context) {
     final t = AppTheme.current;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Container(
-        color: t.surface,
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      Container(color: t.surface, padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Bem-vindo ao nuxx',
-              style: TextStyle(color: t.text, fontSize: 18,
-                  fontWeight: FontWeight.w700, height: 1.2)),
+          Text('Bem-vindo ao nuxx', style: TextStyle(color: t.text, fontSize: 18,
+              fontWeight: FontWeight.w700, height: 1.2)),
           const SizedBox(height: 6),
           Text('Selecione qualquer vídeo na aba feed para ser exibido aqui...',
               style: TextStyle(color: t.textSecondary, fontSize: 13.5, height: 1.4)),
           const SizedBox(height: 8),
-          GestureDetector(
-            onTap: onAdsLinkTap,
-            child: Text('Publicitar minha marca',
-              style: TextStyle(color: t.emptyLinkText, fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-                decoration: TextDecoration.underline,
-                decorationColor: t.emptyLinkText)),
-          ),
-        ]),
-      ),
-      Expanded(
-        child: Center(
-          child: SizedBox(width: 200, height: 200,
-            child: Lottie.asset('assets/lottie/Cat_playing_animation.json',
-              repeat: true, animate: true,
-              errorBuilder: (_, __, ___) => SvgPicture.string(
-                svgExibicaoOutline, width: 72, height: 72,
-                colorFilter: ColorFilter.mode(t.emptyIcon, BlendMode.srcIn))),
-          ),
-        ),
-      ),
+          GestureDetector(onTap: onAdsLinkTap,
+            child: Text('Publicitar minha marca', style: TextStyle(
+                color: t.emptyLinkText, fontSize: 13.5, fontWeight: FontWeight.w600,
+                decoration: TextDecoration.underline, decorationColor: t.emptyLinkText))),
+        ])),
+      Expanded(child: Center(child: SizedBox(width: 200, height: 200,
+        child: Lottie.asset('assets/lottie/Cat_playing_animation.json',
+          repeat: true, animate: true,
+          errorBuilder: (_, __, ___) => SvgPicture.string(svgExibicaoOutline,
+              width: 72, height: 72,
+              colorFilter: ColorFilter.mode(t.emptyIcon, BlendMode.srcIn)))))),
     ]);
   }
 }
 
-// ─── Card relacionado ─────────────────────────────────────────────────────────
+// ─── Card relacionado — horizontal compacto ───────────────────────────────────
 class _RelatedCard extends StatelessWidget {
   final FeedVideo video;
   final VoidCallback onTap;
@@ -1235,191 +1262,80 @@ class _RelatedCard extends StatelessWidget {
     const ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
         '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
     final origins = {
-      VideoSource.eporner:   'https://www.eporner.com/',
-      VideoSource.pornhub:   'https://www.pornhub.com/',
-      VideoSource.redtube:   'https://www.redtube.com/',
-      VideoSource.youporn:   'https://www.youporn.com/',
-      VideoSource.xvideos:   'https://www.xvideos.com/',
-      VideoSource.xhamster:  'https://xhamster.com/',
-      VideoSource.spankbang: 'https://spankbang.com/',
-      VideoSource.bravotube: 'https://www.bravotube.net/',
-      VideoSource.drtuber:   'https://www.drtuber.com/',
-      VideoSource.txxx:      'https://www.txxx.com/',
-      VideoSource.gotporn:   'https://www.gotporn.com/',
-      VideoSource.porndig:   'https://www.porndig.com/',
+      VideoSource.eporner:'https://www.eporner.com/', VideoSource.pornhub:'https://www.pornhub.com/',
+      VideoSource.redtube:'https://www.redtube.com/', VideoSource.youporn:'https://www.youporn.com/',
+      VideoSource.xvideos:'https://www.xvideos.com/', VideoSource.xhamster:'https://xhamster.com/',
+      VideoSource.spankbang:'https://spankbang.com/', VideoSource.bravotube:'https://www.bravotube.net/',
+      VideoSource.drtuber:'https://www.drtuber.com/', VideoSource.txxx:'https://www.txxx.com/',
+      VideoSource.gotporn:'https://www.gotporn.com/', VideoSource.porndig:'https://www.porndig.com/',
     };
-    return {
-      'User-Agent': ua,
-      'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-      'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
-      if (origins[src] != null) 'Referer': origins[src]!,
-    };
+    return {'User-Agent':ua,'Accept':'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        'Accept-Language':'pt-PT,pt;q=0.9,en;q=0.8',
+        if(origins[src]!=null)'Referer':origins[src]!};
   }
 
   @override Widget build(BuildContext context) {
     final t = AppTheme.current;
     return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
+      onTap: onTap, behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-          // ── Thumbnail grande 16:9 — igual ao feed ──────────────────────────
-          AspectRatio(
-            aspectRatio: 16 / 9,
+        padding: const EdgeInsets.fromLTRB(12, 0, 8, 14),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SizedBox(width: 160, height: 90,
             child: Stack(fit: StackFit.expand, children: [
-              _Thumb(
-                url: video.thumb,
-                headers: _headers(video.source),
-                bg: t.thumbBg,
-              ),
+              ClipRRect(borderRadius: BorderRadius.circular(6),
+                child: _ThumbCompact(url: video.thumb, headers: _headers(video.source), bg: t.thumbBg)),
               if (video.duration.isNotEmpty)
-                Positioned(
-                  bottom: 6, right: 8,
+                Positioned(bottom:4, right:5,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(
-                        color: Colors.black87,
-                        borderRadius: BorderRadius.circular(3)),
-                    child: Text(video.duration,
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 11,
-                            fontWeight: FontWeight.w600)),
-                  ),
-                ),
-              Center(child: Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.45),
-                    shape: BoxShape.circle),
-                child: const Icon(Icons.play_arrow_rounded,
-                    color: Colors.white, size: 28),
-              )),
-            ]),
-          ),
-
-          // ── Info — igual ao feed ────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 8, 0),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Avatar favicon circular
-              ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: Image.network(
-                  faviconForSource(video.source),
-                  width: 36, height: 36,
-                  gaplessPlayback: true,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 36, height: 36,
-                    decoration: BoxDecoration(color: t.avatarBg, shape: BoxShape.circle),
-                    child: Center(child: Text(
-                      video.sourceInitial,
-                      style: TextStyle(color: t.textSecondary, fontSize: 13,
-                          fontWeight: FontWeight.w600),
-                    )),
-                  ),
-                  loadingBuilder: (_, child, p) => p == null ? child : Container(
-                    width: 36, height: 36,
-                    decoration: BoxDecoration(color: t.avatarBg, shape: BoxShape.circle),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(video.title,
-                    style: TextStyle(color: t.text, fontSize: 13.5,
-                        fontWeight: FontWeight.w500, height: 1.3),
-                    maxLines: 2, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${video.sourceLabel}${video.views.isNotEmpty ? "  ·  ${video.views} vis." : ""}',
-                    style: TextStyle(color: t.textSecondary, fontSize: 11.5)),
-                ],
-              )),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapUp: (d) => onMenuTap(d.globalPosition),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                  child: Icon(Icons.more_vert_rounded, color: t.iconTertiary, size: 20),
-                ),
-              ),
-            ]),
-          ),
-        ]),
-      ),
-    );
+                    padding: const EdgeInsets.symmetric(horizontal:4, vertical:1),
+                    decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(3)),
+                    child: Text(video.duration, style: const TextStyle(
+                        color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)))),
+            ])),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(video.title, style: TextStyle(color: t.text, fontSize: 13,
+                fontWeight: FontWeight.w500, height: 1.3),
+                maxLines: 2, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 4),
+            Text('${video.sourceLabel}${video.views.isNotEmpty?"  ·  ${video.views} vis.":""}',
+                style: TextStyle(color: t.textSecondary, fontSize: 11.5)),
+          ])),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapUp: (d) => onMenuTap(d.globalPosition),
+            child: Padding(padding: const EdgeInsets.symmetric(horizontal:4, vertical:4),
+                child: Icon(Icons.more_vert_rounded, color: t.iconTertiary, size: 20))),
+        ])));
   }
 }
 
-// ── Thumbnail com retry — cópia local para não depender do home_page ──────────
-class _Thumb extends StatefulWidget {
+class _ThumbCompact extends StatefulWidget {
   final String url;
   final Map<String, String> headers;
   final Color bg;
-  const _Thumb({required this.url, required this.headers, required this.bg});
-  @override State<_Thumb> createState() => _ThumbState();
+  const _ThumbCompact({required this.url, required this.headers, required this.bg});
+  @override State<_ThumbCompact> createState() => _ThumbCompactState();
 }
-class _ThumbState extends State<_Thumb> {
-  int _attempt = 0;
-  bool _failed  = false;
+class _ThumbCompactState extends State<_ThumbCompact> {
+  int _attempt = 0; bool _failed = false;
   @override Widget build(BuildContext context) {
     final t = AppTheme.current;
-    if (widget.url.isEmpty || _failed) {
+    if (widget.url.isEmpty || _failed)
       return Container(color: widget.bg,
-        child: Center(child: Icon(Icons.play_circle_outline_rounded,
-            color: t.iconSub, size: 40)));
-    }
+          child: Center(child: Icon(Icons.play_circle_outline_rounded, color: t.iconSub, size: 32)));
     return Image.network(
       _attempt == 0 ? widget.url : '${widget.url}?_r=$_attempt',
       key: ValueKey('${widget.url}_$_attempt'),
-      fit: BoxFit.cover,
-      headers: widget.headers,
+      fit: BoxFit.cover, headers: widget.headers,
       errorBuilder: (_, __, ___) {
-        if (_attempt < 1) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() => _attempt++);
-          });
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() => _failed = true);
-          });
-        }
+        if (_attempt < 1) WidgetsBinding.instance.addPostFrameCallback((_){if(mounted)setState(()=>_attempt++);});
+        else WidgetsBinding.instance.addPostFrameCallback((_){if(mounted)setState(()=>_failed=true);});
         return Container(color: widget.bg,
-          child: Center(child: Icon(Icons.play_circle_outline_rounded,
-              color: t.iconSub, size: 40)));
+            child: Center(child: Icon(Icons.play_circle_outline_rounded, color: t.iconSub, size: 32)));
       },
-      loadingBuilder: (_, child, p) {
-        if (p == null) return child;
-        return _ShimmerBox();
-      },
+      loadingBuilder: (_, child, p) => p == null ? child : _Shimmer(radius: 0),
     );
   }
-}
-class _ShimmerBox extends StatefulWidget {
-  @override State<_ShimmerBox> createState() => _ShimmerBoxState();
-}
-class _ShimmerBoxState extends State<_ShimmerBox> with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-  late final Animation<double> _a;
-  @override void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
-    _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
-  }
-  @override void dispose() { _c.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _a,
-    builder: (_, __) => Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment(_a.value - 1, 0), end: Alignment(_a.value + 1, 0),
-          colors: AppTheme.current.shimmer,
-        ),
-      ),
-    ),
-  );
 }
