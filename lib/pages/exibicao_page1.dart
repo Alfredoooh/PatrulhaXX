@@ -575,173 +575,6 @@ window.addEventListener('message',function(e){
   }
 });
 
-// ── CAMADA 5: FLASHVARS EXTRACTOR ────────────────────────────────────────────
-// Extrai URL directo do vídeo a partir de flashvars/mediaDefinitions/playerConfig
-// Suporta: PornHub, RedTube, YouPorn, XVideos, XHamster, SpankBang, Eporner,
-//          BravoTube, DrTuber, TXXX, GotPorn, PornDig e qualquer HTML5 genérico.
-// Reporta ao Flutter via canal 'pxMediaUrl' com JSON {url, quality, format, title, thumb}.
-
-function extractMediaUrl(){
-  var result=null;
-
-  // ── 1. Flashvars (PH, RT, YP, XH, SpankBang, etc.) ──────────────────────
-  function tryFlashvars(){
-    var defs=null;
-    // Procurar em todas as variáveis do window que comecem por flashvars
-    var keys=Object.keys(window);
-    for(var i=0;i<keys.length;i++){
-      var k=keys[i];
-      if((k==='flashvars'||k.indexOf('flashvars')===0)&&window[k]&&window[k].mediaDefinitions){
-        defs=window[k].mediaDefinitions;
-        // Guardar título e thumb se disponíveis
-        if(window[k].video_title)result=result||{};
-        if(result)result.title=window[k].video_title||'';
-        if(result)result.thumb=window[k].image_url||window[k].thumb||'';
-        break;
-      }
-    }
-    if(!defs)return null;
-
-    // Ordenar por qualidade (maior primeiro)
-    var mp4s=[];var hlsUrl='';
-    for(var j=0;j<defs.length;j++){
-      var d=defs[j];
-      var u=d.videoUrl||d.video_url||d.src||d.url||'';
-      if(!u)continue;
-      var q=String(d.quality||d.defaultQuality||'?');
-      var fmt=String(d.format||d.type||'mp4').toLowerCase();
-      if(u.indexOf('.m3u8')>=0||fmt==='hls'){hlsUrl=hlsUrl||u;}
-      else{mp4s.push({url:u,quality:q,format:'mp4'});}
-    }
-    // Ordenar MP4 pela qualidade numérica
-    mp4s.sort(function(a,b){
-      return (parseInt(b.quality)||0)-(parseInt(a.quality)||0);
-    });
-    return mp4s.length>0?mp4s[0]:{url:hlsUrl,quality:'auto',format:'hls'};
-  }
-
-  // ── 2. playerConfig / playerObj / ph_params genérico ────────────────────
-  function tryPlayerConfig(){
-    var candidates=['playerConfig','playerObjList','playerObj','ph_params',
-                    'PLAYER_OPTIONS','playerData','videoData','videoConfig'];
-    for(var i=0;i<candidates.length;i++){
-      var c=window[candidates[i]];
-      if(!c)continue;
-      var arr=Array.isArray(c)?c:[c];
-      for(var j=0;j<arr.length;j++){
-        var o=arr[j];
-        if(!o||typeof o!=='object')continue;
-        var u=o.videoUrl||o.video_url||o.src||o.hlsManifest||o.manifest||'';
-        if(u)return{url:u,quality:o.quality||'auto',format:u.indexOf('.m3u8')>=0?'hls':'mp4'};
-        if(o.mediaDefinitions){
-          // Recursivo
-          window._tmpFv={mediaDefinitions:o.mediaDefinitions};
-          var r=tryFlashvars();
-          delete window._tmpFv;
-          if(r)return r;
-        }
-      }
-    }
-    return null;
-  }
-
-  // ── 3. VideoJS currentSrc (Eporner, DrTuber, TXXX, GotPorn) ────────────
-  function tryVideoJsSrc(){
-    if(!window.videojs||!window.videojs.players)return null;
-    var players=Object.values(window.videojs.players).filter(Boolean);
-    for(var i=0;i<players.length;i++){
-      var p=players[i];
-      try{
-        var src=p.currentSrc?p.currentSrc():null;
-        var q=p.currentHeight?p.currentHeight():0;
-        // Tentar obter todas as sources
-        var sources=p.currentSources?p.currentSources():[];
-        var best=null;var bestQ=0;
-        for(var j=0;j<sources.length;j++){
-          var s=sources[j];
-          if(!s.src)continue;
-          var sq=parseInt(s.label||s.res||'0')||0;
-          if(sq>bestQ){bestQ=sq;best=s;}
-        }
-        if(best)return{url:best.src,quality:String(bestQ||'auto'),format:best.src.indexOf('.m3u8')>=0?'hls':'mp4'};
-        if(src)return{url:src,quality:String(q||'auto'),format:src.indexOf('.m3u8')>=0?'hls':'mp4'};
-      }catch(_){}
-    }
-    return null;
-  }
-
-  // ── 4. JWPlayer getPlaylistItem (XVideos, BravoTube, PornDig) ───────────
-  function tryJwPlayer(){
-    if(!window.jwplayer)return null;
-    try{
-      var jw=window.jwplayer();
-      if(!jw||typeof jw.getPlaylistItem!=='function')return null;
-      var item=jw.getPlaylistItem();
-      if(!item)return null;
-      var sources=item.sources||item.tracks||[];
-      var best=null;var bestQ=0;
-      for(var i=0;i<sources.length;i++){
-        var s=sources[i];
-        if(!s.file&&!s.src)continue;
-        var u=s.file||s.src;
-        var sq=parseInt(s.label||s.height||'0')||0;
-        if(sq>bestQ){bestQ=sq;best={url:u,quality:String(sq),format:u.indexOf('.m3u8')>=0?'hls':'mp4'};}
-      }
-      if(best)return best;
-      if(item.file)return{url:item.file,quality:'auto',format:item.file.indexOf('.m3u8')>=0?'hls':'mp4'};
-    }catch(_){}
-    return null;
-  }
-
-  // ── 5. HTML5 <video> currentSrc directo (fallback universal) ────────────
-  function tryHtml5Direct(){
-    var videos=Array.from(document.querySelectorAll('video'));
-    // Tentar iframes same-origin também
-    try{
-      document.querySelectorAll('iframe').forEach(function(fr){
-        try{
-          var d=fr.contentDocument;
-          if(d)videos=videos.concat(Array.from(d.querySelectorAll('video')));
-        }catch(_){}
-      });
-    }catch(_){}
-    // Ordenar pelo maior (mais provável ser o player principal)
-    videos.sort(function(a,b){
-      var ra=a.getBoundingClientRect(),rb=b.getBoundingClientRect();
-      return(rb.width*rb.height)-(ra.width*ra.height);
-    });
-    for(var i=0;i<videos.length;i++){
-      var v=videos[i];
-      var src=v.currentSrc||v.src||v.getAttribute('data-src')||'';
-      if(!src){
-        var ss=v.querySelectorAll('source');
-        for(var j=0;j<ss.length;j++){if(ss[j].src){src=ss[j].src;break;}}
-      }
-      if(src&&src.indexOf('blob:')<0)
-        return{url:src,quality:'auto',format:src.indexOf('.m3u8')>=0?'hls':'mp4'};
-    }
-    return null;
-  }
-
-  // ── Tentar por ordem de fiabilidade ─────────────────────────────────────
-  var found=(tryFlashvars()||tryPlayerConfig()||tryVideoJsSrc()||tryJwPlayer()||tryHtml5Direct());
-  if(!found||!found.url)return;
-
-  // Enriquecer com título/thumb se disponíveis
-  if(!found.title)found.title=document.title||'';
-  if(!found.thumb){
-    var og=document.querySelector('meta[property="og:image"]');
-    if(og)found.thumb=og.getAttribute('content')||'';
-  }
-
-  // Reportar ao Flutter
-  try{
-    window.flutter_inappwebview&&window.flutter_inappwebview.callHandler(
-      'pxMediaUrl', JSON.stringify(found)
-    );
-  }catch(_){}
-}
-
 // ── ARRANQUE ──────────────────────────────────────────────────────────────────
 function fullRun(){
   if(ENGINE.destroyed)return;
@@ -751,15 +584,10 @@ function fullRun(){
   if(ENGINE.videoEl)observeVideoEl(ENGINE.videoEl);
   document.querySelectorAll('video').forEach(observeVideoEl);
   loadHls();
-  // Tentar extrair URL directo após o player ter inicializado
-  extractMediaUrl();
 }
 
 fullRun();
-[300,700,1200,2000,3500,6000].forEach(function(ms){after(ms,function(){
-  fullRun();
-  if(ms>=1200)extractMediaUrl(); // re-tentar após player carregar completamente
-});});
+[300,700,1200,2000,3500,6000].forEach(function(ms){after(ms,fullRun);});
 
 })();
 """;
@@ -782,8 +610,7 @@ class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin 
     _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1300))..repeat();
     _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
   }
-  @override void dispose() {
-    _bodyScroll.dispose(); _c.dispose(); super.dispose(); }
+  @override void dispose() { _c.dispose(); super.dispose(); }
   @override Widget build(BuildContext context) => AnimatedBuilder(
     animation: _a,
     builder: (_, __) => Container(
@@ -945,9 +772,6 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   bool   _playing        = true;
   bool   _playerLoading  = true;
   FeedVideo? _nextVideo;
-  final ScrollController _bodyScroll = ScrollController();
-  String _directVideoUrl   = '';   // URL directo extraído pelo flashvars extractor
-  String _directVideoQuality = ''; // Qualidade correspondente
   String _detectedEngine = '—';
 
   bool get _isEmpty => widget.embedUrl == null || widget.currentVideo == null;
@@ -1109,12 +933,9 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   @override Widget build(BuildContext context) {
     super.build(context);
     final t = AppTheme.current;
-    // Status bar sempre escuro nesta página — fundo semitransparente escuro,
-    // ícones sempre brancos, independente do tema da app
-    const overlayStyle = SystemUiOverlayStyle(
-      statusBarColor: Color(0x55000000),          // preto 33% opacidade
-      statusBarIconBrightness: Brightness.light,  // ícones brancos
-      systemNavigationBarColor: Colors.transparent,
+    final overlayStyle = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: t.isDark ? Brightness.light : Brightness.dark,
     );
     final screenW = MediaQuery.of(context).size.width;
     final playerH = screenW * 9 / 16;
@@ -1209,38 +1030,6 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                                   } catch (_) {}
                                 },
                               );
-                              // Canal pxMediaUrl — URL directo extraído do flashvars/player
-                              ctrl.addJavaScriptHandler(
-                                handlerName: 'pxMediaUrl',
-                                callback: (args) {
-                                  if (!mounted || args.isEmpty) return;
-                                  try {
-                                    final raw = args[0];
-                                    String url = '';
-                                    String quality = '';
-                                    if (raw is String) {
-                                      final m = RegExp(r'"url":"([^"]+)"').firstMatch(raw);
-                                      url = m?.group(1) ?? '';
-                                      final qm = RegExp(r'"quality":"([^"]+)"').firstMatch(raw);
-                                      quality = qm?.group(1) ?? '';
-                                    } else if (raw is Map) {
-                                      url = raw['url']?.toString() ?? '';
-                                      quality = raw['quality']?.toString() ?? '';
-                                    }
-                                    if (url.isNotEmpty && mounted) {
-                                      // URL directo disponível — guardar para uso futuro
-                                      // (download directo, partilha, etc.)
-                                      _directVideoUrl = url;
-                                      _directVideoQuality = quality;
-                                      // Actualizar badge do engine com a qualidade
-                                      if (quality.isNotEmpty && quality != 'auto') {
-                                        setState(() => _detectedEngine =
-                                            '${_detectedEngine == '—' ? '' : '${_detectedEngine} '}${quality}p');
-                                      }
-                                    }
-                                  } catch (_) {}
-                                },
-                              );
                             },
                             onLoadStart: (ctrl, url) async { await _injectPhaseA(ctrl); },
                             onLoadStop: (ctrl, _) async {
@@ -1314,33 +1103,21 @@ class _ExibicaoPageState extends State<ExibicaoPage>
               ),
             ),
 
-            // ── Corpo — título fixo com fade-out + ListView scrollável ─────
+            // ── Corpo ─────────────────────────────────────────────────────────
             Expanded(
               child: _isEmpty
                   ? _EmptyBody(onAdsLinkTap: _openAdsUrl)
-                  : Stack(children: [
+                  : ListView(
+                      padding: EdgeInsets.zero,
+                      physics: const ClampingScrollPhysics(),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-                      // ── ListView scrollável ──────────────────────────────
-                      ListView(
-                        controller: _bodyScroll,
-                        padding: EdgeInsets.zero,
-                        physics: const ClampingScrollPhysics(),
-                        children: [
-                          // Espaço reservado para o título fixo (não fica tapado)
-                          const SizedBox(height: 74),
-
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-                                  // Placeholder invisível — mantém espaço mas não é visível
-                              // (o título fixo em cima cobre este)
-                              Opacity(
-                                opacity: 0.0,
-                                child: Text(video!.title,
-                                    style: const TextStyle(fontSize: 14.5, height: 1.3)),
-                              ),
-                              const SizedBox(height: 6),
+                            Text(video!.title, style: TextStyle(color: t.text, fontSize: 14.5,
+                                fontWeight: FontWeight.w600, height: 1.3)),
+                            const SizedBox(height: 6),
 
                             Row(children: [
                               ClipRRect(borderRadius: BorderRadius.circular(6),
@@ -1420,91 +1197,6 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 
                         const SizedBox(height: 24),
                       ]),
-                    ),
-
-                    // ── Título FIXO no topo do corpo ──────────────────────
-                    // Não sobe com o scroll — mantém-se sempre visível
-                    Positioned(
-                      top: 0, left: 0, right: 0,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Fundo com cor do tema para cobrir o conteúdo por baixo
-                          Container(
-                            color: t.bg,
-                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(video!.title,
-                                  style: TextStyle(
-                                    color: t.text,
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.3,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Row(children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Image.network(
-                                      faviconForSource(video.source),
-                                      width: 14, height: 14,
-                                      errorBuilder: (_, __, ___) =>
-                                          const SizedBox(width: 14, height: 14)),
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Text(video.sourceLabel,
-                                    style: TextStyle(
-                                      color: t.textSecondary,
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w500)),
-                                  if (video.views.isNotEmpty)
-                                    Text('  ·  ${video.views} vis.',
-                                      style: TextStyle(
-                                        color: t.textHint, fontSize: 11.5)),
-                                  if (_detectedEngine != '—') ...[ 
-                                    const Spacer(),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 5, vertical: 1),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.ytRed.withOpacity(0.12),
-                                        borderRadius: BorderRadius.circular(4)),
-                                      child: Text(_detectedEngine,
-                                        style: TextStyle(
-                                          color: AppTheme.ytRed,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700)),
-                                    ),
-                                  ],
-                                ]),
-                                const SizedBox(height: 8),
-                              ],
-                            ),
-                          ),
-                          // Gradiente fade-out em baixo do bloco fixo
-                          IgnorePointer(
-                            child: Container(
-                              height: 18,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    t.bg,
-                                    t.bg.withOpacity(0.0),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  ]), // Stack
             ),
           ]),
         ),
