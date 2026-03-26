@@ -1406,10 +1406,9 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                           ]),
                         ),
 
-                        if (_loadingRelated)
-                          Column(children: _skeletonCards(5))
-                        else
-                          ..._related.map((v) => _RelatedCard(
+                        if (_loadingRelated) ...[
+                          Column(children: _skeletonCards(5)),
+                        ] else ..._related.map((v) => _RelatedCard(
                               video: v,
                               onTap: () {
                                 if (_nextVideo?.embedUrl == v.embedUrl) setState(() => _nextVideo = null);
