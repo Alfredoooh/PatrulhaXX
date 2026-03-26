@@ -783,7 +783,7 @@ class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin 
     _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
   }
   @override void dispose() {
-    _c.dispose(); super.dispose(); }
+    _bodyScroll.dispose(); _c.dispose(); super.dispose(); }
   @override Widget build(BuildContext context) => AnimatedBuilder(
     animation: _a,
     builder: (_, __) => Container(
@@ -1235,7 +1235,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                                       // Actualizar badge do engine com a qualidade
                                       if (quality.isNotEmpty && quality != 'auto') {
                                         setState(() => _detectedEngine =
-                                            '\( {_detectedEngine == '—' ? '' : ' \){_detectedEngine} '}${quality}p');
+                                            '${_detectedEngine == '—' ? '' : '${_detectedEngine} '}${quality}p');
                                       }
                                     }
                                   } catch (_) {}
@@ -1267,7 +1267,6 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                               return NavigationActionPolicy.ALLOW;
                             },
                           ),
-                  ),
 
                   // Thumbnail de loading
                   if (!_isEmpty && _playerLoading)
@@ -1341,168 +1340,170 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                                     style: const TextStyle(fontSize: 14.5, height: 1.3)),
                               ),
                               const SizedBox(height: 6),
-                              Row(children: [
-                                ClipRRect(borderRadius: BorderRadius.circular(6),
-                                  child: Image.network(faviconForSource(video.source),
-                                      width: 14, height: 14,
-                                      errorBuilder: (_, __, ___) => const SizedBox(width: 14, height: 14))),
-                                const SizedBox(width: 5),
-                                Text(video.sourceLabel, style: TextStyle(
-                                    color: t.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w500)),
-                                if (video.views.isNotEmpty)
-                                  Text('  ·  ${video.views} vis.',
-                                      style: TextStyle(color: t.textHint, fontSize: 11.5)),
-                                if (_detectedEngine != '—') ...[
-                                  const Spacer(),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.ytRed.withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(4)),
-                                    child: Text(_detectedEngine, style: TextStyle(
-                                        color: AppTheme.ytRed, fontSize: 10, fontWeight: FontWeight.w700))),
-                                ],
-                              ]),
 
-                              const SizedBox(height: 12),
-                              Divider(color: t.divider, thickness: 1, height: 1),
+                            Row(children: [
+                              ClipRRect(borderRadius: BorderRadius.circular(6),
+                                child: Image.network(faviconForSource(video.source),
+                                    width: 14, height: 14,
+                                    errorBuilder: (_, __, ___) => const SizedBox(width: 14, height: 14))),
+                              const SizedBox(width: 5),
+                              Text(video.sourceLabel, style: TextStyle(
+                                  color: t.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w500)),
+                              if (video.views.isNotEmpty)
+                                Text('  ·  ${video.views} vis.',
+                                    style: TextStyle(color: t.textHint, fontSize: 11.5)),
+                              if (_detectedEngine != '—') ...[
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.ytRed.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(4)),
+                                  child: Text(_detectedEngine, style: TextStyle(
+                                      color: AppTheme.ytRed, fontSize: 10, fontWeight: FontWeight.w700))),
+                              ],
+                            ]),
+
+                            const SizedBox(height: 12),
+                            Divider(color: t.divider, thickness: 1, height: 1),
+                            const SizedBox(height: 10),
+
+                            if (_nextVideo != null) ...[
+                              GestureDetector(
+                                onTap: () { widget.onVideoTap(_nextVideo!); setState(() => _nextVideo = null); },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: t.isDark ? const Color(0xFF2A1A1A) : const Color(0xFFFFF0F0),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: t.isDark ? const Color(0xFF5A2020) : const Color(0xFFFFCCCC))),
+                                  child: Row(children: [
+                                    SvgPicture.string(_svgPlaylist, width: 15, height: 15,
+                                        colorFilter: ColorFilter.mode(AppTheme.ytRed, BlendMode.srcIn)),
+                                    const SizedBox(width: 10),
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Text('Seguinte:', style: TextStyle(color: AppTheme.ytRed,
+                                          fontSize: 11, fontWeight: FontWeight.w700)),
+                                      const SizedBox(height: 2),
+                                      Text(_nextVideo!.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(color: t.text, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                                      Text(_nextVideo!.sourceLabel,
+                                          style: TextStyle(color: t.textSecondary, fontSize: 11)),
+                                    ])),
+                                    GestureDetector(
+                                      onTap: () => setState(() => _nextVideo = null),
+                                      child: Padding(padding: const EdgeInsets.only(left: 8),
+                                          child: Icon(Icons.close_rounded, color: t.iconTertiary, size: 18))),
+                                  ]),
+                                ),
+                              ),
                               const SizedBox(height: 10),
+                            ],
 
-                              if (_nextVideo != null) ...[
-                                GestureDetector(
-                                  onTap: () { widget.onVideoTap(_nextVideo!); setState(() => _nextVideo = null); },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: t.isDark ? const Color(0xFF2A1A1A) : const Color(0xFFFFF0F0),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: t.isDark ? const Color(0xFF5A2020) : const Color(0xFFFFCCCC))),
-                                    child: Row(children: [
-                                      SvgPicture.string(_svgPlaylist, width: 15, height: 15,
-                                          colorFilter: ColorFilter.mode(AppTheme.ytRed, BlendMode.srcIn)),
-                                      const SizedBox(width: 10),
-                                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                        Text('Seguinte:', style: TextStyle(color: AppTheme.ytRed,
-                                            fontSize: 11, fontWeight: FontWeight.w700)),
-                                        const SizedBox(height: 2),
-                                        Text(_nextVideo!.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(color: t.text, fontSize: 12.5, fontWeight: FontWeight.w600)),
-                                        Text(_nextVideo!.sourceLabel,
-                                            style: TextStyle(color: t.textSecondary, fontSize: 11)),
-                                      ])),
-                                      GestureDetector(
-                                        onTap: () => setState(() => _nextVideo = null),
-                                        child: Padding(padding: const EdgeInsets.only(left: 8),
-                                            child: Icon(Icons.close_rounded, color: t.iconTertiary, size: 18))),
-                                    ]),
+                            Text('Relacionados', style: TextStyle(color: t.text,
+                                fontSize: 13.5, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 8),
+                          ]),
+                        ),
+
+                        if (_loadingRelated)
+                          Column(children: _skeletonCards(5))
+                        else
+                          ..._related.map((v) => _RelatedCard(
+                              video: v,
+                              onTap: () {
+                                if (_nextVideo?.embedUrl == v.embedUrl) setState(() => _nextVideo = null);
+                                widget.onVideoTap(v);
+                              },
+                              onMenuTap: (pos) => _showVideoMenu(context, v, pos))),
+
+                        const SizedBox(height: 24),
+                      ]),
+                    ),
+
+                    // ── Título FIXO no topo do corpo ──────────────────────
+                    // Não sobe com o scroll — mantém-se sempre visível
+                    Positioned(
+                      top: 0, left: 0, right: 0,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Fundo com cor do tema para cobrir o conteúdo por baixo
+                          Container(
+                            color: t.bg,
+                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(video!.title,
+                                  style: TextStyle(
+                                    color: t.text,
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.3,
                                   ),
                                 ),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 6),
+                                Row(children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Image.network(
+                                      faviconForSource(video.source),
+                                      width: 14, height: 14,
+                                      errorBuilder: (_, __, ___) =>
+                                          const SizedBox(width: 14, height: 14)),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(video.sourceLabel,
+                                    style: TextStyle(
+                                      color: t.textSecondary,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w500)),
+                                  if (video.views.isNotEmpty)
+                                    Text('  ·  ${video.views} vis.',
+                                      style: TextStyle(
+                                        color: t.textHint, fontSize: 11.5)),
+                                  if (_detectedEngine != '—') ...[ 
+                                    const Spacer(),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.ytRed.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(4)),
+                                      child: Text(_detectedEngine,
+                                        style: TextStyle(
+                                          color: AppTheme.ytRed,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700)),
+                                    ),
+                                  ],
+                                ]),
+                                const SizedBox(height: 8),
                               ],
-
-                              Text('Relacionados', style: TextStyle(color: t.text,
-                                  fontSize: 13.5, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 8),
-                            ]),
+                            ),
                           ),
-                          if (_loadingRelated)
-                            Column(children: _skeletonCards(5))
-                          else
-                            ..._related.map((v) => _RelatedCard(
-                                video: v,
-                                onTap: () {
-                                  if (_nextVideo?.embedUrl == v.embedUrl) setState(() => _nextVideo = null);
-                                  widget.onVideoTap(v);
-                                },
-                                onMenuTap: (pos) => _showVideoMenu(context, v, pos))),
-
-                          const SizedBox(height: 24),
+                          // Gradiente fade-out em baixo do bloco fixo
+                          IgnorePointer(
+                            child: Container(
+                              height: 18,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    t.bg,
+                                    t.bg.withOpacity(0.0),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
+                    ),
 
-                      // ── Título FIXO no topo do corpo ──────────────────────
-                      // Não sobe com o scroll — mantém-se sempre visível
-                      Positioned(
-                        top: 0, left: 0, right: 0,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Fundo com cor do tema para cobrir o conteúdo por baixo
-                            Container(
-                              color: t.bg,
-                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(video!.title,
-                                    style: TextStyle(
-                                      color: t.text,
-                                      fontSize: 14.5,
-                                      fontWeight: FontWeight.w600,
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Image.network(
-                                        faviconForSource(video.source),
-                                        width: 14, height: 14,
-                                        errorBuilder: (_, __, ___) =>
-                                            const SizedBox(width: 14, height: 14)),
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Text(video.sourceLabel,
-                                      style: TextStyle(
-                                        color: t.textSecondary,
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w500)),
-                                    if (video.views.isNotEmpty)
-                                      Text('  ·  ${video.views} vis.',
-                                        style: TextStyle(
-                                          color: t.textHint, fontSize: 11.5)),
-                                    if (_detectedEngine != '—') ...[ 
-                                      const Spacer(),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 5, vertical: 1),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.ytRed.withOpacity(0.12),
-                                          borderRadius: BorderRadius.circular(4)),
-                                        child: Text(_detectedEngine,
-                                          style: TextStyle(
-                                            color: AppTheme.ytRed,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700)),
-                                      ),
-                                    ],
-                                  ]),
-                                  const SizedBox(height: 8),
-                                ],
-                              ),
-                            ),
-                            // Gradiente fade-out em baixo do bloco fixo
-                            IgnorePointer(
-                              child: Container(
-                                height: 18,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      t.bg,
-                                      t.bg.withOpacity(0.0),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    ]), // Stack
+                  ]), // Stack
             ),
           ]),
         ),
@@ -1605,7 +1606,7 @@ class _RelatedCard extends StatelessWidget {
                 fontWeight: FontWeight.w500, height: 1.3),
                 maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 4),
-            Text('\( {video.sourceLabel} \){video.views.isNotEmpty?"  ·  ${video.views} vis.":""}',
+            Text('${video.sourceLabel}${video.views.isNotEmpty?"  ·  ${video.views} vis.":""}',
                 style: TextStyle(color: t.textSecondary, fontSize: 11.5)),
           ])),
           GestureDetector(
