@@ -2,9 +2,8 @@ import 'dart:ui';
 import 'dart:math';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -201,7 +200,6 @@ class _HomePageState extends State<HomePage>
                       fillColor: Colors.transparent,
                       child: child,
                     );
-              },
                   },
                   child: IndexedStack(
                     key: ValueKey<int>(_tab),
@@ -461,6 +459,7 @@ class _BottomNav extends StatelessWidget {
       listenable: ThemeService.instance,
       builder: (_, __) {
         final t = AppTheme.current;
+    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
         return Container(
           decoration: BoxDecoration(
             color: t.navBg,
@@ -901,14 +900,17 @@ class _SearchTrigger extends StatelessWidget {
   // Cores correctas para tema claro e escuro
   Color get _bgColor {
     final t = AppTheme.current;
+    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     return t.inputBg;
   }
   Color get _borderColor {
     final t = AppTheme.current;
+    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     return t.inputBorder;
   }
   Color get _hintColor {
     final t = AppTheme.current;
+    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     return t.inputHint;
   }
 
@@ -2179,6 +2181,7 @@ class _ShortsTabState extends State<_ShortsTab>
   Widget build(BuildContext context) {
     super.build(context);
     final t = AppTheme.current;
+    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     final topPad = MediaQuery.of(context).padding.top;
 
     return Container(
@@ -2215,12 +2218,13 @@ class _ShortsTabState extends State<_ShortsTab>
                         ),
                       )
                     : MasonryGridView.count(
-                        controller: _scroll,
                         crossAxisCount: 2,
                         mainAxisSpacing: 12,
                         crossAxisSpacing: 12,
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-                        itemCount: _filtered.length,
+                        controller: _scroll,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.only(top: 8, bottom: 24),
+                        itemCount: _filtered.length + 1,
                         itemBuilder: (context, i) {
                           return _VideoCard(
                               video: _filtered[i],
@@ -2965,4 +2969,3 @@ class FreeBrowserPage extends StatelessWidget {
       freeNavigation: true,
     );
   }
-}
