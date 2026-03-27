@@ -2,9 +2,6 @@ import 'dart:ui';
 import 'dart:math';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -154,7 +151,7 @@ class _HomePageState extends State<HomePage>
   }
 
   void _openSite(SiteModel site) => Navigator.push(
-      context, CupertinoPageRoute(builder: (_) => BrowserPage(site: site)));
+      context, MaterialPageRoute(builder: (_) => BrowserPage(site: site)));
 
   void _onColorExtracted(Color c) {
     if (mounted) {
@@ -164,10 +161,10 @@ class _HomePageState extends State<HomePage>
   }
 
   void _openDownloads() => Navigator.push(context,
-      CupertinoPageRoute(builder: (_) => const DownloadsPage()));
+      MaterialPageRoute(builder: (_) => const DownloadsPage()));
 
   void _openSettings() => Navigator.push(context,
-      CupertinoPageRoute(builder: (_) => const SettingsPage()));
+      MaterialPageRoute(builder: (_) => const SettingsPage()));
 
   @override
   Widget build(BuildContext context) {
@@ -192,21 +189,9 @@ class _HomePageState extends State<HomePage>
             child: AnimatedBuilder(
               animation: ThemeService.instance,
               builder: (_, __) {
-                return PageTransitionSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
-                    return FadeThroughTransition(
-                      animation: primaryAnimation,
-                      secondaryAnimation: secondaryAnimation,
-                      fillColor: Colors.transparent,
-                      child: child,
-                    );
-              },
-                  },
-                  child: IndexedStack(
-                    key: ValueKey<int>(_tab),
-                    index: _tab,
-                    children: [
+                return IndexedStack(
+                  index: _tab,
+                  children: [
                     _HomeTab(
                       fadeIn: _fadeIn,
                       navBottom: 0,
@@ -328,7 +313,6 @@ class _MiniPlayerState extends State<_MiniPlayer>
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     final textColor = t.navActive;
     final subColor = t.textSecondary;
 
@@ -551,7 +535,6 @@ class _NavFeedPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     final activeBg = t.isDark
         ? Colors.white.withOpacity(0.13)
         : Colors.black.withOpacity(0.10);
@@ -672,7 +655,6 @@ class _NavAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     return Row(children: [
       GestureDetector(
         onTap: onMenu,
@@ -709,7 +691,6 @@ class _NavDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     return Drawer(
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       backgroundColor: t.drawerBg,
@@ -770,7 +751,6 @@ class _DrawerItemSvg extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     return InkWell(
       onTap: onTap,
       // Sem borderRadius nos itens — bordes retas como YouTube
@@ -1002,7 +982,6 @@ class _SearchPageState extends State<_SearchPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     final topPad = MediaQuery.of(context).padding.top;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -1151,7 +1130,6 @@ class _ActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     // Usa cores do AppTheme em vez de opacidades fixas — funciona em claro e escuro
     final bgColor     = t.btnGhost;
     final borderColor = t.border;
@@ -2190,7 +2168,7 @@ class _ShortsTabState extends State<_ShortsTab>
           selectedChip: _selectedChip,
           onChipChanged: _onChipChanged,
           onSearchTap: () => Navigator.push(context,
-              CupertinoPageRoute(builder: (_) => const _SearchPage())),
+              MaterialPageRoute(builder: (_) => const _SearchPage())),
         ),
 
         Expanded(
@@ -2214,17 +2192,39 @@ class _ShortsTabState extends State<_ShortsTab>
                           ),
                         ),
                       )
-                    : MasonryGridView.count(
+                    : ListView.builder(
                         controller: _scroll,
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-                        itemCount: _filtered.length,
-                        itemBuilder: (context, i) {
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.only(top: 8, bottom: 24),
+                        itemCount: _filtered.length + 1,
+                        itemBuilder: (_, i) {
+                          final list = _filtered;
+                          if (i == list.length) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              child: Center(child: SizedBox(
+                                width: 20, height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 1.5, color: AppTheme.ytRed))),
+                            );
+                          }
+                          // A cada 4 vídeos intercalar 1 foto (se disponível)
+                          // Posições 3, 7, 11, 15... → foto
+                          if (i > 0 && i % 4 == 3 && _photos.isNotEmpty) {
+                            final photoIdx = (i ~/ 4) % _photos.length;
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _VideoCard(
+                                  video: list[i],
+                                  onTap: () => widget.onVideoTap(list[i])),
+                                _PhotoCard(photo: _photos[photoIdx]),
+                              ],
+                            );
+                          }
                           return _VideoCard(
-                              video: _filtered[i],
-                              onTap: () => widget.onVideoTap(_filtered[i]));
+                              video: list[i],
+                              onTap: () => widget.onVideoTap(list[i]));
                         },
                       ),
           ),
@@ -2276,7 +2276,6 @@ class _FeedAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     return Container(
       color: t.bg,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2309,7 +2308,7 @@ class _FeedAppBar extends StatelessWidget {
 
         // Chips — altura 30, bordas mais curvas (radius 8)
         SizedBox(
-          height: 44,
+          height: 30,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.only(left: 14, right: 14),
@@ -2319,26 +2318,19 @@ class _FeedAppBar extends StatelessWidget {
               final selected = selectedChip == i;
               return GestureDetector(
                 onTap: () => onChipChanged(i),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(_chips[i],
-                      style: TextStyle(
-                        color: selected ? t.text : t.textSecondary,
-                        fontSize: 14.5,
-                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      )),
-                    const SizedBox(height: 6),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      height: 3,
-                      width: selected ? 18 : 0,
-                      decoration: BoxDecoration(
-                        color: AppTheme.ytRed,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ],
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: selected ? t.chipBgActive : t.chipBg,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(_chips[i],
+                    style: TextStyle(
+                      color: selected ? t.chipTextActive : t.chipText,
+                      fontSize: 12.5,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    )),
                 ),
               );
             },
@@ -2453,7 +2445,6 @@ class _VideoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     return GestureDetector(
       onTap: onTap,
       child: Padding(
@@ -2462,7 +2453,7 @@ class _VideoCard extends StatelessWidget {
 
           // ── Thumbnail ──────────────────────────────────────────────────────
           AspectRatio(
-            aspectRatio: aspectRatio,
+            aspectRatio: 16 / 9,
             child: Stack(fit: StackFit.expand, children: [
               _ThumbImage(
                 url: video.thumb,
@@ -2554,7 +2545,6 @@ class _ThumbImageState extends State<_ThumbImage> {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
 
     if (widget.url.isEmpty || _failed) {
       return _placeholder(t);
@@ -2632,7 +2622,6 @@ class _FaviconAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
       child: Image.network(
@@ -2715,7 +2704,6 @@ class _PhotoCardState extends State<_PhotoCard> {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final double aspectRatio = (video.id.hashCode % 3 == 0) ? 0.75 : (video.id.hashCode % 3 == 1 ? 1.0 : 1.3);
     final photo = widget.photo;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
