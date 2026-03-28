@@ -5,7 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/app_theme.dart';
 import '../models/feed_video_model.dart';
 import 'search_page.dart';
-import 'home_page.dart' show FeedFetcher, iosRoute;
+import 'home_page.dart' show iosRoute;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chips de filtro
