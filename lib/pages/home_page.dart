@@ -1326,16 +1326,14 @@ class SearchPageState extends State<SearchPage> {
     final q = _ctrl.text.trim();
     if (q.isEmpty) return;
     FocusScope.of(context).unfocus();
-    Navigator.pushReplacement(context,
-        MaterialPageRoute(builder: (_) => SearchResultsPage(query: q)));
+    Navigator.pushReplacement(context, iosRoute(SearchResultsPage(query: q)));
   }
 
   void _searchFor(String q) {
     _ctrl.text = q;
     setState(() {});
     FocusScope.of(context).unfocus();
-    Navigator.pushReplacement(context,
-        MaterialPageRoute(builder: (_) => SearchResultsPage(query: q)));
+    Navigator.pushReplacement(context, iosRoute(SearchResultsPage(query: q)));
   }
 
   @override

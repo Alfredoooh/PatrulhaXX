@@ -1,11 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../theme/app_theme.dart';
-import '../models/feed_video_model.dart';
-import 'search_page.dart';
-import 'home_page.dart' show FeedFetcher, iosRoute;
+import 'home_page.dart' show FeedVideo, VideoSource, FeedFetcher, faviconForSource, iosRoute, SearchPage;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chips de filtro
@@ -76,14 +74,21 @@ class _ExplorePageState extends State<ExplorePage>
     switch (_chip) {
       case _ChipFilter.todos:
         return _videos;
+
       case _ChipFilter.recentes:
+        // Mantém ordem original — os primeiros do feed são os mais recentes
         return List<FeedVideo>.from(_videos);
+
       case _ChipFilter.maisAntigos:
+        // Inverte a lista — os mais antigos vêm primeiro
         return _videos.reversed.toList();
+
       case _ChipFilter.maisVistos:
+        // Ordena por duração como proxy de popularidade
         final copy = List<FeedVideo>.from(_videos);
         copy.sort((a, b) => _parseDuration(b.duration) - _parseDuration(a.duration));
         return copy;
+
       case _ChipFilter.amador:
         return _byKeywords(['amador', 'amateur', 'caseiro', 'homemade']);
       case _ChipFilter.milf:
@@ -138,16 +143,14 @@ class _ExplorePageState extends State<ExplorePage>
     if (_refreshing) return;
     setState(() => _refreshing = true);
     try {
-      // Página aleatória para garantir vídeos diferentes
-      final rng = Random(DateTime.now().millisecondsSinceEpoch);
-      final randomPage = rng.nextInt(20) + 1;
-      final videos = await FeedFetcher.fetchAll(randomPage);
+      _page = 1;
+      final videos = await FeedFetcher.fetchAll(_page);
       if (!mounted) return;
       if (videos.isNotEmpty) {
         _videos
           ..clear()
           ..addAll(videos);
-        _page = randomPage + 1;
+        _page++;
       }
     } catch (_) {}
     if (mounted) setState(() => _refreshing = false);
@@ -247,17 +250,14 @@ class _ExplorePageState extends State<ExplorePage>
   }
 
   Widget _buildSkeletons() {
-    return GridView.builder(
+    return MasonryGridView.count(
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 3,
-        crossAxisSpacing: 3,
-        childAspectRatio: 16 / 10, // proporcional ao tamanho real dos cards
-      ),
+      crossAxisCount: 2,
+      mainAxisSpacing: 3,
+      crossAxisSpacing: 3,
       padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
       itemCount: 12,
-      itemBuilder: (_, i) => const _GridSkeleton(),
+      itemBuilder: (_, i) => _GridSkeleton(tall: i % 3 == 0),
     );
   }
 
@@ -270,19 +270,15 @@ class _ExplorePageState extends State<ExplorePage>
             style: TextStyle(color: t.textSecondary, fontSize: 13)),
       );
     }
-
-    return GridView.builder(
+    return MasonryGridView.count(
       controller: _scroll,
-      // Efeito elástico nativo iOS com bounce no topo e no fundo
+      // Efeito elástico nativo iOS
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
       ),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 3,
-        crossAxisSpacing: 3,
-        childAspectRatio: 16 / 10,
-      ),
+      crossAxisCount: 2,
+      mainAxisSpacing: 3,
+      crossAxisSpacing: 3,
       padding: const EdgeInsets.fromLTRB(3, 6, 3, 32),
       itemCount: list.length + 1,
       itemBuilder: (_, i) {
@@ -292,6 +288,7 @@ class _ExplorePageState extends State<ExplorePage>
             child: Center(child: _DotsLoader()),
           );
         }
+        // Key por embedUrl para evitar reconstruções erradas
         return _VideoCard(
           key: ValueKey(list[i].embedUrl),
           video: list[i],
@@ -305,7 +302,6 @@ class _ExplorePageState extends State<ExplorePage>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Wrapper pull-to-refresh com três pontos
-// Efeito elástico no topo: ao puxar para baixo no limite, mostra o loader
 // ─────────────────────────────────────────────────────────────────────────────
 class _DotsRefreshWrapper extends StatefulWidget {
   final Widget child;
@@ -335,13 +331,11 @@ class _DotsRefreshWrapperState extends State<_DotsRefreshWrapper> {
       onNotification: (n) {
         if (widget.refreshing) return false;
 
-        // Overscroll no topo (puxar para baixo quando já está no início)
         if (n is OverscrollNotification && n.overscroll < 0) {
           setState(() {
             _pull = (_pull + (-n.overscroll) * 0.5).clamp(0, _trigger * 1.4);
           });
         }
-
         if (n is ScrollEndNotification || n is ScrollUpdateNotification) {
           if (_pull >= _trigger && !_triggered && !widget.refreshing) {
             _triggered = true;
@@ -358,7 +352,7 @@ class _DotsRefreshWrapperState extends State<_DotsRefreshWrapper> {
       },
       child: Stack(
         children: [
-          // Zona vazia elástica no topo — loader de três pontos visível aqui
+          // Indicador de três pontos
           Positioned(
             top: 0, left: 0, right: 0,
             child: AnimatedContainer(
@@ -366,7 +360,7 @@ class _DotsRefreshWrapperState extends State<_DotsRefreshWrapper> {
               curve: Curves.easeOut,
               height: widget.refreshing
                   ? 44
-                  : (_pull > 8 ? (_pull * 0.55).clamp(0.0, 44.0) : 0),
+                  : (_pull > 8 ? (_pull * 0.55).clamp(0, 44) : 0),
               child: Center(
                 child: (widget.refreshing || _pull > _trigger * 0.4)
                     ? _DotsLoader(isDark: widget.isDark)
@@ -374,14 +368,14 @@ class _DotsRefreshWrapperState extends State<_DotsRefreshWrapper> {
               ),
             ),
           ),
-          // Conteúdo com padding animado que acompanha o pull
+          // Conteúdo com padding animado
           AnimatedPadding(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
             padding: EdgeInsets.only(
               top: widget.refreshing
                   ? 44
-                  : (_pull * 0.4).clamp(0.0, 36.0),
+                  : (_pull * 0.4).clamp(0, 36),
             ),
             child: widget.child,
           ),
@@ -431,6 +425,7 @@ class _DotsLoaderState extends State<_DotsLoader>
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (i) {
+            // Fase desfasada por dot
             final raw = (_ctrl.value * 3) - i;
             final phase = (raw % 3.0).clamp(0.0, 1.0);
             final bounce = phase < 0.5 ? phase * 2 : (1.0 - phase) * 2;
@@ -477,6 +472,7 @@ class _ExploreAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
+    // Indicator branco no escuro, primary color no claro
     final indicatorColor = isDark ? Colors.white : AppTheme.ytRed;
 
     return Container(
@@ -503,12 +499,7 @@ class _ExploreAppBar extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                // Ícone SVG de search em vez de Material icon
-                child: SvgPicture.asset(
-                  'assets/icons/svg/search.svg',
-                  width: 22, height: 22,
-                  colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
-                ),
+                child: Icon(Icons.search_rounded, color: t.icon, size: 22),
               ),
             ),
           ]),
@@ -537,6 +528,7 @@ class _ExploreAppBar extends StatelessWidget {
                     border: Border(
                       bottom: BorderSide(
                         color: selected ? indicatorColor : Colors.transparent,
+                        // Rounded caps via StrokeAlign — visualmente arredondado
                         width: 2.5,
                         strokeAlign: BorderSide.strokeAlignInside,
                       ),
@@ -566,7 +558,7 @@ class _ExploreAppBar extends StatelessWidget {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Card de vídeo — sem favicon, com cached_network_image
+// Card de vídeo
 // ─────────────────────────────────────────────────────────────────────────────
 class _VideoCard extends StatelessWidget {
   final FeedVideo video;
@@ -607,10 +599,8 @@ class _VideoCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(5),
         child: Stack(children: [
-          // Thumbnail com cache persistente
           _ThumbImg(url: video.thumb, headers: _headers),
 
-          // Overlay gradient com source label e duração
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: Container(
@@ -661,36 +651,75 @@ class _VideoCard extends StatelessWidget {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Thumbnail com cached_network_image — imagens persistem entre navegações
+// Thumbnail — shimmer base + fade-in da imagem quando carrega
+// Evita thumbnails a aparecerem em cima umas das outras
 // ─────────────────────────────────────────────────────────────────────────────
-class _ThumbImg extends StatelessWidget {
+class _ThumbImg extends StatefulWidget {
   final String url;
   final Map<String, String> headers;
   const _ThumbImg({required this.url, required this.headers});
 
   @override
+  State<_ThumbImg> createState() => _ThumbImgState();
+}
+
+class _ThumbImgState extends State<_ThumbImg> {
+  bool _failed = false;
+  bool _loaded = false;
+
+  @override
+  void didUpdateWidget(_ThumbImg old) {
+    super.didUpdateWidget(old);
+    if (old.url != widget.url) {
+      _failed = false;
+      _loaded = false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
 
-    if (url.isEmpty) return _fallback(t);
+    if (widget.url.isEmpty || _failed) {
+      return _fallback(t);
+    }
 
-    return CachedNetworkImage(
-      imageUrl: url,
-      httpHeaders: headers,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      // Shimmer enquanto carrega
-      placeholder: (_, __) => const _Shimmer(),
-      // Fallback se falhar
-      errorWidget: (_, __, ___) => _fallback(t),
-      // Fade-in suave ao carregar
-      fadeInDuration: const Duration(milliseconds: 280),
-      fadeOutDuration: const Duration(milliseconds: 120),
+    return Stack(
+      children: [
+        // Shimmer sempre presente por baixo
+        const _Shimmer(),
+
+        // Imagem faz fade-in quando carregada
+        AnimatedOpacity(
+          duration: const Duration(milliseconds: 280),
+          opacity: _loaded ? 1.0 : 0.0,
+          child: Image.network(
+            widget.url,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            headers: widget.headers,
+            frameBuilder: (_, child, frame, __) {
+              if (frame != null && !_loaded) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) setState(() => _loaded = true);
+                });
+              }
+              return child;
+            },
+            errorBuilder: (_, __, ___) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() { _failed = true; });
+              });
+              return _fallback(t);
+            },
+          ),
+        ),
+      ],
     );
   }
 
   Widget _fallback(AppTheme t) => Container(
+    height: 120,
     color: t.thumbBg,
     child: Center(child: Icon(
         Icons.play_circle_outline_rounded, color: t.iconSub, size: 32)),
@@ -730,6 +759,7 @@ class _ShimmerState extends State<_Shimmer>
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: _a,
     builder: (_, __) => Container(
+      height: 120,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment(_a.value - 1, 0),
@@ -743,10 +773,11 @@ class _ShimmerState extends State<_Shimmer>
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Skeleton de carregamento — tamanho igual aos cards reais
+// Skeleton de carregamento
 // ─────────────────────────────────────────────────────────────────────────────
 class _GridSkeleton extends StatefulWidget {
-  const _GridSkeleton();
+  final bool tall;
+  const _GridSkeleton({this.tall = false});
 
   @override
   State<_GridSkeleton> createState() => _GridSkeletonState();
@@ -777,7 +808,7 @@ class _GridSkeletonState extends State<_GridSkeleton>
       builder: (_, __) => ClipRRect(
         borderRadius: BorderRadius.circular(5),
         child: Container(
-          // Sem altura fixa — expande para preencher o espaço do grid
+          height: widget.tall ? 200.0 : 140.0,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment(_a.value - 1, 0),
