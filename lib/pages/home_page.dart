@@ -104,28 +104,61 @@ const _shortsJs = r"""
 Route<T> iosRoute<T>(Widget page) {
   return PageRouteBuilder<T>(
     pageBuilder: (_, animation, secondaryAnimation) => page,
-    transitionDuration: const Duration(milliseconds: 380),
-    reverseTransitionDuration: const Duration(milliseconds: 320),
-    transitionsBuilder: (_, animation, secondaryAnimation, child) {
-      final slide = Tween<Offset>(
+    transitionDuration: const Duration(milliseconds: 400),
+    reverseTransitionDuration: const Duration(milliseconds: 340),
+    transitionsBuilder: (ctx, animation, secondaryAnimation, child) {
+      // Página nova entra da direita
+      final enterSlide = Tween<Offset>(
         begin: const Offset(1.0, 0.0),
         end: Offset.zero,
       ).animate(CurvedAnimation(
         parent: animation,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
+        curve: const Cubic(0.25, 0.46, 0.45, 0.94),
       ));
-      final pushSlide = Tween<Offset>(
+
+      // Página anterior recua 28% para a esquerda (iOS nativo)
+      final exitSlide = Tween<Offset>(
         begin: Offset.zero,
-        end: const Offset(-0.3, 0.0),
+        end: const Offset(-0.28, 0.0),
       ).animate(CurvedAnimation(
-        parent: secondaryAnimation,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
+        parent: animation,
+        curve: const Cubic(0.25, 0.46, 0.45, 0.94),
       ));
-      return SlideTransition(
-        position: pushSlide,
-        child: SlideTransition(position: slide, child: child),
+
+      // Sombra lateral esquerda na página nova (depth)
+      final shadowOpacity = Tween<double>(begin: 0.0, end: 1.0)
+          .animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
+
+      return Stack(
+        children: [
+          // Página anterior a recuar
+          SlideTransition(
+            position: exitSlide,
+            child: Container(color: Colors.black), // fallback bg
+          ),
+          // Sombra à esquerda da nova página
+          AnimatedBuilder(
+            animation: shadowOpacity,
+            builder: (_, __) => Positioned(
+              left: 0, top: 0, bottom: 0,
+              width: 20,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerRight,
+                    end: Alignment.centerLeft,
+                    colors: [
+                      Colors.black.withOpacity(0.12 * shadowOpacity.value),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Página nova a entrar
+          SlideTransition(position: enterSlide, child: child),
+        ],
       );
     },
   );
