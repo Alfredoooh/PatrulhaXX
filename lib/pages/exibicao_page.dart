@@ -705,36 +705,184 @@ class _PlayerBtn extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Estado vazio
 // ─────────────────────────────────────────────────────────────────────────────
-class _EmptyBody extends StatelessWidget {
+// Estado vazio — animado, com pulso e fade escalonado
+// ─────────────────────────────────────────────────────────────────────────────
+class _EmptyBody extends StatefulWidget {
   final VoidCallback onAdsLinkTap;
   const _EmptyBody({required this.onAdsLinkTap});
-  @override Widget build(BuildContext context) {
+  @override State<_EmptyBody> createState() => _EmptyBodyState();
+}
+
+class _EmptyBodyState extends State<_EmptyBody>
+    with TickerProviderStateMixin {
+  late final AnimationController _enterCtrl;
+  late final AnimationController _pulseCtrl;
+  late final AnimationController _floatCtrl;
+
+  late final Animation<double> _fadeTitle;
+  late final Animation<double> _fadeSubtitle;
+  late final Animation<double> _fadeLink;
+  late final Animation<double> _slideTitle;
+  late final Animation<double> _pulse;
+  late final Animation<double> _float;
+
+  @override
+  void initState() {
+    super.initState();
+    _enterCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..repeat(reverse: true);
+    _floatCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))..repeat(reverse: true);
+
+    _fadeTitle    = CurvedAnimation(parent: _enterCtrl, curve: const Interval(0.0, 0.5, curve: Curves.easeOut));
+    _slideTitle   = Tween<double>(begin: 24, end: 0).animate(
+        CurvedAnimation(parent: _enterCtrl, curve: const Interval(0.0, 0.6, curve: Curves.easeOutCubic)));
+    _fadeSubtitle = CurvedAnimation(parent: _enterCtrl, curve: const Interval(0.3, 0.75, curve: Curves.easeOut));
+    _fadeLink     = CurvedAnimation(parent: _enterCtrl, curve: const Interval(0.55, 1.0, curve: Curves.easeOut));
+    _pulse        = Tween<double>(begin: 0.93, end: 1.07).animate(
+        CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+    _float        = Tween<double>(begin: -7, end: 7).animate(
+        CurvedAnimation(parent: _floatCtrl, curve: Curves.easeInOut));
+
+    _enterCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _enterCtrl.dispose();
+    _pulseCtrl.dispose();
+    _floatCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final t = AppTheme.current;
+
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Container(color: t.surface, padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Bem-vindo ao nuxx', style: TextStyle(color: t.text, fontSize: 18,
-              fontWeight: FontWeight.w700, height: 1.2)),
-          const SizedBox(height: 6),
-          Text('Selecione qualquer vídeo na aba explorar para ser exibido aqui...',
-              style: TextStyle(color: t.textSecondary, fontSize: 13.5, height: 1.4)),
-          const SizedBox(height: 8),
-          GestureDetector(onTap: onAdsLinkTap,
-            child: Text('Publicitar minha marca', style: TextStyle(
-                color: t.emptyLinkText, fontSize: 13.5, fontWeight: FontWeight.w600,
-                decoration: TextDecoration.underline, decorationColor: t.emptyLinkText))),
-        ])),
-      Expanded(child: Center(child: SizedBox(width: 200, height: 200,
-        child: Lottie.asset('assets/lottie/Cat_playing_animation.json',
-          repeat: true, animate: true,
-          errorBuilder: (_, __, ___) => SvgPicture.string(svgExibicaoOutline,
-              width: 72, height: 72,
-              colorFilter: ColorFilter.mode(t.emptyIcon, BlendMode.srcIn)))))),
+      // ── Card de boas-vindas animado ─────────────────────────────────────
+      AnimatedBuilder(
+        animation: _enterCtrl,
+        builder: (_, __) => Transform.translate(
+          offset: Offset(0, _slideTitle.value),
+          child: Opacity(
+            opacity: _fadeTitle.value.clamp(0.0, 1.0),
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              decoration: BoxDecoration(
+                color: t.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: t.borderSoft),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Container(
+                    width: 38, height: 38,
+                    decoration: BoxDecoration(
+                      color: AppTheme.ytRed.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(child: SvgPicture.string(svgExibicaoOutline,
+                        width: 20, height: 20,
+                        colorFilter: ColorFilter.mode(AppTheme.ytRed, BlendMode.srcIn))),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text('Bem-vindo ao nuxx',
+                    style: TextStyle(color: t.text, fontSize: 17,
+                        fontWeight: FontWeight.w700, letterSpacing: -0.3))),
+                ]),
+                const SizedBox(height: 10),
+                FadeTransition(
+                  opacity: _fadeSubtitle,
+                  child: Text(
+                    'Vai à aba Explorar, escolhe um vídeo e ele aparece aqui pronto a ver.',
+                    style: TextStyle(color: t.textSecondary, fontSize: 13.5, height: 1.45)),
+                ),
+                const SizedBox(height: 12),
+                FadeTransition(
+                  opacity: _fadeSubtitle,
+                  child: Column(children: [
+                    _StepRow(icon: Icons.explore_outlined, label: 'Abre a aba Explorar', color: const Color(0xFF4A90E2)),
+                    const SizedBox(height: 6),
+                    _StepRow(icon: Icons.play_circle_outline_rounded, label: 'Toca num vídeo', color: const Color(0xFF7ED321)),
+                    const SizedBox(height: 6),
+                    _StepRow(icon: Icons.tv_rounded, label: 'O player arranca aqui', color: AppTheme.ytRed),
+                  ]),
+                ),
+                const SizedBox(height: 14),
+                FadeTransition(
+                  opacity: _fadeLink,
+                  child: GestureDetector(
+                    onTap: widget.onAdsLinkTap,
+                    child: Row(children: [
+                      Icon(Icons.campaign_outlined, color: t.emptyLinkText, size: 15),
+                      const SizedBox(width: 5),
+                      Text('Publicitar a minha marca', style: TextStyle(
+                          color: t.emptyLinkText, fontSize: 13, fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                          decorationColor: t.emptyLinkText)),
+                    ]),
+                  ),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      ),
+
+      // ── Lottie/ícone com float + pulse ──────────────────────────────────
+      Expanded(
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_pulseCtrl, _floatCtrl, _enterCtrl]),
+          builder: (_, __) => Opacity(
+            opacity: _fadeTitle.value.clamp(0.0, 1.0),
+            child: Transform.translate(
+              offset: Offset(0, _float.value),
+              child: Transform.scale(
+                scale: _pulse.value,
+                child: Center(
+                  child: SizedBox(width: 180, height: 180,
+                    child: Lottie.asset('assets/lottie/Cat_playing_animation.json',
+                      repeat: true, animate: true,
+                      errorBuilder: (_, __, ___) => SvgPicture.string(
+                        svgExibicaoOutline, width: 80, height: 80,
+                        colorFilter: ColorFilter.mode(
+                            t.emptyIcon.withOpacity(0.4), BlendMode.srcIn)))),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     ]);
   }
 }
+
+class _StepRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _StepRow({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return Row(children: [
+      Container(
+        width: 28, height: 28,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: Icon(icon, color: color, size: 15),
+      ),
+      const SizedBox(width: 10),
+      Text(label, style: TextStyle(color: t.text, fontSize: 13, fontWeight: FontWeight.w500)),
+    ]);
+  }
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Card relacionado — horizontal compacto com animação de entrada
@@ -1118,11 +1266,9 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                   color: Colors.black,
                   child: Stack(children: [
 
-                    // ── WebView super pequeño: mantém o áudio/vídeo a correr
+                    // ── WebView tamanho real, UA desktop ──────────────────────
                     if (!_isEmpty)
-                      Positioned(
-                        bottom: 0, right: 0,
-                        width: 1, height: 1,
+                      Positioned.fill(
                         child: InAppWebView(
                           key: ValueKey(widget.embedUrl),
                           initialUrlRequest: URLRequest(url: WebUri(widget.embedUrl!)),
@@ -1133,7 +1279,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                             transparentBackground: true,
                             disableDefaultErrorPage: true,
                             disableHorizontalScroll: true,
-                            disableVerticalScroll: false,
+                            disableVerticalScroll: true,
                             supportZoom: false,
                             builtInZoomControls: false,
                             displayZoomControls: false,
@@ -1148,9 +1294,9 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                             databaseEnabled: true,
                             useOnLoadResource: true,
                             useShouldInterceptRequest: false,
-                            userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
+                            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                                 'AppleWebKit/537.36 (KHTML, like Gecko) '
-                                'Chrome/124.0.0.0 Mobile Safari/537.36',
+                                'Chrome/124.0.0.0 Safari/537.36',
                           ),
                           onWebViewCreated: (ctrl) {
                             _webCtrl = ctrl;
