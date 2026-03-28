@@ -8,8 +8,8 @@ import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:animations/animations.dart';
-import 'home_page.dart'
-    show kPrimaryColor, FeedVideo, FeedFetcher, VideoSource, svgExibicaoOutline, faviconForSource;
+import '../models/feed_video_model.dart';
+import 'home_page.dart' show kPrimaryColor, svgExibicaoOutline;
 import '../services/theme_service.dart';
 import '../services/download_service.dart';
 import 'download_list_page.dart';
@@ -85,451 +85,6 @@ const _svgVolOff =
     'L18.586,11l-1.293,1.293a1,1,0,1,0,1.414,1.414L20,12.414l1.293,1.293a1,1,0,0,0,1.414-1.414'
     'L21.414,11l1.293-1.293A1,1,0,0,0,22.707,8.293Z"/></svg>';
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  CSS STEALTH — oculta todos os controlos do player da fonte
-// ═══════════════════════════════════════════════════════════════════════════════
-String get _kCss0Stealth => r"""
-  video::-webkit-media-controls,video::-webkit-media-controls-enclosure,
-  video::-webkit-media-controls-panel,video::-webkit-media-controls-play-button,
-  video::-webkit-media-controls-start-playback-button,
-  video::-webkit-media-controls-timeline,video::-webkit-media-controls-current-time-display,
-  video::-webkit-media-controls-time-remaining-display,
-  video::-webkit-media-controls-mute-button,video::-webkit-media-controls-volume-slider,
-  video::-webkit-media-controls-fullscreen-button,
-  video::-webkit-media-controls-overflow-button,
-  video::-internal-media-controls-download-button,
-  video::-webkit-media-controls-overlay-play-button,
-  video::-webkit-media-controls-overlay-enclosure {
-    display:none!important;visibility:hidden!important;
-    opacity:0!important;pointer-events:none!important;
-  }
-  .vjs-control-bar,.vjs-big-play-button,.vjs-loading-spinner,.vjs-poster,
-  .vjs-overlay,.vjs-modal-dialog,.vjs-error-display,.vjs-text-track-display,
-  .vjs-playback-rate,.vjs-chapters-button,.vjs-progress-control,
-  .video-js .vjs-big-play-button{display:none!important;}
-  .jw-controls,.jw-display,.jw-nextup-container,.jw-logo,.jw-dock,
-  .jw-captions,.jw-rightclick,.jw-overlays,.jw-controlbar,.jw-icon,
-  .jw-button-container{display:none!important;}
-  .plyr__controls,.plyr__captions,.plyr__menu,.plyr__progress,.plyr__volume{display:none!important;}
-  .ep-logo,.ep-controls,.ep-related,.ep-title,.ep-overlay,
-  #eporner-logo,#ep-logo,.eporner-header,.eporner-footer,
-  [class*="eporner-nav"],[id*="eporner-ad"]{display:none!important;}
-  .pc-overlay,.pc-info-block,.ph-logo,.pc-header,.pc-footer,
-  .pc-subscribe-now,.pc-age-gate,.ageGate,.age-gate-wrapper,
-  .pcRecoverContent,.removeForEmbed,.pc-overlay-transparent,
-  #pc-user-info,.pc-nav,.pc-tabs,.pc-ad,.pc-rating-wrap,
-  [class*="pcHeader"],[class*="pc-header"],[id*="pc-header"],
-  #player-controls,.player-controls,.playerControlBar,
-  .playbackControls,.playerOverlay,[class*="playerControl"],
-  [class*="controls-bar"],[id*="controls"]{display:none!important;}
-  .redtube-logo,.rt-logo,.site-controls,.embed-logo,
-  #redtube_header,.redtube-header,.rt-header,.embed-header,
-  .site-branding,.embed-branding,.embed-play-wrap,
-  [class*="redtube"],[id*="redtube"]{display:none!important;}
-  .xha-header,.xha-logo,.xha-footer,.xha-overlay,
-  [class*="xha-"],[class*="ham-header"]{display:none!important;}
-  .xv-logo,.xvideos-logo,.xv-header,
-  [class*="xvideos-"],[class*="xv-logo"]{display:none!important;}
-  .sb-header,.sb-logo,.sb-footer,[class*="spankbang-"]{display:none!important;}
-  .redirect-banner,.watch-hd-button,.hd-button,.upgrade-btn,.banner,.ad-banner,
-  .popup,.modal,.overlay-redirect,.age-gate,.age-gate-container,
-  .age-verification,.agewall,.cookie-consent,.gdpr,.consent-banner,
-  [class*="redirect"],[class*="watch-hd"],[class*="upgrade"],
-  [class*="notification"],[class*="ageGate"],[class*="age-gate"],
-  [class*="age_gate"],[id*="banner"],[id*="ad_"],[id*="ageGate"],
-  .site-header,.main-header,#header,.topbar,nav,.navigation,.nav-bar,.navbar,
-  .related-videos,.suggestions,.recommendations,
-  footer,.footer,.embed-footer{display:none!important;visibility:hidden!important;}
-  *,*::before,*::after{box-sizing:border-box!important;}
-  html,body{background:#000!important;margin:0!important;padding:0!important;
-    overflow:hidden!important;width:100%!important;height:100%!important;}
-  video{width:100%!important;height:100%!important;object-fit:contain!important;
-    display:block!important;background:#000!important;
-    max-width:100vw!important;max-height:100vh!important;}
-  iframe{width:100%!important;height:100%!important;border:none!important;}
-""";
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  MOTOR JS — fingerprinter + hijacker + sentinels + bridge Flutter↔WebView
-// ═══════════════════════════════════════════════════════════════════════════════
-String get _kJsEngine => r"""
-(function(){
-'use strict';
-if(window.__pxEngine){window.__pxEngine.destroy();}
-
-var ENGINE={
-  host:(location.hostname||'').toLowerCase(),
-  muted:window.__pxMuted||false,
-  videoEl:null,
-  apiObj:null,
-  engine:'unknown',
-  observers:[],
-  timers:[],
-  commandedPause:false,
-  destroyed:false,
-};
-window.__pxEngine=ENGINE;
-
-function after(ms,fn){
-  if(ENGINE.destroyed)return;
-  var t=setTimeout(fn,ms);ENGINE.timers.push(t);return t;
-}
-function observe(target,opts,fn){
-  if(!target)return;
-  var mo=new MutationObserver(fn);mo.observe(target,opts);ENGINE.observers.push(mo);
-}
-ENGINE.destroy=function(){
-  ENGINE.destroyed=true;
-  ENGINE.observers.forEach(function(o){try{o.disconnect();}catch(_){}});
-  ENGINE.timers.forEach(function(t){clearTimeout(t);});
-  if(HTMLMediaElement.__origPausePx){
-    HTMLMediaElement.prototype.pause=HTMLMediaElement.__origPausePx;
-    delete HTMLMediaElement.__origPausePx;
-  }
-};
-
-function applyCss(doc){
-  doc=doc||document;
-  var id='__pxStealth';
-  var el=doc.getElementById(id);
-  if(!el){el=doc.createElement('style');el.id=id;(doc.head||doc.documentElement).appendChild(el);}
-  el.textContent=window.__pxCss||'';
-  if(doc.body){
-    doc.body.style.setProperty('background','#000','important');
-    doc.body.style.setProperty('overflow','hidden','important');
-    doc.body.style.setProperty('margin','0','important');
-  }
-}
-applyCss();
-
-function fingerprint(){
-  var fp={engine:'html5',videoEl:null,containerEl:null,apiObj:null,hasIframe:false,iframeDoc:null,domInfo:{}};
-  var iframes=document.querySelectorAll('iframe');
-  for(var i=0;i<iframes.length;i++){
-    try{
-      var d=iframes[i].contentDocument||(iframes[i].contentWindow&&iframes[i].contentWindow.document);
-      if(d&&d.querySelector('video')){fp.hasIframe=true;fp.iframeDoc=d;break;}
-    }catch(_){}
-  }
-  if(window.videojs&&window.videojs.players){
-    var vjsArr=Object.values(window.videojs.players).filter(Boolean);
-    if(vjsArr.length>0){
-      var vp=vjsArr[0];
-      fp.engine='videojs';fp.apiObj=vp;
-      try{fp.videoEl=vp.el()?vp.el().querySelector('video'):null;}catch(_){}
-      try{fp.containerEl=vp.el();}catch(_){}
-    }
-  }
-  if(fp.engine==='html5'&&window.jwplayer){
-    try{
-      var jw=window.jwplayer();
-      if(jw&&typeof jw.getState==='function'){
-        fp.engine='jwplayer';fp.apiObj=jw;
-        var jwMedia=document.querySelector('.jw-media');
-        fp.containerEl=jwMedia||document.getElementById('player');
-        fp.videoEl=jwMedia?jwMedia.querySelector('video'):null;
-      }
-    }catch(_){}
-  }
-  if(fp.engine==='html5'&&window.Plyr){
-    var plyrEl=document.querySelector('.plyr');
-    if(plyrEl){
-      fp.engine='plyr';fp.containerEl=plyrEl;
-      fp.videoEl=plyrEl.querySelector('video');
-      try{fp.apiObj=window.__plyrInstance||null;}catch(_){}
-    }
-  }
-  if(fp.engine==='html5'&&window.shaka){
-    var shakaV=document.querySelector('video');
-    if(shakaV&&shakaV.__shaka_player__){
-      fp.engine='shaka';fp.videoEl=shakaV;fp.apiObj=shakaV.__shaka_player__;
-    }
-  }
-  if(fp.engine==='html5'&&window.flowplayer){
-    var fpEl=document.querySelector('.fp-player');
-    if(fpEl){fp.engine='flowplayer';fp.containerEl=fpEl;fp.videoEl=fpEl.querySelector('video');}
-  }
-  if(!fp.videoEl){
-    var all=Array.from(document.querySelectorAll('video'));
-    if(fp.iframeDoc)all=all.concat(Array.from(fp.iframeDoc.querySelectorAll('video')));
-    all.sort(function(a,b){
-      var ra=a.getBoundingClientRect(),rb=b.getBoundingClientRect();
-      return(rb.width*rb.height)-(ra.width*ra.height);
-    });
-    fp.videoEl=all[0]||null;
-    if(fp.videoEl)fp.containerEl=fp.videoEl.parentElement;
-  }
-  fp.domInfo.totalVideos=document.querySelectorAll('video').length;
-  fp.domInfo.totalIframes=iframes.length;
-  try{
-    window.flutter_inappwebview&&window.flutter_inappwebview.callHandler(
-      'pxFingerprint',JSON.stringify({engine:fp.engine,hasVideo:!!fp.videoEl,hasIframe:fp.hasIframe,domInfo:fp.domInfo})
-    );
-  }catch(_){}
-  return fp;
-}
-
-function hijack(fp){
-  if(!fp)return;
-  if(fp.videoEl){ENGINE.videoEl=fp.videoEl;ENGINE.engine=fp.engine;ENGINE.apiObj=fp.apiObj;}
-
-  function takeoverVideo(v){
-    if(!v||v.__pxTaken)return;
-    v.__pxTaken=true;
-    v.removeAttribute('controls');
-    v.setAttribute('playsinline','');
-    v.setAttribute('webkit-playsinline','');
-    v.muted=ENGINE.muted;
-    v.style.setProperty('width','100%','important');
-    v.style.setProperty('height','100%','important');
-    v.style.setProperty('object-fit','contain','important');
-    v.style.setProperty('background','#000','important');
-    var origSet=v.setAttribute.bind(v);
-    v.setAttribute=function(name,val){if(name==='controls')return;return origSet(name,val);};
-    try{Object.defineProperty(v,'controls',{get:function(){return false;},set:function(){},configurable:true});}catch(_){}
-    function tryPlay(n){
-      if(ENGINE.destroyed)return;
-      var p=v.play();
-      if(p&&p.catch)p.catch(function(){if(n<3)after(400*Math.pow(2,n),function(){tryPlay(n+1);});});
-    }
-    tryPlay(0);
-    v.addEventListener('stalled',function(){v.load();tryPlay(0);});
-    v.addEventListener('waiting',function(){tryPlay(0);});
-    v.addEventListener('suspend',function(){tryPlay(0);});
-    v.addEventListener('error',function(){
-      var src=v.currentSrc||v.src;
-      if(src)after(1000,function(){v.src=src;v.load();tryPlay(0);});
-    });
-  }
-
-  if(!HTMLMediaElement.__origPausePx){
-    HTMLMediaElement.__origPausePx=HTMLMediaElement.prototype.pause;
-    HTMLMediaElement.prototype.pause=function(){
-      if(ENGINE.commandedPause){ENGINE.commandedPause=false;return HTMLMediaElement.__origPausePx.call(this);}
-    };
-  }
-
-  function hijackVjs(api){
-    if(!api)return;
-    try{api.controls(false);}catch(_){}
-    try{api.bigPlayButton&&api.bigPlayButton.hide();}catch(_){}
-    try{api.controlBar&&api.controlBar.hide();}catch(_){}
-    try{api.errorDisplay&&api.errorDisplay.hide();}catch(_){}
-    try{api.loadingSpinner&&api.loadingSpinner.hide();}catch(_){}
-    try{api.posterImage&&api.posterImage.hide();}catch(_){}
-    try{
-      var proto=Object.getPrototypeOf(api);
-      if(proto&&proto.controls&&!proto.__pxControlsBlocked){
-        proto.__pxControlsBlocked=true;
-        var orig=proto.controls;
-        proto.controls=function(b){if(b===true)return false;return orig.call(this,b);};
-      }
-    }catch(_){}
-    if(fp.videoEl)takeoverVideo(fp.videoEl);
-  }
-  function hijackJw(api){
-    if(!api)return;
-    try{api.setControls(false);}catch(_){}
-    try{api.setMute(ENGINE.muted);}catch(_){}
-    try{
-      var oSetup=api.setup;
-      api.setup=function(cfg){cfg=cfg||{};cfg.controls=false;return oSetup.call(this,cfg);};
-    }catch(_){}
-    if(fp.videoEl)takeoverVideo(fp.videoEl);
-  }
-  function hijackPlyr(api){
-    if(api&&api.elements&&api.elements.controls){
-      api.elements.controls.style.setProperty('display','none','important');
-    }
-    if(fp.videoEl)takeoverVideo(fp.videoEl);
-  }
-  switch(fp.engine){
-    case 'videojs':  hijackVjs(fp.apiObj);  break;
-    case 'jwplayer': hijackJw(fp.apiObj);   break;
-    case 'plyr':     hijackPlyr(fp.apiObj); break;
-    default:         if(fp.videoEl)takeoverVideo(fp.videoEl); break;
-  }
-  document.querySelectorAll('video').forEach(takeoverVideo);
-  if(fp.iframeDoc){
-    applyCss(fp.iframeDoc);
-    fp.iframeDoc.querySelectorAll('video').forEach(takeoverVideo);
-  }
-}
-
-var KILL=[
-  '.vjs-control-bar','.vjs-big-play-button','.vjs-loading-spinner','.vjs-poster',
-  '.vjs-overlay','.vjs-modal-dialog','.vjs-error-display','.vjs-progress-control',
-  '.jw-controls','.jw-display','.jw-nextup-container','.jw-logo','.jw-dock',
-  '.jw-captions','.jw-rightclick','.jw-overlays','.jw-controlbar',
-  '.plyr__controls','.plyr__captions','.plyr__menu','.plyr__progress',
-  '.fp-controls','.fp-logo',
-  '.ep-logo','.ep-controls','.ep-related','.ep-title','.ep-overlay',
-  '#eporner-logo','#ep-logo','.eporner-header','.eporner-footer',
-  '.pc-overlay','.pc-info-block','.ph-logo','.pc-header','.pc-footer',
-  '.pc-subscribe-now','.ageGate','.age-gate-wrapper','.pcRecoverContent',
-  '.removeForEmbed','.pc-overlay-transparent','#pc-user-info',
-  '.pc-nav','.pc-tabs','.pc-ad','.pc-rating-wrap',
-  '#player-controls','.player-controls','.playerControlBar','.playbackControls',
-  '.playerOverlay','[class*="playerControl"]','[class*="controls-bar"]','[id*="controls"]',
-  '.redtube-logo','.rt-logo','.site-controls','.embed-logo',
-  '#redtube_header','.redtube-header','.rt-header','.embed-header',
-  '.site-branding','.embed-branding','.embed-play-wrap',
-  '.xha-header','.xha-logo','.xha-footer','.xha-overlay',
-  '.xv-logo','.xvideos-logo','.xv-header',
-  '.sb-header','.sb-logo','.sb-footer',
-  '.redirect-banner','.watch-hd-button','.hd-button','.upgrade-btn',
-  '.age-gate','.age-gate-container','.age-verification','.agewall',
-  '.cookie-consent','.gdpr','.consent-banner',
-  '[id*="banner"]','[id*="ad_"]','[id*="ageGate"]',
-  '.site-header','.main-header','#header','.topbar',
-  'nav','.navigation','.nav-bar','.navbar',
-  '.related-videos','.suggestions','.recommendations',
-  'footer','.footer','.embed-footer',
-];
-
-function killUnwanted(){
-  KILL.forEach(function(s){
-    try{document.querySelectorAll(s).forEach(function(el){
-      var v=ENGINE.videoEl;
-      if(v&&el.contains(v)){el.style.setProperty('background','transparent','important');return;}
-      el.remove();
-    });}catch(_){}
-  });
-  document.querySelectorAll('a,span,div,p,button').forEach(function(el){
-    var txt=(el.innerText||'').toLowerCase().trim();
-    if(!txt||txt.length>120)return;
-    if(/redirect|watch.?in.?hd|upgrade|age.?verif|verify.?age/.test(txt)){
-      el.style.setProperty('display','none','important');
-    }
-  });
-}
-
-observe(document.documentElement,{childList:true,subtree:true},function(muts){
-  muts.forEach(function(m){
-    m.addedNodes.forEach(function(n){
-      if(n.nodeType!==1)return;
-      if(n.tagName==='VIDEO'){ENGINE.videoEl=n;hijack(fingerprint());return;}
-      if(n.tagName==='IFRAME'){after(400,function(){hijack(fingerprint());});}
-      if(n.className&&typeof n.className==='string'){
-        if(/vjs-|jw-|plyr|overlay|age.gate|redirect|controls|banner/i.test(n.className)){
-          try{n.remove();}catch(_){}
-        }
-      }
-    });
-  });
-  killUnwanted();
-});
-
-observe(document.body||document.documentElement,{attributes:true,attributeFilter:['style','class']},function(){
-  if(document.body){
-    document.body.style.setProperty('background','#000','important');
-    document.body.style.setProperty('overflow','hidden','important');
-  }
-});
-
-function observeVideoEl(v){
-  if(!v||v.__pxObserved)return;
-  v.__pxObserved=true;
-  observe(v,{attributes:true,attributeFilter:['controls','style','class']},function(muts){
-    muts.forEach(function(m){
-      if(m.attributeName==='controls')v.removeAttribute('controls');
-      if(m.attributeName==='style'){
-        v.style.setProperty('width','100%','important');
-        v.style.setProperty('height','100%','important');
-        v.style.setProperty('object-fit','contain','important');
-      }
-    });
-  });
-}
-
-(function(){
-  var cfg={
-    redtube: {d:'.redtube.com',   k:['age_verified=1','platform=pc','accessAgeDisclaimer=1','redtube_session=1']},
-    pornhub: {d:'.pornhub.com',   k:['age_verified=1','accessAgeDisclaimerPH=1','accessPH=1','platform=pc','hasVisited=1','cookieConsent=1','_tc=1']},
-    xhamster:{d:'.xhamster.com',  k:['age_verified=1','platform=pc','hasVisited=1']},
-    youporn: {d:'.youporn.com',   k:['age_verified=1','platform=pc','hasVisited=1']},
-    xvideos: {d:'.xvideos.com',   k:['age_verified=1','platform=pc']},
-    spankbang:{d:'.spankbang.com',k:['age_verified=1']},
-  };
-  Object.keys(cfg).forEach(function(key){
-    if(ENGINE.host.indexOf(key)<0)return;
-    var e='; expires='+new Date(Date.now()+9e11).toUTCString()+'; path=/; domain='+cfg[key].d;
-    cfg[key].k.forEach(function(c){document.cookie=c+e;});
-  });
-})();
-
-function setupHls(v){
-  if(!v)return;
-  var src=v.currentSrc||v.src||'';
-  if(!src){var s=v.querySelector('source[src]');if(s)src=s.src;}
-  if(!src)src=v.getAttribute('data-src')||v.getAttribute('data-hls-url')||'';
-  if(src.indexOf('.m3u8')<0)return;
-  if(typeof Hls==='undefined'||!Hls.isSupported())return;
-  if(v.__hls){try{v.__hls.destroy();}catch(_){}}
-  var hls=new Hls({maxBufferLength:10,maxMaxBufferLength:20,startLevel:0,autoLevelCapping:2,
-    capLevelToPlayerSize:true,lowLatencyMode:false,fragLoadingTimeOut:10000,manifestLoadingTimeOut:10000,
-    xhrSetup:function(xhr){xhr.withCredentials=false;}});
-  hls.loadSource(src);hls.attachMedia(v);v.__hls=hls;
-  hls.on(Hls.Events.MANIFEST_PARSED,function(){var p=v.play();if(p&&p.catch)p.catch(function(){});});
-  hls.on(Hls.Events.ERROR,function(ev,data){
-    if(data.fatal){
-      if(data.type===Hls.ErrorTypes.NETWORK_ERROR)hls.startLoad();
-      else if(data.type===Hls.ErrorTypes.MEDIA_ERROR)hls.recoverMediaError();
-    }
-  });
-}
-function loadHls(){
-  if(typeof Hls!=='undefined'){document.querySelectorAll('video').forEach(setupHls);}
-  else{
-    var sc=document.createElement('script');
-    sc.src='https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js';
-    sc.onload=function(){document.querySelectorAll('video').forEach(setupHls);};
-    (document.head||document.documentElement).appendChild(sc);
-  }
-}
-
-window.addEventListener('message',function(e){
-  var v=ENGINE.videoEl||document.querySelector('video');
-  if(!v)return;
-  if(e.data==='px:play'){var p=v.play();if(p&&p.catch)p.catch(function(){});}
-  if(e.data==='px:pause'){
-    ENGINE.commandedPause=true;
-    if(HTMLMediaElement.__origPausePx)HTMLMediaElement.__origPausePx.call(v);
-    else{try{Object.getPrototypeOf(HTMLMediaElement).pause?Object.getPrototypeOf(HTMLMediaElement).pause.call(v):v.pause();}catch(_){v.pause();}}
-  }
-  if(e.data==='px:mute'){
-    ENGINE.muted=true;window.__pxMuted=true;v.muted=true;
-    try{ENGINE.apiObj&&ENGINE.apiObj.muted&&ENGINE.apiObj.muted(true);}catch(_){}
-    try{ENGINE.apiObj&&ENGINE.apiObj.setMute&&ENGINE.apiObj.setMute(true);}catch(_){}
-  }
-  if(e.data==='px:unmute'){
-    ENGINE.muted=false;window.__pxMuted=false;v.muted=false;
-    try{ENGINE.apiObj&&ENGINE.apiObj.muted&&ENGINE.apiObj.muted(false);}catch(_){}
-    try{ENGINE.apiObj&&ENGINE.apiObj.setMute&&ENGINE.apiObj.setMute(false);}catch(_){}
-  }
-  if(e.data==='px:getState'){
-    var st={engine:ENGINE.engine,paused:v.paused,muted:v.muted,
-      currentTime:v.currentTime,duration:v.duration||0,
-      src:v.currentSrc||v.src||'',readyState:v.readyState};
-    try{window.flutter_inappwebview&&window.flutter_inappwebview.callHandler('pxState',JSON.stringify(st));}catch(_){}
-  }
-});
-
-function fullRun(){
-  if(ENGINE.destroyed)return;
-  killUnwanted();
-  var fp=fingerprint();
-  hijack(fp);
-  if(ENGINE.videoEl)observeVideoEl(ENGINE.videoEl);
-  document.querySelectorAll('video').forEach(observeVideoEl);
-  loadHls();
-}
-
-fullRun();
-[300,700,1200,2000,3500,6000].forEach(function(ms){after(ms,fullRun);});
-
-})();
-""";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shimmer unificado
@@ -623,7 +178,7 @@ class _LocalAssetPlayerState extends State<_LocalAssetPlayer> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Play/Pause overlay — auto-hide, não bloqueia WebView
+// Play/Pause overlay — auto-hide
 // ─────────────────────────────────────────────────────────────────────────────
 class _PlayPauseOverlay extends StatefulWidget {
   final bool playing;
@@ -687,7 +242,7 @@ class _PlayPauseOverlayState extends State<_PlayPauseOverlay>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Botão flutuante do player (mute + download)
+// Botão flutuante do player
 // ─────────────────────────────────────────────────────────────────────────────
 class _PlayerBtn extends StatelessWidget {
   final String svg;
@@ -705,8 +260,7 @@ class _PlayerBtn extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────────
-// Estado vazio — animado, com pulso e fade escalonado
+// Estado vazio — animado
 // ─────────────────────────────────────────────────────────────────────────────
 class _EmptyBody extends StatefulWidget {
   final VoidCallback onAdsLinkTap;
@@ -760,7 +314,6 @@ class _EmptyBodyState extends State<_EmptyBody>
     final t = AppTheme.current;
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      // ── Card de boas-vindas animado ─────────────────────────────────────
       AnimatedBuilder(
         animation: _enterCtrl,
         builder: (_, __) => Transform.translate(
@@ -792,19 +345,10 @@ class _EmptyBodyState extends State<_EmptyBody>
                     style: TextStyle(color: t.text, fontSize: 17,
                         fontWeight: FontWeight.w700, letterSpacing: -0.3))),
                 ]),
-                const SizedBox(height: 10),
-                FadeTransition(
-                  opacity: _fadeSubtitle,
-                  child: Text(
-                    'Vai à aba Explorar, escolhe um vídeo e ele aparece aqui pronto a ver.',
-                    style: TextStyle(color: t.textSecondary, fontSize: 13.5, height: 1.45)),
-                ),
                 const SizedBox(height: 12),
                 FadeTransition(
                   opacity: _fadeSubtitle,
-                  child: Column(children: [
-                    _StepRow(icon: Icons.explore_outlined, label: 'Abre a aba Explorar', color: const Color(0xFF4A90E2)),
-                    const SizedBox(height: 6),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     _StepRow(icon: Icons.play_circle_outline_rounded, label: 'Toca num vídeo', color: const Color(0xFF7ED321)),
                     const SizedBox(height: 6),
                     _StepRow(icon: Icons.tv_rounded, label: 'O player arranca aqui', color: AppTheme.ytRed),
@@ -831,7 +375,6 @@ class _EmptyBodyState extends State<_EmptyBody>
         ),
       ),
 
-      // ── Lottie/ícone com float + pulse ──────────────────────────────────
       Expanded(
         child: AnimatedBuilder(
           animation: Listenable.merge([_pulseCtrl, _floatCtrl, _enterCtrl]),
@@ -893,7 +436,6 @@ class _RelatedCard extends StatefulWidget {
   final void Function(Offset) onMenuTap;
   final int index;
 
-  // ✅ FIX: adicionado {super.key} para aceitar o parâmetro key (ex: ValueKey)
   const _RelatedCard({
     super.key,
     required this.video,
@@ -938,7 +480,6 @@ class _RelatedCardState extends State<_RelatedCard>
       CurvedAnimation(parent: _ac, curve: Curves.easeOutCubic));
     _fade = CurvedAnimation(parent: _ac, curve: Curves.easeOut);
 
-    // Stagger por índice
     Future.delayed(Duration(milliseconds: 40 * widget.index.clamp(0, 15)), () {
       if (mounted) _ac.forward();
     });
@@ -1023,543 +564,6 @@ class _ThumbCompactState extends State<_ThumbCompact> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ExibicaoPage
-// ─────────────────────────────────────────────────────────────────────────────
-class ExibicaoPage extends StatefulWidget {
-  final String? embedUrl;
-  final FeedVideo? currentVideo;
-  final void Function(FeedVideo) onVideoTap;
-  final bool isActive;
-  const ExibicaoPage({super.key, this.embedUrl, this.currentVideo,
-      required this.onVideoTap, this.isActive = true});
-  @override State<ExibicaoPage> createState() => _ExibicaoPageState();
-}
-
-class _ExibicaoPageState extends State<ExibicaoPage>
-    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
-  @override bool get wantKeepAlive => true;
-
-  final List<FeedVideo> _related = [];
-  bool   _loadingRelated = false;
-  InAppWebViewController? _webCtrl;
-  VideoPlayerController? _localCtrl;
-  bool   _muted          = false;
-  bool   _playing        = true;
-  bool   _playerLoading  = true;
-  FeedVideo? _nextVideo;
-  String _detectedEngine = '—';
-
-  // Animação de troca de vídeo (descrição fixa anima internamente)
-  late final AnimationController _descAnim;
-  late final AnimationController _playerEnterAnim;
-
-  // ScrollController para a lista de sugestões apenas
-  final ScrollController _suggestionsScroll = ScrollController();
-
-  bool get _isEmpty => widget.embedUrl == null || widget.currentVideo == null;
-
-  @override void initState() {
-    super.initState();
-    _descAnim = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    )..forward();
-    _playerEnterAnim = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    )..forward();
-    if (!_isEmpty) { _loadRelated(); _startPlayerTimeout(); }
-  }
-
-  void _startPlayerTimeout() {
-    Future.delayed(const Duration(seconds: 12), () {
-      if (mounted && _playerLoading) setState(() => _playerLoading = false);
-    });
-  }
-
-  @override void didUpdateWidget(ExibicaoPage old) {
-    super.didUpdateWidget(old);
-    if (widget.currentVideo != old.currentVideo && !_isEmpty) {
-      // Anima a descrição ao trocar vídeo
-      _descAnim.forward(from: 0.0);
-      _playerEnterAnim.forward(from: 0.0);
-      setState(() { _playerLoading = true; _playing = true; _detectedEngine = '—'; });
-      _loadRelated();
-      _startPlayerTimeout();
-    }
-    if (widget.isActive != old.isActive) {
-      _webSend(widget.isActive ? 'px:play' : 'px:pause');
-      setState(() => _playing = widget.isActive);
-    }
-  }
-
-  @override void dispose() {
-    _descAnim.dispose();
-    _playerEnterAnim.dispose();
-    _suggestionsScroll.dispose();
-    super.dispose();
-  }
-
-  void _webSend(String msg) =>
-      _webCtrl?.evaluateJavascript(source: "window.postMessage('$msg','*')");
-
-  Future<void> _loadRelated() async {
-    if (!mounted) return;
-    setState(() { _loadingRelated = true; _related.clear(); });
-    final videos = await FeedFetcher.fetchAll(Random().nextInt(30) + 1);
-    if (!mounted) return;
-    setState(() {
-      _related..clear()..addAll(videos.where((v) => v.embedUrl != widget.embedUrl).take(20));
-      _loadingRelated = false;
-    });
-  }
-
-  void _snack(String msg) {
-    final t = AppTheme.current;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: TextStyle(color: t.toastText)),
-      backgroundColor: t.toastBg, behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 2)));
-  }
-
-  Future<void> _forceDownload() async {
-    if (_webCtrl == null) return;
-    final video = widget.currentVideo; if (video == null) return;
-    _snack('A capturar link do vídeo...');
-    try {
-      final result = await _webCtrl!.evaluateJavascript(source: r'''
-        (function(){
-          var E=window.__pxEngine;
-          var v=(E&&E.videoEl)||document.querySelector('video');
-          if(!v)return '__none__';
-          var s=v.currentSrc||v.src||'';
-          if(s&&s.startsWith('http'))return s;
-          var src=document.querySelector('source[src]');
-          return src&&src.src&&src.src.startsWith('http')?src.src:'__none__';
-        })()''');
-      final src = result?.toString().replaceAll('"', '').trim() ?? '__none__';
-      if (!mounted) return;
-      if (src == '__none__' || src.isEmpty) { _snack('Inicia a reprodução antes.'); return; }
-      DownloadService.instance.startDownload(url: src, title: video.title,
-          type: 'video', thumbUrl: video.thumb, sourceUrl: video.embedUrl);
-      _snack('Download iniciado');
-    } catch (_) { if (mounted) _snack('Erro ao capturar o vídeo.'); }
-  }
-
-  void _togglePlay() {
-    final np = !_playing;
-    setState(() => _playing = np);
-    if (_isEmpty) { np ? _localCtrl?.play() : _localCtrl?.pause(); }
-    else { _webSend(np ? 'px:play' : 'px:pause'); }
-  }
-
-  void _toggleMute() {
-    final nm = !_muted;
-    setState(() => _muted = nm);
-    if (_isEmpty) { _localCtrl?.setVolume(nm ? 0.0 : 1.0); }
-    else { _webSend(nm ? 'px:mute' : 'px:unmute'); }
-  }
-
-  Future<void> _openAdsUrl() async {
-    final uri = Uri.parse(_kAdsUrl);
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-
-  // FASE A: CSS stealth
-  Future<void> _injectPhaseA(InAppWebViewController ctrl) async {
-    try {
-      await ctrl.evaluateJavascript(source:
-          "if(window.__pxEngine){window.__pxEngine.destroy();window.__pxEngine=null;}");
-      final esc = _kCss0Stealth
-          .replaceAll('\\', '\\\\').replaceAll("'", "\\'")
-          .replaceAll('\n', '\\n').replaceAll('\r', '');
-      await ctrl.evaluateJavascript(source:
-          "window.__pxCss='$esc';window.__pxMuted=$_muted;");
-      await ctrl.evaluateJavascript(source:
-          "(function(){var s=document.getElementById('__pxStealth');"
-          "if(!s){s=document.createElement('style');s.id='__pxStealth';"
-          "(document.head||document.documentElement).appendChild(s);}"
-          "s.textContent=window.__pxCss||'';"
-          "if(document.body){document.body.style.background='#000';"
-          "document.body.style.overflow='hidden';}})()");
-    } catch (_) {}
-  }
-
-  // FASE B: motor completo
-  Future<void> _injectPhaseB(InAppWebViewController ctrl) async {
-    try {
-      await _injectPhaseA(ctrl);
-      await ctrl.evaluateJavascript(source: _kJsEngine);
-      if (_playing) {
-        await Future.delayed(const Duration(milliseconds: 900));
-        if (mounted) _webSend('px:play');
-      }
-    } catch (_) {}
-  }
-
-  void _showVideoMenu(BuildContext ctx, FeedVideo v, Offset pos) {
-    final t = AppTheme.current;
-    final RenderBox overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
-    showMenu<String>(
-      context: ctx, color: t.popup, elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10),
-          side: BorderSide(color: t.borderSoft)),
-      position: RelativeRect.fromRect(pos & const Size(1,1), Offset.zero & overlay.size),
-      items: [
-        _popItem('save',     _svgSaveLater, 'Guardar para assistir mais tarde', t),
-        _popItem('playlist', _svgPlaylist,  'Adicionar na minha playlist',      t),
-        _popItem('next',     _svgPlayNext,  'Exibir como próximo vídeo',        t),
-      ],
-    ).then((val) {
-      if (val == null || !mounted) return;
-      switch (val) {
-        case 'save':     _snack('Guardado para assistir mais tarde'); break;
-        case 'playlist': _snack('Adicionado à playlist'); break;
-        case 'next':     setState(() => _nextVideo = v); _snack('Será exibido a seguir'); break;
-      }
-    });
-  }
-
-  PopupMenuItem<String> _popItem(String val, String svg, String label, AppTheme t) =>
-    PopupMenuItem<String>(value: val, height: 46,
-      child: Row(children: [
-        SvgPicture.string(svg, width: 18, height: 18,
-            colorFilter: ColorFilter.mode(t.iconSub, BlendMode.srcIn)),
-        const SizedBox(width: 12),
-        Expanded(child: Text(label, style: TextStyle(color: t.text, fontSize: 13.5))),
-      ]));
-
-  @override Widget build(BuildContext context) {
-    super.build(context);
-    final t = AppTheme.current;
-    final overlayStyle = SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: t.isDark ? Brightness.light : Brightness.dark,
-    );
-    final screenW = MediaQuery.of(context).size.width;
-    final playerH = screenW * 9 / 16;
-    final video   = widget.currentVideo;
-
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: overlayStyle,
-      child: Scaffold(
-        backgroundColor: t.bg,
-        body: SafeArea(
-          bottom: false,
-          child: Column(children: [
-
-            // ── Player ────────────────────────────────────────────────────────
-            AnimatedBuilder(
-              animation: _playerEnterAnim,
-              builder: (_, child) => FadeTransition(
-                opacity: _playerEnterAnim,
-                child: Transform.translate(
-                  offset: Offset(0, (1 - _playerEnterAnim.value) * -20),
-                  child: child,
-                ),
-              ),
-              child: SizedBox(
-                width: screenW,
-                height: playerH,
-                child: ColoredBox(
-                  color: Colors.black,
-                  child: Stack(children: [
-
-                    // ── WebView tamanho real, UA desktop ──────────────────────
-                    if (!_isEmpty)
-                      Positioned.fill(
-                        child: InAppWebView(
-                          key: ValueKey(widget.embedUrl),
-                          initialUrlRequest: URLRequest(url: WebUri(widget.embedUrl!)),
-                          initialSettings: InAppWebViewSettings(
-                            javaScriptEnabled: true,
-                            mediaPlaybackRequiresUserGesture: false,
-                            allowsInlineMediaPlayback: true,
-                            transparentBackground: true,
-                            disableDefaultErrorPage: true,
-                            disableHorizontalScroll: true,
-                            disableVerticalScroll: true,
-                            supportZoom: false,
-                            builtInZoomControls: false,
-                            displayZoomControls: false,
-                            horizontalScrollBarEnabled: false,
-                            verticalScrollBarEnabled: false,
-                            mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
-                            allowFileAccessFromFileURLs: true,
-                            allowUniversalAccessFromFileURLs: true,
-                            safeBrowsingEnabled: false,
-                            thirdPartyCookiesEnabled: true,
-                            domStorageEnabled: true,
-                            databaseEnabled: true,
-                            useOnLoadResource: true,
-                            useShouldInterceptRequest: false,
-                            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                                'AppleWebKit/537.36 (KHTML, like Gecko) '
-                                'Chrome/124.0.0.0 Safari/537.36',
-                          ),
-                          onWebViewCreated: (ctrl) {
-                            _webCtrl = ctrl;
-                            ctrl.addJavaScriptHandler(
-                              handlerName: 'pxFingerprint',
-                              callback: (args) {
-                                if (!mounted || args.isEmpty) return;
-                                try {
-                                  String eng = '?';
-                                  if (args[0] is String) {
-                                    eng = RegExp(r'"engine":"([^"]+)"')
-                                        .firstMatch(args[0] as String)?.group(1) ?? '?';
-                                  } else {
-                                    eng = (args[0] as Map)['engine']?.toString() ?? '?';
-                                  }
-                                  setState(() => _detectedEngine = eng);
-                                } catch (_) {}
-                              },
-                            );
-                            ctrl.addJavaScriptHandler(
-                              handlerName: 'pxState',
-                              callback: (args) {
-                                if (!mounted || args.isEmpty) return;
-                                try {
-                                  final raw = args[0];
-                                  bool paused = false;
-                                  if (raw is String) {
-                                    paused = raw.contains('"paused":true');
-                                  } else if (raw is Map) {
-                                    paused = raw['paused'] == true;
-                                  }
-                                  if (mounted && _playing == paused) {
-                                    setState(() => _playing = !paused);
-                                  }
-                                } catch (_) {}
-                              },
-                            );
-                          },
-                          onLoadStart: (ctrl, url) async { await _injectPhaseA(ctrl); },
-                          onLoadStop: (ctrl, _) async {
-                            await _injectPhaseB(ctrl);
-                            if (mounted) setState(() => _playerLoading = false);
-                          },
-                          onLoadError: (ctrl, url, code, msg) async {
-                            await _injectPhaseB(ctrl);
-                            if (mounted) setState(() => _playerLoading = false);
-                          },
-                          shouldOverrideUrlLoading: (ctrl, action) async {
-                            final url = action.request.url?.toString() ?? '';
-                            final navType = action.navigationType;
-                            if (navType == NavigationType.LINK_ACTIVATED ||
-                                navType == NavigationType.FORM_SUBMITTED) {
-                              final embedDomains = ['eporner.com','pornhub.com','redtube.com',
-                                'embed.redtube.com','youporn.com','xvideos.com','xhamster.com',
-                                'spankbang.com','bravotube.net','drtuber.com','txxx.com',
-                                'gotporn.com','porndig.com','xnxx.com','xvideos2.com'];
-                              if (!embedDomains.any((d)=>url.contains(d)) && url.startsWith('http')) {
-                                return NavigationActionPolicy.CANCEL;
-                              }
-                            }
-                            return NavigationActionPolicy.ALLOW;
-                          },
-                        ),
-                      ),
-
-                    // ── Video vazio: LocalAssetPlayer em tamanho real ──────────
-                    if (_isEmpty)
-                      Positioned.fill(
-                        child: _LocalAssetPlayer(
-                          muted: _muted, playing: _playing,
-                          onReady: (ctrl) { if (mounted) setState(() => _localCtrl = ctrl); }),
-                      ),
-
-                    // ── Thumbnail enquanto carrega (cobre o WebView invisível) ──
-                    if (!_isEmpty && _playerLoading)
-                      Positioned.fill(child: Stack(children: [
-                        if (video?.thumb != null && video!.thumb.isNotEmpty)
-                          Image.network(video.thumb, fit: BoxFit.cover,
-                            width: double.infinity, height: double.infinity,
-                            headers: const {'User-Agent': 'Mozilla/5.0'},
-                            errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black)),
-                        Container(color: Colors.black54),
-                        const Center(child: CircularProgressIndicator(
-                            color: Colors.white70, strokeWidth: 1.5)),
-                      ])),
-
-                    // ── Play/Pause overlay ──────────────────────────────────────
-                    Positioned.fill(child: _PlayPauseOverlay(
-                        playing: _playing, onTap: _togglePlay)),
-
-                    // ── Gradiente inferior ──────────────────────────────────────
-                    Positioned(left:0, right:0, bottom:0,
-                      child: Container(height: 72,
-                        decoration: const BoxDecoration(gradient: LinearGradient(
-                          begin: Alignment.bottomCenter, end: Alignment.topCenter,
-                          colors: [Color(0xCC000000), Colors.transparent])))),
-
-                    // ── Botões bottom-right ─────────────────────────────────────
-                    Positioned(bottom:8, right:8,
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        _PlayerBtn(svg: _muted ? _svgVolOff : _svgVolOn, onTap: _toggleMute),
-                        const SizedBox(height: 8),
-                        _PlayerBtn(svg: _svgDl, onTap: _forceDownload),
-                      ])),
-                  ]),
-                ),
-              ),
-            ),
-
-            // ── Descrição FIXA (não rola) com gradiente em baixo ─────────────
-            if (!_isEmpty && video != null)
-              AnimatedBuilder(
-                animation: _descAnim,
-                builder: (_, child) => FadeTransition(
-                  opacity: _descAnim,
-                  child: Transform.translate(
-                    offset: Offset(0, (1 - _descAnim.value) * 16),
-                    child: child,
-                  ),
-                ),
-                child: _VideoDescription(
-                  video: video,
-                  detectedEngine: _detectedEngine,
-                  nextVideo: _nextVideo,
-                  onNextVideoTap: () {
-                    if (_nextVideo != null) {
-                      widget.onVideoTap(_nextVideo!);
-                      setState(() => _nextVideo = null);
-                    }
-                  },
-                  onNextVideoClose: () => setState(() => _nextVideo = null),
-                ),
-              ),
-
-            // ── Sugestões (rola independentemente) ───────────────────────────
-            Expanded(
-              child: _isEmpty
-                  ? _EmptyBody(onAdsLinkTap: _openAdsUrl)
-                  : _SuggestionsSection(
-                      loading: _loadingRelated,
-                      related: _related,
-                      onVideoTap: (v) {
-                        if (_nextVideo?.embedUrl == v.embedUrl) {
-                          setState(() => _nextVideo = null);
-                        }
-                        widget.onVideoTap(v);
-                      },
-                      onMenuTap: (v, pos) => _showVideoMenu(context, v, pos),
-                    ),
-            ),
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Descrição fixa do vídeo — com gradiente de fundo dependente do tema
-// ─────────────────────────────────────────────────────────────────────────────
-class _VideoDescription extends StatelessWidget {
-  final FeedVideo video;
-  final String detectedEngine;
-  final FeedVideo? nextVideo;
-  final VoidCallback onNextVideoTap;
-  final VoidCallback onNextVideoClose;
-
-  const _VideoDescription({
-    required this.video,
-    required this.detectedEngine,
-    required this.nextVideo,
-    required this.onNextVideoTap,
-    required this.onNextVideoClose,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-
-    final gradientColors = t.isDark
-        ? [t.bg, t.bg.withOpacity(0.96), t.bg.withOpacity(0.0)]
-        : [t.bg, t.bg.withOpacity(0.96), t.bg.withOpacity(0.0)];
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: gradientColors,
-          stops: const [0.0, 0.75, 1.0],
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Título
-        Text(video.title, style: TextStyle(color: t.text, fontSize: 14.5,
-            fontWeight: FontWeight.w600, height: 1.3)),
-        const SizedBox(height: 6),
-
-        // Fonte + views + engine badge
-        Row(children: [
-          ClipRRect(borderRadius: BorderRadius.circular(6),
-            child: Image.network(faviconForSource(video.source),
-                width: 14, height: 14,
-                errorBuilder: (_, __, ___) => const SizedBox(width: 14, height: 14))),
-          const SizedBox(width: 5),
-          Text(video.sourceLabel, style: TextStyle(
-              color: t.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w500)),
-          if (video.views.isNotEmpty)
-            Text('  ·  ${video.views} vis.',
-                style: TextStyle(color: t.textHint, fontSize: 11.5)),
-          if (detectedEngine != '—') ...[
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(
-                color: AppTheme.ytRed.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(4)),
-              child: Text(detectedEngine, style: TextStyle(
-                  color: AppTheme.ytRed, fontSize: 10, fontWeight: FontWeight.w700))),
-          ],
-        ]),
-
-        const SizedBox(height: 10),
-        Divider(color: t.divider, thickness: 1, height: 1),
-        const SizedBox(height: 8),
-
-        // Banner "próximo vídeo"
-        if (nextVideo != null) ...[
-          GestureDetector(
-            onTap: onNextVideoTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: t.isDark ? const Color(0xFF2A1A1A) : const Color(0xFFFFF0F0),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: t.isDark ? const Color(0xFF5A2020) : const Color(0xFFFFCCCC))),
-              child: Row(children: [
-                SvgPicture.string(_svgPlaylist, width: 15, height: 15,
-                    colorFilter: ColorFilter.mode(AppTheme.ytRed, BlendMode.srcIn)),
-                const SizedBox(width: 10),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Seguinte:', style: TextStyle(color: AppTheme.ytRed,
-                      fontSize: 11, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 2),
-                  Text(nextVideo!.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: t.text, fontSize: 12.5, fontWeight: FontWeight.w600)),
-                  Text(nextVideo!.sourceLabel,
-                      style: TextStyle(color: t.textSecondary, fontSize: 11)),
-                ])),
-                GestureDetector(
-                  onTap: onNextVideoClose,
-                  child: Padding(padding: const EdgeInsets.only(left: 8),
-                      child: Icon(Icons.close_rounded, color: t.iconTertiary, size: 18))),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ]),
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Secção de sugestões — rola de forma independente
@@ -1609,9 +613,7 @@ class _SuggestionsSectionState extends State<_SuggestionsSection> {
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (_, i) {
-                if (i >= widget.related.length) {
-                  return const SizedBox(height: 32);
-                }
+                if (i >= widget.related.length) return const SizedBox(height: 32);
                 final v = widget.related[i];
                 return _RelatedCard(
                   key: ValueKey(v.embedUrl),
@@ -1625,6 +627,323 @@ class _SuggestionsSectionState extends State<_SuggestionsSection> {
             ),
           ),
       ],
+    );
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExibicaoPage
+// ─────────────────────────────────────────────────────────────────────────────
+class ExibicaoPage extends StatefulWidget {
+  final String? embedUrl;
+  final FeedVideo? currentVideo;
+  final void Function(FeedVideo) onVideoTap;
+  final bool isActive;
+  // 10 primeiros vídeos do explore passados directamente — sem fetch adicional
+  final List<FeedVideo> exploreVideos;
+
+  const ExibicaoPage({
+    super.key,
+    this.embedUrl,
+    this.currentVideo,
+    required this.onVideoTap,
+    this.isActive = true,
+    this.exploreVideos = const [],
+  });
+
+  @override State<ExibicaoPage> createState() => _ExibicaoPageState();
+}
+
+class _ExibicaoPageState extends State<ExibicaoPage>
+    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
+  @override bool get wantKeepAlive => true;
+
+  // Sugestões: vêm dos 10 primeiros vídeos do explore, sem fetch
+  List<FeedVideo> get _related => widget.exploreVideos
+      .where((v) => v.embedUrl != widget.embedUrl)
+      .take(10)
+      .toList();
+
+  InAppWebViewController? _webCtrl;
+  VideoPlayerController?  _localCtrl;
+  bool _muted         = false;
+  bool _playing       = true;
+  bool _playerLoading = true;
+
+  late final AnimationController _playerEnterAnim;
+
+  bool get _isEmpty => widget.embedUrl == null || widget.currentVideo == null;
+
+  @override void initState() {
+    super.initState();
+    _playerEnterAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..forward();
+    if (!_isEmpty) _startPlayerTimeout();
+  }
+
+  void _startPlayerTimeout() {
+    Future.delayed(const Duration(seconds: 12), () {
+      if (mounted && _playerLoading) setState(() => _playerLoading = false);
+    });
+  }
+
+  @override void didUpdateWidget(ExibicaoPage old) {
+    super.didUpdateWidget(old);
+    if (widget.currentVideo != old.currentVideo && !_isEmpty) {
+      _playerEnterAnim.forward(from: 0.0);
+      setState(() { _playerLoading = true; _playing = true; });
+      _startPlayerTimeout();
+    }
+    if (widget.isActive != old.isActive) {
+      _webSend(widget.isActive ? 'px:play' : 'px:pause');
+      setState(() => _playing = widget.isActive);
+    }
+  }
+
+  @override void dispose() {
+    _playerEnterAnim.dispose();
+    super.dispose();
+  }
+
+  void _webSend(String msg) =>
+      _webCtrl?.evaluateJavascript(source: "window.postMessage('$msg','*')");
+
+  void _snack(String msg) {
+    final t = AppTheme.current;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: TextStyle(color: t.toastText)),
+      backgroundColor: t.toastBg, behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 2)));
+  }
+
+  Future<void> _forceDownload() async {
+    if (_webCtrl == null) return;
+    final video = widget.currentVideo; if (video == null) return;
+    _snack('A capturar link do vídeo...');
+    try {
+      final result = await _webCtrl!.evaluateJavascript(source: r'''
+        (function(){
+          var v=document.querySelector('video');
+          if(!v)return '__none__';
+          var s=v.currentSrc||v.src||'';
+          if(s&&s.startsWith('http'))return s;
+          var src=document.querySelector('source[src]');
+          return src&&src.src&&src.src.startsWith('http')?src.src:'__none__';
+        })()''');
+      final src = result?.toString().replaceAll('"', '').trim() ?? '__none__';
+      if (!mounted) return;
+      if (src == '__none__' || src.isEmpty) { _snack('Inicia a reprodução antes.'); return; }
+      DownloadService.instance.startDownload(url: src, title: video.title,
+          type: 'video', thumbUrl: video.thumb, sourceUrl: video.embedUrl);
+      _snack('Download iniciado');
+    } catch (_) { if (mounted) _snack('Erro ao capturar o vídeo.'); }
+  }
+
+  void _togglePlay() {
+    final np = !_playing;
+    setState(() => _playing = np);
+    if (_isEmpty) { np ? _localCtrl?.play() : _localCtrl?.pause(); }
+    else { _webSend(np ? 'px:play' : 'px:pause'); }
+  }
+
+  void _toggleMute() {
+    final nm = !_muted;
+    setState(() => _muted = nm);
+    if (_isEmpty) { _localCtrl?.setVolume(nm ? 0.0 : 1.0); }
+    else { _webSend(nm ? 'px:mute' : 'px:unmute'); }
+  }
+
+  Future<void> _openAdsUrl() async {
+    final uri = Uri.parse(_kAdsUrl);
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  void _showVideoMenu(BuildContext ctx, FeedVideo v, Offset pos) {
+    final t = AppTheme.current;
+    final RenderBox overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
+    showMenu<String>(
+      context: ctx, color: t.popup, elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: t.borderSoft)),
+      position: RelativeRect.fromRect(pos & const Size(1,1), Offset.zero & overlay.size),
+      items: [
+        _popItem('save',     _svgSaveLater, 'Guardar para assistir mais tarde', t),
+        _popItem('playlist', _svgPlaylist,  'Adicionar na minha playlist',      t),
+        _popItem('next',     _svgPlayNext,  'Exibir como próximo vídeo',        t),
+      ],
+    ).then((val) {
+      if (val == null || !mounted) return;
+      switch (val) {
+        case 'save':     _snack('Guardado para assistir mais tarde'); break;
+        case 'playlist': _snack('Adicionado à playlist'); break;
+        case 'next':     _snack('Será exibido a seguir'); break;
+      }
+    });
+  }
+
+  PopupMenuItem<String> _popItem(String val, String svg, String label, AppTheme t) =>
+    PopupMenuItem<String>(value: val, height: 46,
+      child: Row(children: [
+        SvgPicture.string(svg, width: 18, height: 18,
+            colorFilter: ColorFilter.mode(t.iconSub, BlendMode.srcIn)),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label, style: TextStyle(color: t.text, fontSize: 13.5))),
+      ]));
+
+  @override Widget build(BuildContext context) {
+    super.build(context);
+    final t = AppTheme.current;
+    final overlayStyle = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: t.isDark ? Brightness.light : Brightness.dark,
+    );
+    final screenW = MediaQuery.of(context).size.width;
+    final playerH = screenW * 9 / 16;
+    final video   = widget.currentVideo;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: overlayStyle,
+      child: Scaffold(
+        backgroundColor: t.bg,
+        body: SafeArea(
+          bottom: false,
+          child: Column(children: [
+
+            // ── Player ────────────────────────────────────────────────────────
+            AnimatedBuilder(
+              animation: _playerEnterAnim,
+              builder: (_, child) => FadeTransition(
+                opacity: _playerEnterAnim,
+                child: Transform.translate(
+                  offset: Offset(0, (1 - _playerEnterAnim.value) * -20),
+                  child: child,
+                ),
+              ),
+              child: SizedBox(
+                width: screenW,
+                height: playerH,
+                child: ColoredBox(
+                  color: Colors.black,
+                  child: Stack(children: [
+
+                    // ── WebView — carrega embed directamente, sem injecções ────
+                    if (!_isEmpty)
+                      Positioned.fill(
+                        child: InAppWebView(
+                          key: ValueKey(widget.embedUrl),
+                          initialUrlRequest: URLRequest(url: WebUri(widget.embedUrl!)),
+                          initialSettings: InAppWebViewSettings(
+                            javaScriptEnabled: true,
+                            mediaPlaybackRequiresUserGesture: false,
+                            allowsInlineMediaPlayback: true,
+                            transparentBackground: true,
+                            disableDefaultErrorPage: true,
+                            disableHorizontalScroll: true,
+                            disableVerticalScroll: true,
+                            supportZoom: false,
+                            builtInZoomControls: false,
+                            displayZoomControls: false,
+                            horizontalScrollBarEnabled: false,
+                            verticalScrollBarEnabled: false,
+                            mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+                            allowFileAccessFromFileURLs: true,
+                            allowUniversalAccessFromFileURLs: true,
+                            safeBrowsingEnabled: false,
+                            thirdPartyCookiesEnabled: true,
+                            domStorageEnabled: true,
+                            databaseEnabled: true,
+                            useOnLoadResource: true,
+                            useShouldInterceptRequest: false,
+                            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                                'Chrome/124.0.0.0 Safari/537.36',
+                          ),
+                          onWebViewCreated: (ctrl) => _webCtrl = ctrl,
+                          onLoadStop: (ctrl, _) {
+                            if (mounted) setState(() => _playerLoading = false);
+                          },
+                          onLoadError: (ctrl, url, code, msg) {
+                            if (mounted) setState(() => _playerLoading = false);
+                          },
+                          shouldOverrideUrlLoading: (ctrl, action) async {
+                            final url = action.request.url?.toString() ?? '';
+                            final navType = action.navigationType;
+                            if (navType == NavigationType.LINK_ACTIVATED ||
+                                navType == NavigationType.FORM_SUBMITTED) {
+                              const embedDomains = ['eporner.com','pornhub.com','redtube.com',
+                                'embed.redtube.com','youporn.com','xvideos.com','xhamster.com',
+                                'spankbang.com','bravotube.net','drtuber.com','txxx.com',
+                                'gotporn.com','porndig.com','xnxx.com','xvideos2.com'];
+                              if (!embedDomains.any((d) => url.contains(d)) && url.startsWith('http')) {
+                                return NavigationActionPolicy.CANCEL;
+                              }
+                            }
+                            return NavigationActionPolicy.ALLOW;
+                          },
+                        ),
+                      ),
+
+                    // ── Vídeo local quando vazio ──────────────────────────────
+                    if (_isEmpty)
+                      Positioned.fill(
+                        child: _LocalAssetPlayer(
+                          muted: _muted, playing: _playing,
+                          onReady: (ctrl) { if (mounted) setState(() => _localCtrl = ctrl); }),
+                      ),
+
+                    // ── Thumbnail enquanto carrega ─────────────────────────────
+                    if (!_isEmpty && _playerLoading)
+                      Positioned.fill(child: Stack(children: [
+                        if (video?.thumb != null && video!.thumb.isNotEmpty)
+                          Image.network(video.thumb, fit: BoxFit.cover,
+                            width: double.infinity, height: double.infinity,
+                            headers: const {'User-Agent': 'Mozilla/5.0'},
+                            errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black)),
+                        Container(color: Colors.black54),
+                        const Center(child: CircularProgressIndicator(
+                            color: Colors.white70, strokeWidth: 1.5)),
+                      ])),
+
+                    // ── Play/Pause overlay ────────────────────────────────────
+                    Positioned.fill(child: _PlayPauseOverlay(
+                        playing: _playing, onTap: _togglePlay)),
+
+                    // ── Gradiente inferior ────────────────────────────────────
+                    Positioned(left:0, right:0, bottom:0,
+                      child: Container(height: 72,
+                        decoration: const BoxDecoration(gradient: LinearGradient(
+                          begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                          colors: [Color(0xCC000000), Colors.transparent])))),
+
+                    // ── Botões bottom-right ───────────────────────────────────
+                    Positioned(bottom:8, right:8,
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        _PlayerBtn(svg: _muted ? _svgVolOff : _svgVolOn, onTap: _toggleMute),
+                        const SizedBox(height: 8),
+                        _PlayerBtn(svg: _svgDl, onTap: _forceDownload),
+                      ])),
+                  ]),
+                ),
+              ),
+            ),
+
+            // ── Sugestões dos 10 primeiros do explore ─────────────────────────
+            Expanded(
+              child: _isEmpty
+                  ? _EmptyBody(onAdsLinkTap: _openAdsUrl)
+                  : _SuggestionsSection(
+                      loading: false,
+                      related: _related,
+                      onVideoTap: widget.onVideoTap,
+                      onMenuTap: (v, pos) => _showVideoMenu(context, v, pos),
+                    ),
+            ),
+          ]),
+        ),
+      ),
     );
   }
 }
