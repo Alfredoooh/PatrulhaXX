@@ -744,7 +744,10 @@ class _RelatedCard extends StatefulWidget {
   final VoidCallback onTap;
   final void Function(Offset) onMenuTap;
   final int index;
+
+  // ✅ FIX: adicionado {super.key} para aceitar o parâmetro key (ex: ValueKey)
   const _RelatedCard({
+    super.key,
     required this.video,
     required this.onTap,
     required this.onMenuTap,
@@ -1099,10 +1102,6 @@ class _ExibicaoPageState extends State<ExibicaoPage>
           child: Column(children: [
 
             // ── Player ────────────────────────────────────────────────────────
-            // O InAppWebView fica colado à sua dimensão real (playerH).
-            // Por baixo do Stack visível fica o WebView num SizedBox minúsculo
-            // (1×1) apenas para manter o vídeo a correr, enquanto a thumbnail
-            // + overlay ocupam o espaço visual real do player.
             AnimatedBuilder(
               animation: _playerEnterAnim,
               builder: (_, child) => FadeTransition(
@@ -1120,10 +1119,8 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                   child: Stack(children: [
 
                     // ── WebView super pequeño: mantém o áudio/vídeo a correr
-                    // mas é completamente invisível ao utilizador.
                     if (!_isEmpty)
                       Positioned(
-                        // 1×1 no canto inferior direito — invisível mas funcional
                         bottom: 0, right: 0,
                         width: 1, height: 1,
                         child: InAppWebView(
@@ -1333,8 +1330,6 @@ class _VideoDescription extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppTheme.current;
 
-    // Gradiente: tema escuro → negro em cima, transparente em baixo
-    // Tema claro → branco em cima, transparente em baixo
     final gradientColors = t.isDark
         ? [t.bg, t.bg.withOpacity(0.96), t.bg.withOpacity(0.0)]
         : [t.bg, t.bg.withOpacity(0.96), t.bg.withOpacity(0.0)];
