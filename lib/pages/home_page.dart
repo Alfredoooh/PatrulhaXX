@@ -8,8 +8,6 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:lottie/lottie.dart';
 import 'package:animations/animations.dart';
-import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../models/site_model.dart';
 import '../widgets/site_icon_widget.dart';
@@ -21,6 +19,7 @@ import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 import '../services/theme_service.dart';
 import 'exibicao_page.dart';
+import 'explore_page.dart';
 import '../theme/app_theme.dart';
 
 const kPrimaryColor = Color(0xFFFF9000);
@@ -108,7 +107,6 @@ Route<T> _iosRoute<T>(Widget page) {
     transitionDuration: const Duration(milliseconds: 380),
     reverseTransitionDuration: const Duration(milliseconds: 320),
     transitionsBuilder: (_, animation, secondaryAnimation, child) {
-      // Slide da direita (iOS nativo)
       final slide = Tween<Offset>(
         begin: const Offset(1.0, 0.0),
         end: Offset.zero,
@@ -117,7 +115,6 @@ Route<T> _iosRoute<T>(Widget page) {
         curve: Curves.easeOutCubic,
         reverseCurve: Curves.easeInCubic,
       ));
-      // A página actual desliza ligeiramente para a esquerda (efeito iOS)
       final pushSlide = Tween<Offset>(
         begin: Offset.zero,
         end: const Offset(-0.3, 0.0),
@@ -133,6 +130,31 @@ Route<T> _iosRoute<T>(Widget page) {
     },
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// kSites — lista expandida de sites
+// ─────────────────────────────────────────────────────────────────────────────
+final kSites = <SiteModel>[
+  SiteModel(id: 'pornhub',    name: 'Pornhub',    baseUrl: 'https://www.pornhub.com',    allowedDomain: 'pornhub.com',    searchUrl: 'https://www.pornhub.com/video/search?search=',   primaryColor: const Color(0xFFFF9000)),
+  SiteModel(id: 'xvideos',   name: 'XVideos',    baseUrl: 'https://www.xvideos.com',    allowedDomain: 'xvideos.com',    searchUrl: 'https://www.xvideos.com/?k=',                     primaryColor: const Color(0xFF1A1A1A)),
+  SiteModel(id: 'xhamster',  name: 'xHamster',   baseUrl: 'https://xhamster.com',       allowedDomain: 'xhamster.com',   searchUrl: 'https://xhamster.com/search/',                    primaryColor: const Color(0xFFE8630A)),
+  SiteModel(id: 'redtube',   name: 'RedTube',    baseUrl: 'https://www.redtube.com',    allowedDomain: 'redtube.com',    searchUrl: 'https://www.redtube.com/?search=',                primaryColor: const Color(0xFFD40000)),
+  SiteModel(id: 'youporn',   name: 'YouPorn',    baseUrl: 'https://www.youporn.com',    allowedDomain: 'youporn.com',    searchUrl: 'https://www.youporn.com/search/video/?query=',    primaryColor: const Color(0xFF0D0D0D)),
+  SiteModel(id: 'spankbang', name: 'SpankBang',  baseUrl: 'https://spankbang.com',      allowedDomain: 'spankbang.com',  searchUrl: 'https://spankbang.com/s/',                        primaryColor: const Color(0xFFE3272D)),
+  SiteModel(id: 'eporner',   name: 'Eporner',    baseUrl: 'https://www.eporner.com',    allowedDomain: 'eporner.com',    searchUrl: 'https://www.eporner.com/search/',                 primaryColor: const Color(0xFF2196F3)),
+  SiteModel(id: 'xnxx',      name: 'XNXX',       baseUrl: 'https://www.xnxx.com',       allowedDomain: 'xnxx.com',       searchUrl: 'https://www.xnxx.com/search/',                    primaryColor: const Color(0xFF1A1A1A)),
+  SiteModel(id: 'tube8',     name: 'Tube8',      baseUrl: 'https://www.tube8.com',      allowedDomain: 'tube8.com',      searchUrl: 'https://www.tube8.com/search/video/?search=',     primaryColor: const Color(0xFFFF6600)),
+  SiteModel(id: 'txxx',      name: 'TXXX',       baseUrl: 'https://www.txxx.com',       allowedDomain: 'txxx.com',       searchUrl: 'https://www.txxx.com/search/',                    primaryColor: const Color(0xFF333333)),
+  SiteModel(id: 'bravotube', name: 'BravoTube',  baseUrl: 'https://www.bravotube.net',  allowedDomain: 'bravotube.net',  searchUrl: 'https://www.bravotube.net/search/',               primaryColor: const Color(0xFFE53935)),
+  SiteModel(id: 'drtuber',   name: 'DrTuber',    baseUrl: 'https://www.drtuber.com',    allowedDomain: 'drtuber.com',    searchUrl: 'https://www.drtuber.com/search/video/',           primaryColor: const Color(0xFF009688)),
+  SiteModel(id: 'gotporn',   name: 'GotPorn',    baseUrl: 'https://www.gotporn.com',    allowedDomain: 'gotporn.com',    searchUrl: 'https://www.gotporn.com/search/',                 primaryColor: const Color(0xFFFF5722)),
+  SiteModel(id: 'porndig',   name: 'PornDig',    baseUrl: 'https://www.porndig.com',    allowedDomain: 'porndig.com',    searchUrl: 'https://www.porndig.com/search/',                 primaryColor: const Color(0xFFAA00FF)),
+  SiteModel(id: 'hclips',    name: 'HClips',     baseUrl: 'https://hclips.com',         allowedDomain: 'hclips.com',     searchUrl: 'https://hclips.com/search/',                      primaryColor: const Color(0xFFCC2200)),
+  SiteModel(id: 'fuq',       name: 'Fuq',        baseUrl: 'https://www.fuq.com',        allowedDomain: 'fuq.com',        searchUrl: 'https://www.fuq.com/search/?q=',                  primaryColor: const Color(0xFF222222)),
+  SiteModel(id: 'porntube',  name: 'PornTube',   baseUrl: 'https://www.porntube.com',   allowedDomain: 'porntube.com',   searchUrl: 'https://www.porntube.com/search?term=',           primaryColor: const Color(0xFFDD2222)),
+  SiteModel(id: 'sunporno',  name: 'SunPorno',   baseUrl: 'https://www.sunporno.com',   allowedDomain: 'sunporno.com',   searchUrl: 'https://www.sunporno.com/search/',                primaryColor: const Color(0xFFFF8C00)),
+];
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HomePage
@@ -243,17 +265,10 @@ class _HomePageState extends State<HomePage>
               builder: (_, __) {
                 return AnimatedBuilder(
                   animation: _tabAnim,
-                  builder: (_, child) {
-                    // Animação entre tabs: fade + leve scale (não é slide)
-                    final opacity = CurvedAnimation(
-                      parent: _tabAnim,
-                      curve: Curves.easeOutCubic,
-                    ).value;
-                    return FadeTransition(
-                      opacity: _tabAnim,
-                      child: child,
-                    );
-                  },
+                  builder: (_, child) => FadeTransition(
+                    opacity: _tabAnim,
+                    child: child,
+                  ),
                   child: IndexedStack(
                     index: _tab,
                     children: [
@@ -268,8 +283,8 @@ class _HomePageState extends State<HomePage>
                         navColor: const Color(0xFF111111),
                         navIsLight: false,
                       ),
-                      _ShortsTab(
-                        navBottom: 0,
+                      // Tab 1 — Explorar (ficheiro separado)
+                      ExplorePage(
                         onVideoTap: (FeedVideo video) {
                           setState(() {
                             _selectedEmbedUrl = video.embedUrl;
@@ -481,7 +496,7 @@ class _MiniPlayerState extends State<_MiniPlayer>
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _BottomNav — fundo levemente menos escuro (-5%)
+// _BottomNav — mesma cor do body (t.bg), sem escurecimento/clarificação
 // ─────────────────────────────────────────────────────────────────────────────
 class _BottomNav extends StatelessWidget {
   final int tab;
@@ -499,13 +514,10 @@ class _BottomNav extends StatelessWidget {
       listenable: ThemeService.instance,
       builder: (_, __) {
         final t = AppTheme.current;
-        // Navbg levemente menos escuro (-5%)
-        final navBg = t.isDark
-            ? Color.lerp(t.navBg, Colors.white, 0.05)!
-            : Color.lerp(t.navBg, Colors.black, 0.05)!;
+        // Mesma cor exacta do body — sem lerp, sem modificação
         return Container(
           decoration: BoxDecoration(
-            color: navBg,
+            color: t.bg,
             border: Border(top: BorderSide(color: t.navBorder, width: 0.5)),
           ),
           padding: EdgeInsets.only(bottom: safeBottom),
@@ -520,7 +532,6 @@ class _BottomNav extends StatelessWidget {
                 active: tab == 0,
                 onTap: () => onTab(0),
               ),
-              // Tab "Explorar" — igual aos demais (ícone + nome em baixo)
               _NavIcon(
                 label: 'Explorar',
                 assetFilled: 'assets/icons/svg/explore_filled.svg',
@@ -661,41 +672,6 @@ class _WallpaperColorExtractorState extends State<_WallpaperColorExtractor> {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _NavAppBar — hambúrguer + título "Início"
-// ─────────────────────────────────────────────────────────────────────────────
-class _NavAppBar extends StatelessWidget {
-  final VoidCallback onMenu;
-  const _NavAppBar({required this.onMenu});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    return Row(children: [
-      GestureDetector(
-        onTap: onMenu,
-        behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          width: 38, height: 38,
-          child: Center(
-            child: SvgPicture.asset(
-              'assets/icons/svg/hamburger.svg', width: 22, height: 22,
-              colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(width: 12),
-      Text('Início',
-        style: TextStyle(
-          color: t.text, fontSize: 20,
-          fontWeight: FontWeight.w700, letterSpacing: -0.5,
-        )),
-    ]);
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
 // _NavDrawer
 // ─────────────────────────────────────────────────────────────────────────────
 class _NavDrawer extends StatelessWidget {
@@ -790,7 +766,7 @@ class _DrawerItemSvg extends StatelessWidget {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _HomeTab — AppBar com scroll-aware (searchbar + botões sobem/aparecem como ícones)
+// _HomeTab
 // ─────────────────────────────────────────────────────────────────────────────
 class _HomeTab extends StatefulWidget {
   final AnimationController fadeIn;
@@ -819,7 +795,6 @@ class _HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<_HomeTab> {
   final ScrollController _scroll = ScrollController();
-  // 0.0 = tudo visível, 1.0 = scrolled (searchbar+botões escondidos, ícones visíveis)
   double _collapseProgress = 0.0;
   static const double _kCollapseThreshold = 80.0;
 
@@ -871,7 +846,6 @@ class _HomeTabState extends State<_HomeTab> {
         opacity: CurvedAnimation(parent: widget.fadeIn, curve: Curves.easeOut),
         child: Column(children: [
 
-          // ── AppBar FIXO ────────────────────────────────────────────────────
           SafeArea(
             bottom: false,
             child: AnimatedBuilder(
@@ -887,7 +861,6 @@ class _HomeTabState extends State<_HomeTab> {
             ),
           ),
 
-          // ── Conteúdo scrollável ────────────────────────────────────────────
           Expanded(
             child: CustomScrollView(
               controller: _scroll,
@@ -898,7 +871,6 @@ class _HomeTabState extends State<_HomeTab> {
                     child: _SitesRow(sites: kSites, onTap: widget.onOpen),
                   ),
                 ),
-                // Feed estilo Facebook com fotos de múltiplas fontes
                 const SliverToBoxAdapter(child: _HomeFeedSection()),
                 SliverToBoxAdapter(child: SizedBox(height: widget.navBottom + 16)),
               ],
@@ -910,7 +882,7 @@ class _HomeTabState extends State<_HomeTab> {
   }
 }
 
-// ─── AppBar da _HomeTab com colapso suave ────────────────────────────────────
+// ─── AppBar da _HomeTab ───────────────────────────────────────────────────────
 class _HomeAppBar extends StatelessWidget {
   final double collapseProgress;
   final VoidCallback onMenu, onDownloads, onSettings;
@@ -929,16 +901,12 @@ class _HomeAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    // Altura do bloco colapsável: searchbar(50) + actionRow(48) + spacings(10+10+14) = ~132
-    final collapseH = (1.0 - collapseProgress) * 132.0;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Linha do título + ícones de ação (sempre visível mas ícones
-          // aparecem quando collapsed)
           Row(children: [
             GestureDetector(
               onTap: onMenu,
@@ -961,8 +929,7 @@ class _HomeAppBar extends StatelessWidget {
                   fontWeight: FontWeight.w700, letterSpacing: -0.5,
                 )),
             ),
-            // Ícones que aparecem quando colapsa
-            if (collapseProgress > 0.1) ...[
+            if (collapseProgress > 0.1)
               Opacity(
                 opacity: collapseProgress,
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -985,10 +952,8 @@ class _HomeAppBar extends StatelessWidget {
                   ),
                 ]),
               ),
-            ],
           ]),
 
-          // Bloco colapsável: searchbar + botões
           ClipRect(
             child: Align(
               alignment: Alignment.topCenter,
@@ -1019,7 +984,6 @@ class _HomeAppBar extends StatelessWidget {
   }
 }
 
-// Botão ícone SVG compacto para a barra colapsada
 class _IconBtn extends StatelessWidget {
   final String assetPath;
   final VoidCallback onTap;
@@ -1042,7 +1006,7 @@ class _IconBtn extends StatelessWidget {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _HomeFeedSection — feed estilo Facebook com imagens de fontes de pornografia
+// _HomeFeedSection — feed de fotos estilo masonry
 // ─────────────────────────────────────────────────────────────────────────────
 class _HomeFeedSection extends StatefulWidget {
   const _HomeFeedSection();
@@ -1120,7 +1084,7 @@ class _HomeFeedSectionState extends State<_HomeFeedSection>
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(children: [
-              Text('Explorar fotos',
+              Text('Fotos em destaque',
                 style: TextStyle(
                   color: t.text, fontSize: 16,
                   fontWeight: FontWeight.w700, letterSpacing: -0.3,
@@ -1131,9 +1095,9 @@ class _HomeFeedSectionState extends State<_HomeFeedSection>
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
-            mainAxisSpacing: 4,
-            crossAxisSpacing: 4,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            mainAxisSpacing: 3,
+            crossAxisSpacing: 3,
+            padding: const EdgeInsets.symmetric(horizontal: 3),
             itemCount: _photos.length,
             itemBuilder: (_, i) => _HomeFeedPhotoTile(photo: _photos[i]),
           ),
@@ -1152,7 +1116,7 @@ class _HomeFeedPhotoTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppTheme.current;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(5),
       child: Stack(
         children: [
           Image.network(
@@ -1180,7 +1144,6 @@ class _HomeFeedPhotoTile extends StatelessWidget {
               ),
             ),
           ),
-          // Label da fonte no canto
           if (photo.sourceLabel.isNotEmpty)
             Positioned(
               bottom: 0, left: 0, right: 0,
@@ -1298,7 +1261,7 @@ class _SearchTrigger extends StatelessWidget {
 }
 
 
-// ─── _SearchPage ─────────────────────────────────────────────────────────────
+// ─── _SearchPage ──────────────────────────────────────────────────────────────
 class _SearchPage extends StatefulWidget {
   const _SearchPage();
   @override
@@ -1468,7 +1431,7 @@ class _SearchPageState extends State<_SearchPage> {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _ActionRow — botões Downloads + Definições
+// _ActionRow
 // ─────────────────────────────────────────────────────────────────────────────
 class _ActionRow extends StatelessWidget {
   final VoidCallback onDownloads, onSettings;
@@ -1483,8 +1446,8 @@ class _ActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final bgColor     = t.btnGhost;
-    final borderColor = t.border;
+    final bgColor      = t.btnGhost;
+    final borderColor  = t.border;
     final contentColor = t.text;
 
     return Row(children: [
@@ -1557,6 +1520,87 @@ class _ActionBtn extends StatelessWidget {
 }
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// _SitesRow
+// ─────────────────────────────────────────────────────────────────────────────
+class _SitesRow extends StatelessWidget {
+  final List<SiteModel> sites;
+  final void Function(SiteModel) onTap;
+  const _SitesRow({required this.sites, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 88,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: sites.length,
+        itemBuilder: (_, i) => _SiteCell(site: sites[i], onTap: () => onTap(sites[i])),
+      ),
+    );
+  }
+}
+
+class _SiteCell extends StatefulWidget {
+  final SiteModel site;
+  final VoidCallback onTap;
+  const _SiteCell({required this.site, required this.onTap});
+  @override
+  State<_SiteCell> createState() => _SiteCellState();
+}
+
+class _SiteCellState extends State<_SiteCell> with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _s;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 90),
+        reverseDuration: const Duration(milliseconds: 200),
+        lowerBound: 0, upperBound: 1);
+    _s = Tween<double>(begin: 1.0, end: 0.86)
+        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    const double iconSize = 52;
+    return GestureDetector(
+      onTapDown: (_) => _c.forward(),
+      onTapUp: (_) { _c.reverse(); widget.onTap(); },
+      onTapCancel: () => _c.reverse(),
+      child: AnimatedBuilder(
+        animation: _s,
+        builder: (_, child) => Transform.scale(scale: _s.value, child: child),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            SiteIconWidget(site: widget.site, size: iconSize, showShadow: true),
+            const SizedBox(height: 5),
+            SizedBox(
+              width: iconSize + 10,
+              child: Text(widget.site.name,
+                  textAlign: TextAlign.center, maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: AppTheme.current.iconSub,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500)),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Modelo de foto do feed
@@ -1591,9 +1635,7 @@ class FeedPhoto {
     }
     if (url.isEmpty) return null;
     return FeedPhoto(
-      id: 'ph_$id',
-      url: url,
-      thumb: url,
+      id: 'ph_$id', url: url, thumb: url,
       title: j['title'] as String? ?? '',
       source: 'https://www.pornhub.com/favicon.ico',
       sourceLabel: 'Pornhub',
@@ -1604,13 +1646,10 @@ class FeedPhoto {
   static FeedPhoto? fromRedtube(Map<String, dynamic> j) {
     final id = (j['photo_id'] ?? j['id'] ?? '').toString();
     if (id.isEmpty) return null;
-    final url = j['thumb_url'] as String?
-        ?? j['url'] as String? ?? '';
+    final url = j['thumb_url'] as String? ?? j['url'] as String? ?? '';
     if (url.isEmpty) return null;
     return FeedPhoto(
-      id: 'rt_$id',
-      url: url,
-      thumb: url,
+      id: 'rt_$id', url: url, thumb: url,
       title: j['title'] as String? ?? '',
       source: 'https://www.redtube.com/favicon.ico',
       sourceLabel: 'RedTube',
@@ -1668,6 +1707,7 @@ class PhotoFetcher {
     } catch (_) { return []; }
   }
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Modelo unificado de vídeo
@@ -1894,8 +1934,7 @@ class FeedFetcher {
   ];
 
   static Future<List<FeedVideo>> fetchEporner(int page) async {
-    final terms = _terms;
-    final term = terms[page % terms.length];
+    final term = _terms[page % _terms.length];
     try {
       final r = await http.get(
         Uri.parse('https://www.eporner.com/api/v2/video/search/'
@@ -1933,8 +1972,7 @@ class FeedFetcher {
   }
 
   static Future<List<FeedVideo>> fetchRedtube(int page) async {
-    final terms = _terms;
-    final term = terms[page % terms.length];
+    final term = _terms[page % _terms.length];
     final order = ['mostviewed', 'rating', 'newestdate'][page % 3];
     try {
       final r = await http.get(
@@ -2042,10 +2080,7 @@ class FeedFetcher {
   }
 
   static Future<List<FeedVideo>> fetchSpankbang(int page) async {
-    final urls = [
-      'https://spankbang.com/rss/',
-      'https://spankbang.com/rss/trending/',
-    ];
+    final urls = ['https://spankbang.com/rss/', 'https://spankbang.com/rss/trending/'];
     final items = <FeedVideo>[];
     for (final url in urls) {
       try {
@@ -2242,7 +2277,8 @@ class FeedFetcher {
         if (ln == 'enclosure') {
           final url = child.getAttribute('url') as String? ?? '';
           final type = child.getAttribute('type') as String? ?? '';
-          if (url.isNotEmpty && (type.startsWith('image') || url.contains('.jpg') || url.contains('.png') || url.contains('.webp'))) {
+          if (url.isNotEmpty && (type.startsWith('image') ||
+              url.contains('.jpg') || url.contains('.png') || url.contains('.webp'))) {
             return url;
           }
         }
@@ -2301,508 +2337,8 @@ class FeedFetcher {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _ShortsTab — Feed multi-fonte estilo YouTube (renomeado para Explorar)
-// AppBar com gradiente escuro em baixo
-// Cards sem botão de play, staggered grid
+// _ThumbShimmer (usado por _MiniPlayer e outros)
 // ─────────────────────────────────────────────────────────────────────────────
-class _ShortsTab extends StatefulWidget {
-  final double navBottom;
-  final void Function(FeedVideo) onVideoTap;
-  const _ShortsTab({required this.navBottom, required this.onVideoTap});
-
-  @override
-  State<_ShortsTab> createState() => _ShortsTabState();
-}
-
-const _kChipTerms = [
-  '',        // Todos
-  '',        // Mais vistos
-  '',        // Recentes
-  '',        // Avaliação
-  'amateur',
-  'milf',
-  'asian',
-  'latina',
-  'blonde',
-];
-
-class _ShortsTabState extends State<_ShortsTab>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-
-  final List<FeedVideo> _videos = [];
-  final List<FeedPhoto> _photos = [];
-  bool _loading = true;
-  bool _error = false;
-  int _page = 1;
-  int _photoPage = 1;
-  bool _fetching = false;
-  int _selectedChip = 0;
-  final ScrollController _scroll = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _fetch();
-    _fetchPhotos();
-    _scroll.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scroll.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 500) {
-      _fetchMore();
-    }
-  }
-
-  List<FeedVideo> get _filtered {
-    final term = _kChipTerms[_selectedChip].toLowerCase();
-    if (term.isEmpty) return _videos;
-    return _videos.where((v) =>
-        v.title.toLowerCase().contains(term) ||
-        v.sourceLabel.toLowerCase().contains(term)).toList();
-  }
-
-  void _onChipChanged(int index) {
-    setState(() => _selectedChip = index);
-  }
-
-  Future<void> _fetch() async {
-    setState(() { _loading = true; _error = false; });
-    final videos = await FeedFetcher.fetchAll(_page);
-    if (!mounted) return;
-    if (videos.isEmpty) {
-      setState(() { _loading = false; _error = true; });
-    } else {
-      _videos.clear();
-      _videos.addAll(videos);
-      _page++;
-      setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _fetchMore() async {
-    if (_fetching || _loading) return;
-    _fetching = true;
-    final videos = await FeedFetcher.fetchAll(_page);
-    _fetching = false;
-    if (!mounted || videos.isEmpty) return;
-    setState(() {
-      _videos.addAll(videos);
-      _page++;
-    });
-    _fetchPhotos();
-  }
-
-  Future<void> _fetchPhotos() async {
-    try {
-      final photos = await PhotoFetcher.fetchAll(_photoPage);
-      if (!mounted) return;
-      setState(() {
-        _photos.addAll(photos);
-        _photoPage++;
-      });
-    } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final t = AppTheme.current;
-    final topPad = MediaQuery.of(context).padding.top;
-
-    return Container(
-      color: t.bg,
-      child: Stack(
-        children: [
-          // Conteúdo principal
-          Column(children: [
-            // Espaço para o AppBar sobreposto
-            SizedBox(height: topPad + 100),
-
-            Expanded(
-              child: RefreshIndicator(
-                color: AppTheme.ytRed,
-                backgroundColor: t.surface,
-                onRefresh: _fetch,
-                child: _loading
-                    ? _buildSkeletonGrid()
-                    : _error
-                        ? const Center(
-                            child: Text(
-                              'Sem conexão',
-                              style: TextStyle(color: Color(0xFF888888), fontSize: 13),
-                            ),
-                          )
-                        : _buildStaggeredGrid(),
-              ),
-            ),
-          ]),
-
-          // AppBar sobreposto com gradiente (transparente em baixo → opaco em cima)
-          Positioned(
-            top: 0, left: 0, right: 0,
-            child: _ExplorarAppBar(
-              topPad: topPad,
-              selectedChip: _selectedChip,
-              onChipChanged: _onChipChanged,
-              onSearchTap: () => Navigator.push(context,
-                  _iosRoute(const _SearchPage())),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSkeletonGrid() {
-    return MasonryGridView.count(
-      crossAxisCount: 2,
-      mainAxisSpacing: 4,
-      crossAxisSpacing: 4,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      itemCount: 10,
-      itemBuilder: (_, i) => _GridSkeleton(tall: i % 3 == 0),
-    );
-  }
-
-  Widget _buildStaggeredGrid() {
-    final list = _filtered;
-    return MasonryGridView.count(
-      controller: _scroll,
-      physics: const AlwaysScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      mainAxisSpacing: 4,
-      crossAxisSpacing: 4,
-      padding: const EdgeInsets.fromLTRB(4, 8, 4, 24),
-      itemCount: list.length + (list.isNotEmpty ? 1 : 0),
-      itemBuilder: (_, i) {
-        if (i == list.length) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: SizedBox(
-              width: 20, height: 20,
-              child: CircularProgressIndicator(strokeWidth: 1.5, color: AppTheme.ytRed))),
-          );
-        }
-        final video = list[i];
-        return _GridVideoCard(
-          video: video,
-          onTap: () => widget.onVideoTap(video),
-        );
-      },
-    );
-  }
-}
-
-// ─── AppBar do Explorar com gradiente em cima, transparente em baixo ──────────
-class _ExplorarAppBar extends StatelessWidget {
-  final double topPad;
-  final int selectedChip;
-  final void Function(int) onChipChanged;
-  final VoidCallback onSearchTap;
-
-  static const _chips = [
-    'Todos', 'Mais vistos', 'Recentes', 'Avaliação',
-    'Amador', 'MILF', 'Asiática', 'Latina', 'Loira',
-  ];
-
-  const _ExplorarAppBar({
-    required this.topPad,
-    required this.selectedChip,
-    required this.onChipChanged,
-    required this.onSearchTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    final gradientEnd = t.isDark
-        ? Colors.transparent
-        : Colors.transparent;
-    final gradientStart = t.isDark
-        ? t.bg.withOpacity(0.97)
-        : t.bg.withOpacity(0.97);
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [gradientStart, gradientStart, gradientEnd],
-          stops: const [0.0, 0.78, 1.0],
-        ),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(height: topPad),
-
-        // Título + botão de pesquisa
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 8, 8),
-          child: Row(children: [
-            Text('Explorar',
-              style: TextStyle(
-                color: t.text, fontSize: 22,
-                fontWeight: FontWeight.w800, letterSpacing: -0.5,
-              )),
-            const Spacer(),
-            GestureDetector(
-              onTap: onSearchTap,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                child: SvgPicture.asset('assets/icons/svg/search.svg', width: 20, height: 20,
-                    colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn)),
-              ),
-            ),
-          ]),
-        ),
-
-        // Chips com indicador de linha em baixo (sem container cheio)
-        SizedBox(
-          height: 34,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.only(left: 14, right: 14),
-            itemCount: _chips.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 4),
-            itemBuilder: (_, i) {
-              final selected = selectedChip == i;
-              return GestureDetector(
-                onTap: () => onChipChanged(i),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    // Sem container cheio — só indicador de linha em baixo
-                    border: Border(
-                      bottom: BorderSide(
-                        color: selected ? kPrimaryColor : Colors.transparent,
-                        width: 2.5,
-                      ),
-                    ),
-                  ),
-                  child: Text(_chips[i],
-                    style: TextStyle(
-                      color: selected ? t.text : t.textSecondary,
-                      fontSize: 13,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                    )),
-                ),
-              );
-            },
-          ),
-        ),
-
-        const SizedBox(height: 6),
-      ]),
-    );
-  }
-}
-
-// ─── Card de vídeo para grid staggered (sem botão play, aspecto imagem) ───────
-class _GridVideoCard extends StatelessWidget {
-  final FeedVideo video;
-  final VoidCallback onTap;
-  const _GridVideoCard({required this.video, required this.onTap});
-
-  static Map<String, String> _headers(VideoSource src) {
-    final origin = _originForSource(src);
-    return {
-      'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
-          '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-      'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-      'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
-      if (origin.isNotEmpty) 'Referer': origin,
-    };
-  }
-
-  static String _originForSource(VideoSource src) {
-    switch (src) {
-      case VideoSource.eporner:   return 'https://www.eporner.com/';
-      case VideoSource.pornhub:   return 'https://www.pornhub.com/';
-      case VideoSource.redtube:   return 'https://www.redtube.com/';
-      case VideoSource.youporn:   return 'https://www.youporn.com/';
-      case VideoSource.xvideos:   return 'https://www.xvideos.com/';
-      case VideoSource.xhamster:  return 'https://xhamster.com/';
-      case VideoSource.spankbang: return 'https://spankbang.com/';
-      case VideoSource.bravotube: return 'https://www.bravotube.net/';
-      case VideoSource.drtuber:   return 'https://www.drtuber.com/';
-      case VideoSource.txxx:      return 'https://www.txxx.com/';
-      case VideoSource.gotporn:   return 'https://www.gotporn.com/';
-      case VideoSource.porndig:   return 'https://www.porndig.com/';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    return GestureDetector(
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: Stack(
-          children: [
-            // Thumbnail sem AspectRatio fixo — adapta-se à imagem real (staggered)
-            _ThumbImage(
-              url: video.thumb,
-              headers: _headers(video.source),
-              placeholder: t.thumbBg,
-            ),
-
-            // Gradiente em baixo com duração + título
-            Positioned(
-              bottom: 0, left: 0, right: 0,
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [Color(0xDD000000), Colors.transparent],
-                  ),
-                ),
-                padding: const EdgeInsets.fromLTRB(6, 20, 6, 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        video.title,
-                        style: const TextStyle(
-                          color: Colors.white, fontSize: 11,
-                          fontWeight: FontWeight.w500, height: 1.3,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (video.duration.isNotEmpty) ...[
-                      const SizedBox(width: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black87,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: Text(video.duration,
-                          style: const TextStyle(
-                            color: Colors.white, fontSize: 9.5,
-                            fontWeight: FontWeight.w600,
-                          )),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Skeleton para grid ────────────────────────────────────────────────────────
-class _GridSkeleton extends StatefulWidget {
-  final bool tall;
-  const _GridSkeleton({this.tall = false});
-  @override State<_GridSkeleton> createState() => _GridSkeletonState();
-}
-class _GridSkeletonState extends State<_GridSkeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-  late final Animation<double> _a;
-  @override void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1300))..repeat();
-    _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
-  }
-  @override void dispose() { _c.dispose(); super.dispose(); }
-  @override
-  Widget build(BuildContext context) {
-    final h = widget.tall ? 200.0 : 140.0;
-    return AnimatedBuilder(
-      animation: _a,
-      builder: (_, __) => ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          height: h,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment(_a.value - 1, 0),
-              end: Alignment(_a.value + 1, 0),
-              colors: AppTheme.current.shimmer,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-
-// ─── Widget de thumbnail com retry automático ─────────────────────────────────
-class _ThumbImage extends StatefulWidget {
-  final String url;
-  final Map<String, String> headers;
-  final Color placeholder;
-  const _ThumbImage({required this.url, required this.headers, required this.placeholder});
-  @override
-  State<_ThumbImage> createState() => _ThumbImageState();
-}
-
-class _ThumbImageState extends State<_ThumbImage> {
-  int _attempt = 0;
-  bool _failed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-
-    if (widget.url.isEmpty || _failed) {
-      return _placeholder(t);
-    }
-
-    return Image.network(
-      _attempt == 0 ? widget.url : '${widget.url}?_r=$_attempt',
-      key: ValueKey('${widget.url}_$_attempt'),
-      fit: BoxFit.cover,
-      headers: widget.headers,
-      errorBuilder: (_, __, ___) {
-        if (_attempt < 1) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() => _attempt++);
-          });
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() => _failed = true);
-          });
-        }
-        return _placeholder(t);
-      },
-      loadingBuilder: (_, child, progress) {
-        if (progress == null) return child;
-        return _ThumbShimmer();
-      },
-    );
-  }
-
-  Widget _placeholder(AppTheme t) => Container(
-    height: 120,
-    color: t.thumbBg,
-    child: Center(child: Icon(Icons.play_circle_outline_rounded,
-        color: t.iconSub, size: 36)),
-  );
-}
-
-// Shimmer para thumbnail
 class _ThumbShimmer extends StatefulWidget {
   @override State<_ThumbShimmer> createState() => _ThumbShimmerState();
 }
@@ -2830,38 +2366,10 @@ class _ThumbShimmerState extends State<_ThumbShimmer>
   );
 }
 
-// ─── Avatar do favicon com fallback ──────────────────────────────────────────
-class _FaviconAvatar extends StatelessWidget {
-  final VideoSource source;
-  const _FaviconAvatar({required this.source});
 
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: Image.network(
-        faviconForSource(source),
-        width: 36, height: 36,
-        gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => Container(
-          width: 36, height: 36,
-          decoration: BoxDecoration(color: t.avatarBg, shape: BoxShape.circle),
-          child: Center(child: Text(
-            source.name[0].toUpperCase(),
-            style: TextStyle(color: t.textSecondary, fontSize: 13,
-                fontWeight: FontWeight.w600))),
-        ),
-        loadingBuilder: (_, child, p) => p == null ? child : Container(
-          width: 36, height: 36,
-          decoration: BoxDecoration(color: t.avatarBg, shape: BoxShape.circle),
-        ),
-      ),
-    );
-  }
-}
-
-// Helper — favicon URL por fonte
+// ─────────────────────────────────────────────────────────────────────────────
+// faviconForSource (helper público, usado por explore_page.dart)
+// ─────────────────────────────────────────────────────────────────────────────
 String faviconForSource(VideoSource src) {
   switch (src) {
     case VideoSource.eporner:   return 'https://www.eporner.com/favicon.ico';
@@ -2878,288 +2386,6 @@ String faviconForSource(VideoSource src) {
     case VideoSource.porndig:   return 'https://www.porndig.com/favicon.ico';
   }
 }
-
-void _showVideoMenu(BuildContext context, FeedVideo video, Offset pos, AppTheme t) {
-  PopupMenuItem<String> _item(String val, String assetPath, String label) =>
-      PopupMenuItem<String>(
-        value: val, height: 46,
-        child: Row(children: [
-          SvgPicture.asset(assetPath, width: 17, height: 17,
-              colorFilter: ColorFilter.mode(t.iconSub, BlendMode.srcIn)),
-          const SizedBox(width: 12),
-          Expanded(child: Text(label, style: TextStyle(color: t.text, fontSize: 13.5))),
-        ]),
-      );
-
-  final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-  showMenu<String>(
-    context: context,
-    color: t.popup,
-    elevation: 6,
-    shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: t.borderSoft)),
-    position: RelativeRect.fromRect(pos & const Size(1, 1), Offset.zero & overlay.size),
-    items: [
-      _item('save',     'assets/icons/svg/save_later.svg', 'Guardar para assistir mais tarde'),
-      _item('playlist', 'assets/icons/svg/playlist.svg',  'Adicionar na minha playlist'),
-      _item('next',     'assets/icons/svg/play_next.svg',  'Exibir como próximo vídeo'),
-    ],
-  ).then((val) {
-    if (val == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(val == 'save'
-          ? 'Guardado para assistir mais tarde'
-          : val == 'playlist' ? 'Adicionado à playlist' : 'Será exibido a seguir',
-          style: TextStyle(color: AppTheme.current.toastText)),
-      backgroundColor: AppTheme.current.toastBg,
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 2),
-    ));
-  });
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _PhotoCard — card de foto estilo post do Facebook/Instagram
-// ─────────────────────────────────────────────────────────────────────────────
-class _PhotoCard extends StatefulWidget {
-  final FeedPhoto photo;
-  const _PhotoCard({required this.photo});
-  @override State<_PhotoCard> createState() => _PhotoCardState();
-}
-class _PhotoCardState extends State<_PhotoCard> {
-  bool _liked = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    final photo = widget.photo;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      color: t.card,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-          child: Row(children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: Image.network(
-                photo.source, width: 36, height: 36,
-                fit: BoxFit.cover,
-                headers: const {'User-Agent': 'Mozilla/5.0'},
-                errorBuilder: (_, __, ___) => Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: t.avatarBg, shape: BoxShape.circle),
-                  child: Center(child: Text(
-                    photo.sourceLabel[0],
-                    style: TextStyle(color: t.textSecondary,
-                        fontSize: 14, fontWeight: FontWeight.w700),
-                  )),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(photo.sourceLabel,
-                  style: TextStyle(color: t.text, fontSize: 13.5,
-                      fontWeight: FontWeight.w600)),
-                Text('Galeria de fotos',
-                  style: TextStyle(color: t.textSecondary, fontSize: 11.5)),
-              ],
-            )),
-          ]),
-        ),
-
-        if (photo.title.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-            child: Text(photo.title,
-              style: TextStyle(color: t.text, fontSize: 13.5, height: 1.4),
-              maxLines: 2, overflow: TextOverflow.ellipsis),
-          ),
-
-        AspectRatio(
-          aspectRatio: 4 / 3,
-          child: Image.network(
-            photo.url,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            headers: const {
-              'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36',
-              'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-            },
-            errorBuilder: (_, __, ___) => Container(
-              color: t.thumbBg,
-              child: Center(child: Icon(Icons.image_not_supported_rounded,
-                  color: t.iconSub, size: 40)),
-            ),
-            loadingBuilder: (_, child, p) => p == null ? child
-                : _ThumbShimmer(),
-          ),
-        ),
-
-        if (photo.likes > 0)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-            child: Text(
-              '${_liked ? photo.likes + 1 : photo.likes} gostos',
-              style: TextStyle(color: t.textSecondary, fontSize: 12),
-            ),
-          ),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Divider(color: t.divider, height: 1, thickness: 0.5),
-        ),
-
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-          child: Row(children: [
-            _PhotoAction(
-              icon: _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-              label: 'Gosto',
-              color: _liked ? Colors.red : t.textSecondary,
-              onTap: () => setState(() => _liked = !_liked),
-            ),
-            _PhotoAction(
-              icon: Icons.chat_bubble_outline_rounded,
-              label: 'Comentar',
-              color: t.textSecondary,
-              onTap: () {},
-            ),
-            _PhotoAction(
-              icon: Icons.share_rounded,
-              label: 'Partilhar',
-              color: t.textSecondary,
-              onTap: () {},
-            ),
-          ]),
-        ),
-      ]),
-    );
-  }
-}
-
-class _PhotoAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  const _PhotoAction({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 5),
-            Text(label,
-              style: TextStyle(color: color, fontSize: 12.5,
-                  fontWeight: FontWeight.w500)),
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _SitesRow — linha única horizontal deslizável (todos os sites)
-// ─────────────────────────────────────────────────────────────────────────────
-class _SitesRow extends StatelessWidget {
-  final List<SiteModel> sites;
-  final void Function(SiteModel) onTap;
-  const _SitesRow({required this.sites, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 88,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemCount: sites.length,
-        itemBuilder: (_, i) => _SiteCell(site: sites[i], onTap: () => onTap(sites[i])),
-      ),
-    );
-  }
-}
-
-class _SiteCell extends StatefulWidget {
-  final SiteModel site;
-  final VoidCallback onTap;
-  const _SiteCell({required this.site, required this.onTap});
-  @override
-  State<_SiteCell> createState() => _SiteCellState();
-}
-
-class _SiteCellState extends State<_SiteCell> with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-  late final Animation<double> _s;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 90),
-        reverseDuration: const Duration(milliseconds: 200),
-        lowerBound: 0, upperBound: 1);
-    _s = Tween<double>(begin: 1.0, end: 0.86)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() { _c.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    const double iconSize = 52;
-    return GestureDetector(
-      onTapDown: (_) => _c.forward(),
-      onTapUp: (_) { _c.reverse(); widget.onTap(); },
-      onTapCancel: () => _c.reverse(),
-      child: AnimatedBuilder(
-        animation: _s,
-        builder: (_, child) => Transform.scale(scale: _s.value, child: child),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            SiteIconWidget(site: widget.site, size: iconSize, showShadow: true),
-            const SizedBox(height: 5),
-            SizedBox(
-              width: iconSize + 10,
-              child: Text(widget.site.name,
-                  textAlign: TextAlign.center, maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      color: AppTheme.current.iconSub,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500)),
-            ),
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3179,5 +2405,3 @@ class FreeBrowserPage extends StatelessWidget {
     );
   }
 }
-
-
