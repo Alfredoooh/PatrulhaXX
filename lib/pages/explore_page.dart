@@ -1,30 +1,40 @@
-import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:http/http.dart' as http;
-import 'package:xml/xml.dart';
 import '../theme/app_theme.dart';
 import 'home_page.dart' show FeedVideo, VideoSource, FeedFetcher, faviconForSource, iosRoute, SearchPage;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ExplorePage — tela de explorar separada
+// Chips de filtro
+// ─────────────────────────────────────────────────────────────────────────────
+enum _ChipFilter {
+  todos, recentes, maisVistos, maisAntigos,
+  amador, milf, asiatica, latina, loira,
+}
+
+const _kChipLabels = <_ChipFilter, String>{
+  _ChipFilter.todos:       'Todos',
+  _ChipFilter.recentes:    'Recentes',
+  _ChipFilter.maisVistos:  'Mais vistos',
+  _ChipFilter.maisAntigos: 'Mais antigos',
+  _ChipFilter.amador:      'Amador',
+  _ChipFilter.milf:        'MILF',
+  _ChipFilter.asiatica:    'Asiática',
+  _ChipFilter.latina:      'Latina',
+  _ChipFilter.loira:       'Loira',
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExplorePage
 // ─────────────────────────────────────────────────────────────────────────────
 class ExplorePage extends StatefulWidget {
   final void Function(FeedVideo) onVideoTap;
-
   const ExplorePage({super.key, required this.onVideoTap});
 
   @override
   State<ExplorePage> createState() => _ExplorePageState();
 }
-
-const _kExploreChips = [
-  'Todos', 'Recentes', 'Mais vistos',
-  'Amador', 'MILF', 'Asiática', 'Latina', 'Loira',
-];
 
 class _ExplorePageState extends State<ExplorePage>
     with AutomaticKeepAliveClientMixin {
@@ -35,8 +45,9 @@ class _ExplorePageState extends State<ExplorePage>
   bool _loading = true;
   bool _error = false;
   bool _fetching = false;
+  bool _refreshing = false;
   int _page = 1;
-  int _selectedChip = 0;
+  _ChipFilter _chip = _ChipFilter.todos;
   final ScrollController _scroll = ScrollController();
 
   @override
@@ -53,25 +64,64 @@ class _ExplorePageState extends State<ExplorePage>
   }
 
   void _onScroll() {
-    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 600) {
+    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 700) {
       _fetchMore();
     }
   }
 
+  // ── Filtro dinâmico por chip ──────────────────────────────────────────────
   List<FeedVideo> get _filtered {
-    if (_selectedChip == 0) return _videos;
-    final chip = _kExploreChips[_selectedChip].toLowerCase();
-    // Chips especiais: Recentes e Mais vistos não filtram por título
-    if (chip == 'recentes' || chip == 'mais vistos') return _videos;
-    return _videos
-        .where((v) => v.title.toLowerCase().contains(chip) ||
-            v.sourceLabel.toLowerCase().contains(chip))
-        .toList();
+    switch (_chip) {
+      case _ChipFilter.todos:
+        return _videos;
+
+      case _ChipFilter.recentes:
+        // Mantém ordem original — os primeiros do feed são os mais recentes
+        return List<FeedVideo>.from(_videos);
+
+      case _ChipFilter.maisAntigos:
+        // Inverte a lista — os mais antigos vêm primeiro
+        return _videos.reversed.toList();
+
+      case _ChipFilter.maisVistos:
+        // Ordena por duração como proxy de popularidade
+        final copy = List<FeedVideo>.from(_videos);
+        copy.sort((a, b) => _parseDuration(b.duration) - _parseDuration(a.duration));
+        return copy;
+
+      case _ChipFilter.amador:
+        return _byKeywords(['amador', 'amateur', 'caseiro', 'homemade']);
+      case _ChipFilter.milf:
+        return _byKeywords(['milf', 'mature', 'maduro', 'cougar', 'mom', 'mãe']);
+      case _ChipFilter.asiatica:
+        return _byKeywords(['asian', 'asiática', 'japanese', 'korean', 'chinese', 'thai', 'japan']);
+      case _ChipFilter.latina:
+        return _byKeywords(['latina', 'latin', 'brazilian', 'brasileiro', 'colombiana', 'mexico']);
+      case _ChipFilter.loira:
+        return _byKeywords(['blonde', 'loira', 'blond', 'blondie']);
+    }
   }
 
+  List<FeedVideo> _byKeywords(List<String> kws) {
+    return _videos.where((v) {
+      final title = v.title.toLowerCase();
+      return kws.any((k) => title.contains(k));
+    }).toList();
+  }
+
+  int _parseDuration(String d) {
+    try {
+      final parts = d.split(':').map(int.parse).toList();
+      if (parts.length == 2) return parts[0] * 60 + parts[1];
+      if (parts.length == 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    } catch (_) {}
+    return 0;
+  }
+
+  // ── Fetch ─────────────────────────────────────────────────────────────────
   Future<void> _fetch() async {
     if (!mounted) return;
-    setState(() { _loading = true; _error = false; });
+    setState(() { _loading = true; _error = false; _page = 1; });
     try {
       final videos = await FeedFetcher.fetchAll(_page);
       if (!mounted) return;
@@ -89,8 +139,25 @@ class _ExplorePageState extends State<ExplorePage>
     }
   }
 
+  Future<void> _refresh() async {
+    if (_refreshing) return;
+    setState(() => _refreshing = true);
+    try {
+      _page = 1;
+      final videos = await FeedFetcher.fetchAll(_page);
+      if (!mounted) return;
+      if (videos.isNotEmpty) {
+        _videos
+          ..clear()
+          ..addAll(videos);
+        _page++;
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _refreshing = false);
+  }
+
   Future<void> _fetchMore() async {
-    if (_fetching || _loading) return;
+    if (_fetching || _loading || _refreshing) return;
     _fetching = true;
     try {
       final videos = await FeedFetcher.fetchAll(_page);
@@ -105,11 +172,13 @@ class _ExplorePageState extends State<ExplorePage>
     _fetching = false;
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     super.build(context);
     final t = AppTheme.current;
     final topPad = MediaQuery.of(context).padding.top;
+    final isDark = t.statusBar == Brightness.light;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -119,14 +188,14 @@ class _ExplorePageState extends State<ExplorePage>
       child: Container(
         color: t.bg,
         child: Stack(children: [
-          // ── Conteúdo scrollável ──────────────────────────────────────────
+          // ── Conteúdo scrollável ────────────────────────────────────────
           Column(children: [
-            SizedBox(height: topPad + 96), // espaço para o AppBar sobreposto
+            SizedBox(height: topPad + 96),
             Expanded(
-              child: RefreshIndicator(
-                color: AppTheme.ytRed,
-                backgroundColor: t.surface,
-                onRefresh: _fetch,
+              child: _DotsRefreshWrapper(
+                isDark: isDark,
+                refreshing: _refreshing,
+                onRefresh: _refresh,
                 child: _loading
                     ? _buildSkeletons()
                     : _error
@@ -136,13 +205,14 @@ class _ExplorePageState extends State<ExplorePage>
             ),
           ]),
 
-          // ── AppBar sobreposto ────────────────────────────────────────────
+          // ── AppBar sobreposto ──────────────────────────────────────────
           Positioned(
             top: 0, left: 0, right: 0,
             child: _ExploreAppBar(
               topPad: topPad,
-              selectedChip: _selectedChip,
-              onChipChanged: (i) => setState(() => _selectedChip = i),
+              selectedChip: _chip,
+              isDark: isDark,
+              onChipChanged: (c) => setState(() => _chip = c),
               onSearchTap: () => Navigator.push(
                   context, iosRoute(const SearchPage())),
             ),
@@ -202,7 +272,10 @@ class _ExplorePageState extends State<ExplorePage>
     }
     return MasonryGridView.count(
       controller: _scroll,
-      physics: const AlwaysScrollableScrollPhysics(),
+      // Efeito elástico nativo iOS
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
       crossAxisCount: 2,
       mainAxisSpacing: 3,
       crossAxisSpacing: 3,
@@ -210,18 +283,14 @@ class _ExplorePageState extends State<ExplorePage>
       itemCount: list.length + 1,
       itemBuilder: (_, i) {
         if (i == list.length) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Center(
-              child: SizedBox(
-                width: 18, height: 18,
-                child: CircularProgressIndicator(
-                    strokeWidth: 1.5, color: AppTheme.ytRed),
-              ),
-            ),
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: _DotsLoader()),
           );
         }
+        // Key por embedUrl para evitar reconstruções erradas
         return _VideoCard(
+          key: ValueKey(list[i].embedUrl),
           video: list[i],
           onTap: () => widget.onVideoTap(list[i]),
         );
@@ -231,26 +300,182 @@ class _ExplorePageState extends State<ExplorePage>
 }
 
 
-// ─── AppBar do Explorar ────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Wrapper pull-to-refresh com três pontos
+// ─────────────────────────────────────────────────────────────────────────────
+class _DotsRefreshWrapper extends StatefulWidget {
+  final Widget child;
+  final Future<void> Function() onRefresh;
+  final bool isDark;
+  final bool refreshing;
+
+  const _DotsRefreshWrapper({
+    required this.child,
+    required this.onRefresh,
+    required this.isDark,
+    required this.refreshing,
+  });
+
+  @override
+  State<_DotsRefreshWrapper> createState() => _DotsRefreshWrapperState();
+}
+
+class _DotsRefreshWrapperState extends State<_DotsRefreshWrapper> {
+  static const double _trigger = 72.0;
+  double _pull = 0;
+  bool _triggered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (widget.refreshing) return false;
+
+        if (n is OverscrollNotification && n.overscroll < 0) {
+          setState(() {
+            _pull = (_pull + (-n.overscroll) * 0.5).clamp(0, _trigger * 1.4);
+          });
+        }
+        if (n is ScrollEndNotification || n is ScrollUpdateNotification) {
+          if (_pull >= _trigger && !_triggered && !widget.refreshing) {
+            _triggered = true;
+            widget.onRefresh().then((_) {
+              if (mounted) setState(() { _pull = 0; _triggered = false; });
+            });
+          } else if (!_triggered) {
+            if (n is ScrollEndNotification) {
+              setState(() => _pull = 0);
+            }
+          }
+        }
+        return false;
+      },
+      child: Stack(
+        children: [
+          // Indicador de três pontos
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              height: widget.refreshing
+                  ? 44
+                  : (_pull > 8 ? (_pull * 0.55).clamp(0, 44) : 0),
+              child: Center(
+                child: (widget.refreshing || _pull > _trigger * 0.4)
+                    ? _DotsLoader(isDark: widget.isDark)
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ),
+          // Conteúdo com padding animado
+          AnimatedPadding(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.only(
+              top: widget.refreshing
+                  ? 44
+                  : (_pull * 0.4).clamp(0, 36),
+            ),
+            child: widget.child,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Loader três pontos com bounce sequencial
+// ─────────────────────────────────────────────────────────────────────────────
+class _DotsLoader extends StatefulWidget {
+  final bool isDark;
+  const _DotsLoader({this.isDark = true});
+
+  @override
+  State<_DotsLoader> createState() => _DotsLoaderState();
+}
+
+class _DotsLoaderState extends State<_DotsLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat();
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    final isDark = t.statusBar == Brightness.light;
+    final dotColor = isDark ? Colors.white : AppTheme.ytRed;
+
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            // Fase desfasada por dot
+            final raw = (_ctrl.value * 3) - i;
+            final phase = (raw % 3.0).clamp(0.0, 1.0);
+            final bounce = phase < 0.5 ? phase * 2 : (1.0 - phase) * 2;
+            final yOffset = -7.0 * Curves.easeInOut.transform(bounce);
+
+            return Transform.translate(
+              offset: Offset(0, yOffset),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: dotColor.withOpacity(0.35 + 0.65 * bounce),
+                  borderRadius: BorderRadius.circular(100),
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AppBar do Explorar
+// ─────────────────────────────────────────────────────────────────────────────
 class _ExploreAppBar extends StatelessWidget {
   final double topPad;
-  final int selectedChip;
-  final void Function(int) onChipChanged;
+  final _ChipFilter selectedChip;
+  final void Function(_ChipFilter) onChipChanged;
   final VoidCallback onSearchTap;
+  final bool isDark;
 
   const _ExploreAppBar({
     required this.topPad,
     required this.selectedChip,
     required this.onChipChanged,
     required this.onSearchTap,
+    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
+    // Indicator branco no escuro, primary color no claro
+    final indicatorColor = isDark ? Colors.white : AppTheme.ytRed;
 
     return Container(
-      // Usa exatamente a mesma cor de fundo do body — sem gradiente fake
       decoration: BoxDecoration(
         color: t.bg,
         border: Border(
@@ -260,7 +485,6 @@ class _ExploreAppBar extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(height: topPad),
 
-        // Título + botão pesquisa
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 8, 6),
           child: Row(children: [
@@ -275,46 +499,51 @@ class _ExploreAppBar extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: SvgPicture.asset(
-                  'assets/icons/svg/search.svg', width: 20, height: 20,
-                  colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
-                ),
+                child: Icon(Icons.search_rounded, color: t.icon, size: 22),
               ),
             ),
           ]),
         ),
 
-        // Chips — linha indicadora em baixo
+        // Chips com indicador rounded e animação suave
         SizedBox(
           height: 36,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            itemCount: _kExploreChips.length,
+            itemCount: _ChipFilter.values.length,
             separatorBuilder: (_, __) => const SizedBox(width: 2),
-            itemBuilder: (_, i) {
-              final selected = selectedChip == i;
+            itemBuilder: (ctx, i) {
+              final chip = _ChipFilter.values[i];
+              final selected = selectedChip == chip;
+              final label = _kChipLabels[chip]!;
+
               return GestureDetector(
-                onTap: () => onChipChanged(i),
+                onTap: () => onChipChanged(chip),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
+                  duration: const Duration(milliseconds: 220),
                   curve: Curves.easeOutCubic,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
-                        // Usa a cor primária do AppTheme se existir, senão laranja
-                        color: selected ? const Color(0xFFFF9000) : Colors.transparent,
-                        width: 2,
+                        color: selected ? indicatorColor : Colors.transparent,
+                        // Rounded caps via StrokeAlign — visualmente arredondado
+                        width: 2.5,
+                        strokeAlign: BorderSide.strokeAlignInside,
                       ),
                     ),
                   ),
-                  child: Text(_kExploreChips[i],
+                  child: AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
                     style: TextStyle(
                       color: selected ? t.text : t.textSecondary,
                       fontSize: 13,
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                    )),
+                    ),
+                    child: Text(label),
+                  ),
                 ),
               );
             },
@@ -328,12 +557,14 @@ class _ExploreAppBar extends StatelessWidget {
 }
 
 
-// ─── Card de vídeo minimalista (só thumbnail + duração no canto) ──────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Card de vídeo
+// ─────────────────────────────────────────────────────────────────────────────
 class _VideoCard extends StatelessWidget {
   final FeedVideo video;
   final VoidCallback onTap;
 
-  const _VideoCard({required this.video, required this.onTap});
+  const _VideoCard({super.key, required this.video, required this.onTap});
 
   static const _ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
       'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
@@ -363,17 +594,13 @@ class _VideoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = AppTheme.current;
-
     return GestureDetector(
       onTap: onTap,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(5),
         child: Stack(children: [
-          // Thumbnail — sem AspectRatio fixo para staggered natural
           _ThumbImg(url: video.thumb, headers: _headers),
 
-          // Overlay inferior: apenas duração (sem título — menos texto)
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: Container(
@@ -388,7 +615,6 @@ class _VideoCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  // Fonte — pequena, discreta
                   Expanded(
                     child: Text(
                       video.sourceLabel,
@@ -400,7 +626,6 @@ class _VideoCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  // Duração
                   if (video.duration.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -425,11 +650,13 @@ class _VideoCard extends StatelessWidget {
 }
 
 
-// ─── Thumbnail com loading shimmer e fallback ─────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Thumbnail — shimmer base + fade-in da imagem quando carrega
+// Evita thumbnails a aparecerem em cima umas das outras
+// ─────────────────────────────────────────────────────────────────────────────
 class _ThumbImg extends StatefulWidget {
   final String url;
   final Map<String, String> headers;
-
   const _ThumbImg({required this.url, required this.headers});
 
   @override
@@ -438,6 +665,16 @@ class _ThumbImg extends StatefulWidget {
 
 class _ThumbImgState extends State<_ThumbImg> {
   bool _failed = false;
+  bool _loaded = false;
+
+  @override
+  void didUpdateWidget(_ThumbImg old) {
+    super.didUpdateWidget(old);
+    if (old.url != widget.url) {
+      _failed = false;
+      _loaded = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -447,21 +684,37 @@ class _ThumbImgState extends State<_ThumbImg> {
       return _fallback(t);
     }
 
-    return Image.network(
-      widget.url,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      headers: widget.headers,
-      errorBuilder: (_, __, ___) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) setState(() => _failed = true);
-        });
-        return _fallback(t);
-      },
-      loadingBuilder: (_, child, progress) {
-        if (progress == null) return child;
-        return _Shimmer();
-      },
+    return Stack(
+      children: [
+        // Shimmer sempre presente por baixo
+        const _Shimmer(),
+
+        // Imagem faz fade-in quando carregada
+        AnimatedOpacity(
+          duration: const Duration(milliseconds: 280),
+          opacity: _loaded ? 1.0 : 0.0,
+          child: Image.network(
+            widget.url,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            headers: widget.headers,
+            frameBuilder: (_, child, frame, __) {
+              if (frame != null && !_loaded) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) setState(() => _loaded = true);
+                });
+              }
+              return child;
+            },
+            errorBuilder: (_, __, ___) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() { _failed = true; });
+              });
+              return _fallback(t);
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -474,8 +727,12 @@ class _ThumbImgState extends State<_ThumbImg> {
 }
 
 
-// ─── Shimmer animado ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Shimmer animado
+// ─────────────────────────────────────────────────────────────────────────────
 class _Shimmer extends StatefulWidget {
+  const _Shimmer();
+
   @override
   State<_Shimmer> createState() => _ShimmerState();
 }
@@ -515,7 +772,9 @@ class _ShimmerState extends State<_Shimmer>
 }
 
 
-// ─── Skeleton de carregamento ─────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Skeleton de carregamento
+// ─────────────────────────────────────────────────────────────────────────────
 class _GridSkeleton extends StatefulWidget {
   final bool tall;
   const _GridSkeleton({this.tall = false});
