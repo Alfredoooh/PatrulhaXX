@@ -101,7 +101,7 @@ const _shortsJs = r"""
 // ─────────────────────────────────────────────────────────────────────────────
 // Animação nativa iOS (Cupertino slide from right)
 // ─────────────────────────────────────────────────────────────────────────────
-Route<T> _iosRoute<T>(Widget page) {
+Route<T> iosRoute<T>(Widget page) {
   return PageRouteBuilder<T>(
     pageBuilder: (_, animation, secondaryAnimation) => page,
     transitionDuration: const Duration(milliseconds: 380),
@@ -212,7 +212,7 @@ class _HomePageState extends State<HomePage>
   }
 
   void _openSite(SiteModel site) => Navigator.push(
-      context, _iosRoute(BrowserPage(site: site)));
+      context, iosRoute(BrowserPage(site: site)));
 
   void _onColorExtracted(Color c) {
     if (mounted) {
@@ -222,10 +222,10 @@ class _HomePageState extends State<HomePage>
   }
 
   void _openDownloads() => Navigator.push(context,
-      _iosRoute(const DownloadsPage()));
+      iosRoute(const DownloadsPage()));
 
   void _openSettings() => Navigator.push(context,
-      _iosRoute(const SettingsPage()));
+      iosRoute(const SettingsPage()));
 
   void _switchTab(int i) {
     if (i == _tab) return;
@@ -935,7 +935,7 @@ class _HomeAppBar extends StatelessWidget {
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   _IconBtn(
                     assetPath: 'assets/icons/svg/search.svg',
-                    onTap: () => Navigator.push(context, _iosRoute(const _SearchPage())),
+                    onTap: () => Navigator.push(context, iosRoute(const SearchPage())),
                     color: t.icon,
                   ),
                   const SizedBox(width: 4),
@@ -1255,20 +1255,20 @@ class _SearchTrigger extends StatelessWidget {
           ]),
         ),
       ),
-      openBuilder: (_, __) => const _SearchPage(),
+      openBuilder: (_, __) => const SearchPage(),
     );
   }
 }
 
 
 // ─── _SearchPage ──────────────────────────────────────────────────────────────
-class _SearchPage extends StatefulWidget {
-  const _SearchPage();
+class SearchPage extends StatefulWidget {
+  const SearchPage();
   @override
-  State<_SearchPage> createState() => _SearchPageState();
+  State<SearchPage> createState() => SearchPageState();
 }
 
-class _SearchPageState extends State<_SearchPage> {
+class SearchPageState extends State<SearchPage> {
   final _ctrl = TextEditingController();
   bool get _hasQuery => _ctrl.text.trim().isNotEmpty;
 

@@ -7,7 +7,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 import '../theme/app_theme.dart';
-import 'home_page.dart' show FeedVideo, VideoSource, FeedFetcher, faviconForSource, _iosRoute, _SearchPage;
+import 'home_page.dart' show FeedVideo, VideoSource, FeedFetcher, faviconForSource, iosRoute, SearchPage;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ExplorePage — tela de explorar separada
@@ -144,7 +144,7 @@ class _ExplorePageState extends State<ExplorePage>
               selectedChip: _selectedChip,
               onChipChanged: (i) => setState(() => _selectedChip = i),
               onSearchTap: () => Navigator.push(
-                  context, _iosRoute(const _SearchPage())),
+                  context, iosRoute(const SearchPage())),
             ),
           ),
         ]),
