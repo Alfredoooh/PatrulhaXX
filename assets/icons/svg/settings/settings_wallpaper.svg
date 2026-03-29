@@ -1,0 +1,20 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+<g transform="matrix(1.3333333,0,0,-1.3333333,0,32)">
+<g><g clip-path="url(#c)">
+<g transform="translate(5,13)">
+<path d="m 0,0 c -2.209,0 -4,-1.791 -4,-4 v -4 c 0,-2.209 1.791,-4 4,-4 h 6 c 2.209,0 4,1.791 4,4 v 4 c 0,2.2 -1.8,4 -4,4 z" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"/>
+</g>
+<g transform="translate(15,6)">
+<path d="m 0,0 c 2.209,0 4,1.791 4,4 v 4 c 0,2.2 -1.8,4 -4,4 h -6 c -2.209,0 -4,-1.791 -4,-4 V 7" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"/>
+</g>
+<g transform="translate(19,11)">
+<path d="m 0,0 v 0 c 2.209,0 4,1.791 4,4 v 4 c 0,2.2 -1.8,4 -4,4 h -6 c -2.209,0 -4,-1.791 -4,-4 V 7" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"/>
+</g>
+<g transform="translate(6,9)">
+<path d="m 0,0 c 0,-0.553 -0.447,-1 -1,-1 -0.553,0 -1,0.447 -1,1 0,0.553 0.447,1 1,1 0.553,0 1,-0.447 1,-1" style="fill:currentColor"/>
+</g>
+<g transform="translate(2.5381,2.3848)">
+<path d="M 0,0 5.114,4.384 C 5.512,4.715 6.097,4.688 6.462,4.322 L 6.933,3.846 c 0.39,-0.391 1.023,-0.391 1.414,0 l 3.807,3.807" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"/>
+</g>
+</g></g></g>
+</svg>

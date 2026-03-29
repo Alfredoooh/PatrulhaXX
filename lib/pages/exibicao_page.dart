@@ -9,8 +9,18 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:animations/animations.dart';
 import '../models/feed_video_model.dart';
-import 'home_page.dart' show kPrimaryColor, svgExibicaoOutline;
+import 'home_page.dart' show iosRoute;
 import '../services/theme_service.dart';
+
+// SVG do ícone de exibição (estado vazio)
+const _svgExibicaoOutline = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+     stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="2" y="3" width="20" height="14" rx="2"/>
+  <path d="M8 21h8M12 17v4"/>
+  <polygon points="10,8 16,11 10,14" fill="currentColor" stroke="none"/>
+</svg>
+''';
 import '../services/download_service.dart';
 import 'download_list_page.dart';
 import '../theme/app_theme.dart';
@@ -336,7 +346,7 @@ class _EmptyBodyState extends State<_EmptyBody>
                       color: AppTheme.ytRed.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Center(child: SvgPicture.string(svgExibicaoOutline,
+                    child: Center(child: SvgPicture.string(_svgExibicaoOutline,
                         width: 20, height: 20,
                         colorFilter: ColorFilter.mode(AppTheme.ytRed, BlendMode.srcIn))),
                   ),
@@ -389,7 +399,7 @@ class _EmptyBodyState extends State<_EmptyBody>
                     child: Lottie.asset('assets/lottie/Cat_playing_animation.json',
                       repeat: true, animate: true,
                       errorBuilder: (_, __, ___) => SvgPicture.string(
-                        svgExibicaoOutline, width: 80, height: 80,
+                        _svgExibicaoOutline, width: 80, height: 80,
                         colorFilter: ColorFilter.mode(
                             t.emptyIcon.withOpacity(0.4), BlendMode.srcIn)))),
                 ),

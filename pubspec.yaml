@@ -62,3 +62,4 @@ flutter:
     - assets/lottie/Cat_playing_animation.json
     - assets/lottie/wrong_feedback.json 
     - assets/icons/svg/
+    - assets/icons/svg/settings/

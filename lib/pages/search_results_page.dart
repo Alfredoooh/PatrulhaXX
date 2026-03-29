@@ -9,8 +9,8 @@ import '../models/site_model.dart';
 import '../services/theme_service.dart';
 import 'browser_page.dart';
 import 'exibicao_page.dart';
-import 'home_page.dart' show kPrimaryColor, FeedVideo, FeedFetcher,
-    VideoSource, faviconForSource;
+import 'home_page.dart' show iosRoute;
+import '../models/feed_video_model.dart';
 import '../theme/app_theme.dart';
 
 const _iBack =
@@ -301,16 +301,14 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     if (widget.onVideoTap != null) {
       widget.onVideoTap!(v);
     } else {
-      Navigator.push(context, MaterialPageRoute(
-        builder: (_) => ExibicaoPage(
-          embedUrl: v.embedUrl, currentVideo: v,
-          onVideoTap: (next) => Navigator.pushReplacement(context,
-              MaterialPageRoute(builder: (_) => ExibicaoPage(
-                embedUrl: next.embedUrl, currentVideo: next,
-                onVideoTap: (_) {},
-              ))),
-        ),
-      ));
+      Navigator.push(context, iosRoute(ExibicaoPage(
+        embedUrl: v.embedUrl, currentVideo: v,
+        onVideoTap: (next) => Navigator.pushReplacement(context,
+            iosRoute(ExibicaoPage(
+              embedUrl: next.embedUrl, currentVideo: next,
+              onVideoTap: (_) {},
+            ))),
+      )));
     }
   }
 

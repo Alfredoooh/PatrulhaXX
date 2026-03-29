@@ -1,12 +1,8 @@
-import 'dart:ui';
 import 'dart:math';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:lottie/lottie.dart';
 import 'package:animations/animations.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../models/site_model.dart';
@@ -14,89 +10,15 @@ import '../widgets/site_icon_widget.dart';
 import 'browser_page.dart';
 import 'downloads_page.dart';
 import 'settings_page.dart';
-import 'search_results_page.dart';
-import 'package:http/http.dart' as http;
-import 'package:xml/xml.dart';
+import 'search_page.dart';
 import '../services/theme_service.dart';
 import 'exibicao_page.dart';
 import 'explore_page.dart';
 import '../theme/app_theme.dart';
+import '../models/feed_video_model.dart';
+import '../models/feed_photo_model.dart';
 
 const kPrimaryColor = Color(0xFFFF9000);
-
-const svgExibicaoOutline = '''
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="2" y="3" width="20" height="14" rx="2"/>
-  <path d="M8 21h8M12 17v4"/>
-  <polygon points="10,8 16,11 10,14" fill="currentColor" stroke="none"/>
-</svg>
-''';
-
-
-const _shortsJs = r"""
-(function() {
-  if (window.__pxShortsInit) return;
-  window.__pxShortsInit = true;
-  var d = new Date(); d.setFullYear(d.getFullYear() + 2);
-  var exp = '; expires=' + d.toUTCString() + '; path=/';
-  ['age_verified=1','platform=pc','_tc=1','hasVisited=1',
-   'cookieConsent=1','accessAgeDisclaimerPH=1','accessPH=1'].forEach(function(c){
-    document.cookie = c + exp;
-  });
-  function cleanPage() {
-    document.querySelectorAll(
-      '.age-gate,#age-gate,.AgeGate,[class*="ageGate"],[class*="age-gate"],' +
-      '[id*="age-gate"],.cookieBanner,.cookie-banner,[class*="cookie-banner"],' +
-      '.gdpr-banner,[class*="gdpr"],[class*="consent"],[class*="Consent"],' +
-      '.limited-functionality,.tabs-container,.age-wall,[class*="ageWall"]'
-    ).forEach(function(el) { el.remove(); });
-    document.body.style.overflow = '';
-    document.documentElement.style.overflow = '';
-    document.body.style.background = '#000';
-    document.documentElement.style.background = '#000';
-    var style = document.getElementById('__px_style');
-    if (!style) {
-      style = document.createElement('style');
-      style.id = '__px_style';
-      style.textContent = '* { text-decoration: none !important; } a { text-decoration: none !important; }';
-      document.head.appendChild(style);
-    }
-    ['header','footer','.header','.footer','nav#top','#header'].forEach(function(s) {
-      var el = document.querySelector(s);
-      if (el) el.style.display = 'none';
-    });
-    (function walkText(node) {
-      if (node.nodeType === 3) {
-        node.textContent = node.textContent.replace(/PornHub|Pornhub|pornhub/g, 'patrulhaXX');
-      } else if (node.nodeType === 1 &&
-          !['SCRIPT','STYLE','INPUT','TEXTAREA'].includes(node.tagName)) {
-        node.childNodes.forEach(walkText);
-      }
-    })(document.body);
-    document.querySelectorAll('img').forEach(function(img) {
-      var src = (img.getAttribute('src') || '').toLowerCase();
-      if (src.includes('logo')) img.style.visibility = 'hidden';
-    });
-  }
-  cleanPage();
-  new MutationObserver(function() { cleanPage(); })
-    .observe(document.documentElement, { childList: true, subtree: true });
-  function tryClickAgeBtn() {
-    ['[data-role="age-gate-submit"]','.age-gate__submit','.button-cta',
-     'button[class*="confirm"]','button[class*="accept"]','button.bg-primary',
-     'button[class*="enter"]','.enter-btn','.js-accept'].forEach(function(sel) {
-      var btn = document.querySelector(sel);
-      if (btn) btn.click();
-    });
-    cleanPage();
-  }
-  setTimeout(tryClickAgeBtn, 300);
-  setTimeout(tryClickAgeBtn, 900);
-  setTimeout(cleanPage, 2000);
-  setTimeout(cleanPage, 4000);
-})();
-""";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Animação nativa iOS (Cupertino slide from right)
@@ -107,7 +29,6 @@ Route<T> iosRoute<T>(Widget page) {
     transitionDuration: const Duration(milliseconds: 400),
     reverseTransitionDuration: const Duration(milliseconds: 340),
     transitionsBuilder: (ctx, animation, secondaryAnimation, child) {
-      // Página nova entra da direita
       final enterSlide = Tween<Offset>(
         begin: const Offset(1.0, 0.0),
         end: Offset.zero,
@@ -116,7 +37,6 @@ Route<T> iosRoute<T>(Widget page) {
         curve: const Cubic(0.25, 0.46, 0.45, 0.94),
       ));
 
-      // Página anterior recua 28% para a esquerda (iOS nativo)
       final exitSlide = Tween<Offset>(
         begin: Offset.zero,
         end: const Offset(-0.28, 0.0),
@@ -125,18 +45,15 @@ Route<T> iosRoute<T>(Widget page) {
         curve: const Cubic(0.25, 0.46, 0.45, 0.94),
       ));
 
-      // Sombra lateral esquerda na página nova (depth)
       final shadowOpacity = Tween<double>(begin: 0.0, end: 1.0)
           .animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
 
       return Stack(
         children: [
-          // Página anterior a recuar
           SlideTransition(
             position: exitSlide,
-            child: Container(color: Colors.black), // fallback bg
+            child: Container(color: Colors.black),
           ),
-          // Sombra à esquerda da nova página
           AnimatedBuilder(
             animation: shadowOpacity,
             builder: (_, __) => Positioned(
@@ -156,7 +73,6 @@ Route<T> iosRoute<T>(Widget page) {
               ),
             ),
           ),
-          // Página nova a entrar
           SlideTransition(position: enterSlide, child: child),
         ],
       );
@@ -165,7 +81,7 @@ Route<T> iosRoute<T>(Widget page) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// kSites — lista expandida de sites
+// kSites
 // ─────────────────────────────────────────────────────────────────────────────
 final kSites = <SiteModel>[
   SiteModel(id: 'pornhub',    name: 'Pornhub',    baseUrl: 'https://www.pornhub.com',    allowedDomain: 'pornhub.com',    searchUrl: 'https://www.pornhub.com/video/search?search=',   primaryColor: const Color(0xFFFF9000)),
@@ -188,6 +104,23 @@ final kSites = <SiteModel>[
   SiteModel(id: 'sunporno',  name: 'SunPorno',   baseUrl: 'https://www.sunporno.com',   allowedDomain: 'sunporno.com',   searchUrl: 'https://www.sunporno.com/search/',                primaryColor: const Color(0xFFFF8C00)),
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FreeBrowserPage
+// ─────────────────────────────────────────────────────────────────────────────
+class FreeBrowserPage extends StatelessWidget {
+  final String url, title;
+  const FreeBrowserPage({super.key, required this.url, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return BrowserPage(
+      site: SiteModel(
+          id: 'free', name: title, baseUrl: url,
+          allowedDomain: '', searchUrl: url, primaryColor: kPrimaryColor),
+      freeNavigation: true,
+    );
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HomePage
@@ -202,7 +135,6 @@ class _HomePageState extends State<HomePage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   int _tab = 1;
-  int _previousTab = 1;
   String? _selectedEmbedUrl;
   FeedVideo? _selectedVideo;
   bool _miniPlayerActive = false;
@@ -254,16 +186,12 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  void _openDownloads() => Navigator.push(context,
-      iosRoute(const DownloadsPage()));
-
-  void _openSettings() => Navigator.push(context,
-      iosRoute(const SettingsPage()));
+  void _openDownloads() => Navigator.push(context, iosRoute(const DownloadsPage()));
+  void _openSettings()  => Navigator.push(context, iosRoute(const SettingsPage()));
 
   void _switchTab(int i) {
     if (i == _tab) return;
     setState(() {
-      _previousTab = _tab;
       if (i != 2 && _tab == 2 && _selectedVideo != null) {
         _miniPlayerActive = true;
       } else if (i == 2) {
@@ -307,16 +235,12 @@ class _HomePageState extends State<HomePage>
                     children: [
                       _HomeTab(
                         fadeIn: _fadeIn,
-                        navBottom: 0,
                         onOpen: _openSite,
                         onDownloads: _openDownloads,
                         onSettings: _openSettings,
                         onMenu: () => _scaffoldKey.currentState?.openDrawer(),
                         onColorExtracted: _onColorExtracted,
-                        navColor: const Color(0xFF111111),
-                        navIsLight: false,
                       ),
-                      // Tab 1 — Explorar (ficheiro separado)
                       ExplorePage(
                         onVideoTap: (FeedVideo video) {
                           setState(() {
@@ -529,7 +453,7 @@ class _MiniPlayerState extends State<_MiniPlayer>
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _BottomNav — mesma cor do body (t.bg), sem escurecimento/clarificação
+// _BottomNav
 // ─────────────────────────────────────────────────────────────────────────────
 class _BottomNav extends StatelessWidget {
   final int tab;
@@ -547,7 +471,6 @@ class _BottomNav extends StatelessWidget {
       listenable: ThemeService.instance,
       builder: (_, __) {
         final t = AppTheme.current;
-        // Mesma cor exacta do body — sem lerp, sem modificação
         return Container(
           decoration: BoxDecoration(
             color: t.bg,
@@ -722,7 +645,6 @@ class _NavDrawer extends StatelessWidget {
       child: SafeArea(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const SizedBox(height: 8),
-
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
             child: Row(children: [
@@ -735,10 +657,8 @@ class _NavDrawer extends StatelessWidget {
                 )),
             ]),
           ),
-
           Divider(color: t.divider, height: 1, thickness: 1),
           const SizedBox(height: 4),
-
           _DrawerItemSvg(
             assetPath: 'assets/icons/svg/drawer_download.svg',
             label: 'Downloads',
@@ -749,7 +669,6 @@ class _NavDrawer extends StatelessWidget {
             label: 'Definições',
             onTap: () { Navigator.pop(context); onSettings(); },
           ),
-
           const Spacer(),
           Divider(color: t.divider, height: 1, thickness: 1),
           Padding(
@@ -803,23 +722,17 @@ class _DrawerItemSvg extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class _HomeTab extends StatefulWidget {
   final AnimationController fadeIn;
-  final double navBottom;
   final void Function(SiteModel) onOpen;
   final VoidCallback onDownloads, onSettings, onMenu;
   final void Function(Color) onColorExtracted;
-  final Color navColor;
-  final bool navIsLight;
 
   const _HomeTab({
     required this.fadeIn,
-    required this.navBottom,
     required this.onOpen,
     required this.onDownloads,
     required this.onSettings,
     required this.onMenu,
     required this.onColorExtracted,
-    required this.navColor,
-    required this.navIsLight,
   });
 
   @override
@@ -878,7 +791,6 @@ class _HomeTabState extends State<_HomeTab> {
       FadeTransition(
         opacity: CurvedAnimation(parent: widget.fadeIn, curve: Curves.easeOut),
         child: Column(children: [
-
           SafeArea(
             bottom: false,
             child: AnimatedBuilder(
@@ -888,12 +800,9 @@ class _HomeTabState extends State<_HomeTab> {
                 onMenu: widget.onMenu,
                 onDownloads: widget.onDownloads,
                 onSettings: widget.onSettings,
-                navColor: widget.navColor,
-                navIsLight: widget.navIsLight,
               ),
             ),
           ),
-
           Expanded(
             child: CustomScrollView(
               controller: _scroll,
@@ -905,7 +814,7 @@ class _HomeTabState extends State<_HomeTab> {
                   ),
                 ),
                 const SliverToBoxAdapter(child: _HomeFeedSection()),
-                SliverToBoxAdapter(child: SizedBox(height: widget.navBottom + 16)),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
               ],
             ),
           ),
@@ -919,16 +828,12 @@ class _HomeTabState extends State<_HomeTab> {
 class _HomeAppBar extends StatelessWidget {
   final double collapseProgress;
   final VoidCallback onMenu, onDownloads, onSettings;
-  final Color navColor;
-  final bool navIsLight;
 
   const _HomeAppBar({
     required this.collapseProgress,
     required this.onMenu,
     required this.onDownloads,
     required this.onSettings,
-    required this.navColor,
-    required this.navIsLight,
   });
 
   @override
@@ -997,13 +902,11 @@ class _HomeAppBar extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 10),
-                    _SearchTrigger(navColor: navColor, navIsLight: navIsLight),
+                    const _SearchTrigger(),
                     const SizedBox(height: 10),
                     _ActionRow(
                       onDownloads: onDownloads,
                       onSettings: onSettings,
-                      navColor: navColor,
-                      navIsLight: navIsLight,
                     ),
                     const SizedBox(height: 14),
                   ],
@@ -1039,7 +942,7 @@ class _IconBtn extends StatelessWidget {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _HomeFeedSection — feed de fotos estilo masonry
+// _HomeFeedSection
 // ─────────────────────────────────────────────────────────────────────────────
 class _HomeFeedSection extends StatefulWidget {
   const _HomeFeedSection();
@@ -1244,16 +1147,11 @@ class _PhotoCardSkeletonState extends State<_PhotoCardSkeleton>
 // _SearchTrigger
 // ─────────────────────────────────────────────────────────────────────────────
 class _SearchTrigger extends StatelessWidget {
-  final Color navColor;
-  final bool navIsLight;
-  const _SearchTrigger({required this.navColor, required this.navIsLight});
-
-  Color get _bgColor => AppTheme.current.inputBg;
-  Color get _borderColor => AppTheme.current.inputBorder;
-  Color get _hintColor => AppTheme.current.inputHint;
+  const _SearchTrigger();
 
   @override
   Widget build(BuildContext context) {
+    final t = AppTheme.current;
     return OpenContainer(
       transitionDuration: const Duration(milliseconds: 420),
       transitionType: ContainerTransitionType.fadeThrough,
@@ -1272,18 +1170,18 @@ class _SearchTrigger extends StatelessWidget {
         child: Container(
           height: 50,
           decoration: BoxDecoration(
-            color: _bgColor,
+            color: t.inputBg,
             borderRadius: BorderRadius.circular(100),
-            border: Border.all(color: _borderColor),
+            border: Border.all(color: t.inputBorder),
           ),
           child: Row(children: [
             const SizedBox(width: 16),
             SvgPicture.asset('assets/icons/svg/search.svg', width: 18, height: 18,
-                colorFilter: ColorFilter.mode(_hintColor, BlendMode.srcIn)),
+                colorFilter: ColorFilter.mode(t.inputHint, BlendMode.srcIn)),
             const SizedBox(width: 10),
             Text(
               'Pesquisar vídeos, sites...',
-              style: TextStyle(color: _hintColor, fontSize: 15),
+              style: TextStyle(color: t.inputHint, fontSize: 15),
             ),
           ]),
         ),
@@ -1294,204 +1192,28 @@ class _SearchTrigger extends StatelessWidget {
 }
 
 
-// ─── _SearchPage ──────────────────────────────────────────────────────────────
-class SearchPage extends StatefulWidget {
-  const SearchPage();
-  @override
-  State<SearchPage> createState() => SearchPageState();
-}
-
-class SearchPageState extends State<SearchPage> {
-  final _ctrl = TextEditingController();
-  bool get _hasQuery => _ctrl.text.trim().isNotEmpty;
-
-  static const _suggestions = [
-    'amador português', 'milf', 'latina', 'caseiro', 'teen',
-    'loira', 'morena', 'asiática', 'lésbicas', 'threesome',
-    'maduro', 'college', 'office', 'massage', 'outdoor',
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(milliseconds: 320), () {
-      if (mounted) FocusScope.of(context).requestFocus(FocusNode());
-    });
-  }
-
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  void _search() {
-    final q = _ctrl.text.trim();
-    if (q.isEmpty) return;
-    FocusScope.of(context).unfocus();
-    Navigator.pushReplacement(context, iosRoute(SearchResultsPage(query: q)));
-  }
-
-  void _searchFor(String q) {
-    _ctrl.text = q;
-    setState(() {});
-    FocusScope.of(context).unfocus();
-    Navigator.pushReplacement(context, iosRoute(SearchResultsPage(query: q)));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    final topPad = MediaQuery.of(context).padding.top;
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: t.statusBar,
-      ),
-      child: Scaffold(
-        backgroundColor: t.bg,
-        body: Column(children: [
-          SizedBox(height: topPad + 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(children: [
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  width: 50, height: 50,
-                  decoration: BoxDecoration(
-                    color: t.btnGhost,
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Center(
-                    child: SvgPicture.asset(
-                      'assets/icons/svg/back_arrow.svg',
-                      width: 18, height: 18,
-                      colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: t.inputBg,
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: t.inputBorder),
-                  ),
-                  child: Row(children: [
-                    const SizedBox(width: 16),
-                    SvgPicture.asset('assets/icons/svg/search.svg', width: 18, height: 18,
-                        colorFilter: ColorFilter.mode(t.textSecondary, BlendMode.srcIn)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: _ctrl,
-                        autofocus: true,
-                        style: TextStyle(color: t.inputText, fontSize: 15),
-                        textInputAction: TextInputAction.search,
-                        cursorColor: AppTheme.ytRed,
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          hintText: 'Pesquisar...',
-                        ),
-                        onChanged: (_) => setState(() {}),
-                        onSubmitted: (_) => _search(),
-                      ),
-                    ),
-                    if (_hasQuery)
-                      GestureDetector(
-                        onTap: _search,
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: AppTheme.ytRed,
-                            borderRadius: BorderRadius.circular(100),
-                          ),
-                          child: Text('Ir',
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 13,
-                                  fontWeight: FontWeight.w700)),
-                        ),
-                      )
-                    else
-                      const SizedBox(width: 8),
-                  ]),
-                ),
-              ),
-            ]),
-          ),
-
-          const SizedBox(height: 20),
-
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                Text('Sugestões',
-                    style: TextStyle(
-                        color: t.textSecondary, fontSize: 12,
-                        fontWeight: FontWeight.w600, letterSpacing: 0.3)),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8, runSpacing: 8,
-                  children: _suggestions.map((s) => GestureDetector(
-                    onTap: () => _searchFor(s),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: t.chipBg,
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(color: t.borderSoft),
-                      ),
-                      child: Text(s,
-                          style: TextStyle(
-                              color: t.text, fontSize: 13,
-                              fontWeight: FontWeight.w400)),
-                    ),
-                  )).toList(),
-                ),
-              ],
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
-
 // ─────────────────────────────────────────────────────────────────────────────
 // _ActionRow
 // ─────────────────────────────────────────────────────────────────────────────
 class _ActionRow extends StatelessWidget {
   final VoidCallback onDownloads, onSettings;
-  final Color navColor;
-  final bool navIsLight;
 
-  const _ActionRow({
-    required this.onDownloads, required this.onSettings,
-    required this.navColor, required this.navIsLight,
-  });
+  const _ActionRow({required this.onDownloads, required this.onSettings});
 
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    final bgColor      = t.btnGhost;
-    final borderColor  = t.border;
-    final contentColor = t.text;
-
     return Row(children: [
       Expanded(child: _ActionBtn(
         label: 'Downloads', onTap: onDownloads,
-        bgColor: bgColor, borderColor: borderColor, contentColor: contentColor,
+        bgColor: t.btnGhost, borderColor: t.border, contentColor: t.text,
         isDownloads: true,
       )),
       const SizedBox(width: 10),
       Expanded(child: _ActionBtn(
-        assetPath: 'assets/icons/svg/settings_gradient.svg', label: 'Definições', onTap: onSettings,
-        bgColor: bgColor, borderColor: borderColor, contentColor: contentColor,
-        isSettings: true,
+        assetPath: 'assets/icons/svg/settings_gradient.svg',
+        label: 'Definições', onTap: onSettings,
+        bgColor: t.btnGhost, borderColor: t.border, contentColor: t.text,
       )),
     ]);
   }
@@ -1503,27 +1225,19 @@ class _ActionBtn extends StatelessWidget {
   final VoidCallback onTap;
   final Color bgColor, borderColor, contentColor;
   final bool isDownloads;
-  final bool isSettings;
 
   const _ActionBtn({
     this.assetPath,
     required this.label, required this.onTap,
     required this.bgColor, required this.borderColor, required this.contentColor,
     this.isDownloads = false,
-    this.isSettings = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    Widget iconWidget;
-    if (isDownloads) {
-      iconWidget = Image.asset('assets/icons/downloads_folder.png', width: 38, height: 38);
-    } else if (isSettings) {
-      iconWidget = SvgPicture.asset(assetPath!, width: 38, height: 38);
-    } else {
-      iconWidget = SvgPicture.asset(assetPath!, width: 17, height: 17,
-          colorFilter: ColorFilter.mode(contentColor, BlendMode.srcIn));
-    }
+    final Widget iconWidget = isDownloads
+        ? Image.asset('assets/icons/downloads_folder.png', width: 38, height: 38)
+        : SvgPicture.asset(assetPath!, width: 38, height: 38);
 
     return GestureDetector(
       onTap: onTap,
@@ -1628,811 +1342,6 @@ class _SiteCellState extends State<_SiteCell> with SingleTickerProviderStateMixi
           ]),
         ),
       ),
-    );
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Modelo de foto do feed
-// ─────────────────────────────────────────────────────────────────────────────
-class FeedPhoto {
-  final String id;
-  final String url;
-  final String thumb;
-  final String title;
-  final String source;
-  final String sourceLabel;
-  final int likes;
-
-  const FeedPhoto({
-    required this.id,
-    required this.url,
-    required this.thumb,
-    required this.title,
-    required this.source,
-    required this.sourceLabel,
-    this.likes = 0,
-  });
-
-  static FeedPhoto? fromPornhub(Map<String, dynamic> j) {
-    final id = (j['id'] ?? j['photo_id'] ?? '').toString();
-    if (id.isEmpty) return null;
-    String url = j['thumb_url'] as String?
-        ?? j['url'] as String?
-        ?? j['thumbnail'] as String? ?? '';
-    if (url.isNotEmpty && url.contains('_160')) {
-      url = url.replaceAll('_160', '_720');
-    }
-    if (url.isEmpty) return null;
-    return FeedPhoto(
-      id: 'ph_$id', url: url, thumb: url,
-      title: j['title'] as String? ?? '',
-      source: 'https://www.pornhub.com/favicon.ico',
-      sourceLabel: 'Pornhub',
-      likes: int.tryParse((j['rating'] ?? j['likes'] ?? '0').toString()) ?? 0,
-    );
-  }
-
-  static FeedPhoto? fromRedtube(Map<String, dynamic> j) {
-    final id = (j['photo_id'] ?? j['id'] ?? '').toString();
-    if (id.isEmpty) return null;
-    final url = j['thumb_url'] as String? ?? j['url'] as String? ?? '';
-    if (url.isEmpty) return null;
-    return FeedPhoto(
-      id: 'rt_$id', url: url, thumb: url,
-      title: j['title'] as String? ?? '',
-      source: 'https://www.redtube.com/favicon.ico',
-      sourceLabel: 'RedTube',
-      likes: int.tryParse((j['rating'] ?? '0').toString()) ?? 0,
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PhotoFetcher
-// ─────────────────────────────────────────────────────────────────────────────
-class PhotoFetcher {
-  static const _ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
-
-  static Future<List<FeedPhoto>> fetchAll(int page) async {
-    final results = await Future.wait([
-      _fetchPornhub(page),
-      _fetchRedtube(page),
-    ]);
-    final all = <FeedPhoto>[];
-    for (final list in results) all.addAll(list);
-    all.shuffle();
-    return all;
-  }
-
-  static Future<List<FeedPhoto>> _fetchPornhub(int page) async {
-    try {
-      final r = await http.get(
-        Uri.parse('https://www.pornhub.com/webmasters/photos?format=json&page=${page.clamp(1,30)}&thumbsize=medium'),
-        headers: {'User-Agent': _ua},
-      ).timeout(const Duration(seconds: 12));
-      if (r.statusCode != 200) return [];
-      final data = jsonDecode(r.body) as Map<String, dynamic>;
-      final photos = data['photos'] as List? ?? data['photo'] as List? ?? [];
-      return photos
-          .map((p) => FeedPhoto.fromPornhub(p as Map<String, dynamic>))
-          .whereType<FeedPhoto>()
-          .toList();
-    } catch (_) { return []; }
-  }
-
-  static Future<List<FeedPhoto>> _fetchRedtube(int page) async {
-    try {
-      final r = await http.get(
-        Uri.parse('https://api.redtube.com/?data=redtube.Photos.searchPhotos&output=json&thumbsize=medium&page=${page.clamp(1,20)}&count=20'),
-        headers: {'User-Agent': _ua},
-      ).timeout(const Duration(seconds: 12));
-      if (r.statusCode != 200) return [];
-      final data = jsonDecode(r.body) as Map<String, dynamic>;
-      final photos = data['photos'] as List? ?? [];
-      return photos.map((p) {
-        final pm = (p as Map)['photo'] as Map<String, dynamic>? ?? p as Map<String, dynamic>;
-        return FeedPhoto.fromRedtube(pm);
-      }).whereType<FeedPhoto>().toList();
-    } catch (_) { return []; }
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Modelo unificado de vídeo
-// ─────────────────────────────────────────────────────────────────────────────
-enum VideoSource {
-  eporner, pornhub, redtube, youporn, xvideos, xhamster, spankbang,
-  bravotube, drtuber, txxx, gotporn, porndig,
-}
-
-class FeedVideo {
-  final String title;
-  final String thumb;
-  final String embedUrl;
-  final String duration;
-  final String views;
-  final VideoSource source;
-
-  const FeedVideo({
-    required this.title, required this.thumb, required this.embedUrl,
-    required this.duration, required this.views, required this.source,
-  });
-
-  String get sourceLabel {
-    switch (source) {
-      case VideoSource.eporner:   return 'Eporner';
-      case VideoSource.pornhub:   return 'Pornhub';
-      case VideoSource.redtube:   return 'RedTube';
-      case VideoSource.youporn:   return 'YouPorn';
-      case VideoSource.xvideos:   return 'XVideos';
-      case VideoSource.xhamster:  return 'xHamster';
-      case VideoSource.spankbang: return 'SpankBang';
-      case VideoSource.bravotube: return 'BravoTube';
-      case VideoSource.drtuber:   return 'DrTuber';
-      case VideoSource.txxx:      return 'TXXX';
-      case VideoSource.gotporn:   return 'GotPorn';
-      case VideoSource.porndig:   return 'PornDig';
-    }
-  }
-
-  String get sourceInitial {
-    switch (source) {
-      case VideoSource.eporner:   return 'E';
-      case VideoSource.pornhub:   return 'P';
-      case VideoSource.redtube:   return 'R';
-      case VideoSource.youporn:   return 'Y';
-      case VideoSource.xvideos:   return 'XV';
-      case VideoSource.xhamster:  return 'XH';
-      case VideoSource.spankbang: return 'SB';
-      case VideoSource.bravotube: return 'BT';
-      case VideoSource.drtuber:   return 'DT';
-      case VideoSource.txxx:      return 'TX';
-      case VideoSource.gotporn:   return 'GP';
-      case VideoSource.porndig:   return 'PD';
-    }
-  }
-
-  Color get sourceColor => const Color(0xFF222222);
-
-  static FeedVideo? fromEporner(Map<String, dynamic> j) {
-    final id = j['id'] as String? ?? '';
-    if (id.isEmpty) return null;
-    String thumb = '';
-    final thumbs = j['thumbs'] as List?;
-    if (thumbs != null && thumbs.isNotEmpty) {
-      final sorted = thumbs.map((t) => t as Map).toList()
-        ..sort((a, b) => ((b['width'] ?? 0) as int).compareTo((a['width'] ?? 0) as int));
-      thumb = sorted.first['src'] as String? ?? '';
-    }
-    if (thumb.isEmpty) return null;
-    return FeedVideo(
-      title: FeedVideo.cleanTitle(j['title'] as String? ?? ''),
-      thumb: thumb,
-      embedUrl: 'https://www.eporner.com/embed/$id/',
-      duration: j['duration'] as String? ?? '',
-      views: _fmtViews(j['views']),
-      source: VideoSource.eporner,
-    );
-  }
-
-  static FeedVideo? fromPornhub(Map<String, dynamic> j) {
-    final viewkey = j['video_id'] as String? ?? j['viewkey'] as String? ?? '';
-    if (viewkey.isEmpty) return null;
-    String thumb = '';
-    final thumbs = j['thumbs'] as List?;
-    if (thumbs != null && thumbs.isNotEmpty) {
-      thumb = (thumbs.first['src'] ?? thumbs.first['url'] ?? '') as String;
-    }
-    if (thumb.isEmpty) thumb = j['default_thumb'] as String? ?? '';
-    if (thumb.isEmpty) return null;
-    return FeedVideo(
-      title: FeedVideo.cleanTitle(j['title'] as String? ?? ''),
-      thumb: thumb,
-      embedUrl: 'https://www.pornhub.com/embed/$viewkey',
-      duration: j['duration'] as String? ?? '',
-      views: _fmtViews(j['views']),
-      source: VideoSource.pornhub,
-    );
-  }
-
-  static FeedVideo? fromRedtube(Map<String, dynamic> j) {
-    final vid = j['video_id'] as String? ?? '';
-    if (vid.isEmpty) return null;
-    final thumb = j['thumb'] as String? ?? j['default_thumb'] as String? ?? '';
-    if (thumb.isEmpty) return null;
-    return FeedVideo(
-      title: FeedVideo.cleanTitle(j['title'] as String? ?? ''),
-      thumb: thumb,
-      embedUrl: 'https://embed.redtube.com/?id=$vid',
-      duration: j['duration'] as String? ?? '',
-      views: _fmtViews(j['views']),
-      source: VideoSource.redtube,
-    );
-  }
-
-  static FeedVideo? fromYouporn(Map<String, dynamic> j) {
-    final id = (j['id'] ?? j['video_id'] ?? '').toString();
-    if (id.isEmpty || id == '0') return null;
-    final thumb = j['thumb'] as String? ?? j['default_thumb'] as String? ?? '';
-    if (thumb.isEmpty) return null;
-    return FeedVideo(
-      title: FeedVideo.cleanTitle(j['title'] as String? ?? ''),
-      thumb: thumb,
-      embedUrl: 'https://www.youporn.com/embed/$id/',
-      duration: j['duration'] as String? ?? '',
-      views: _fmtViews(j['views']),
-      source: VideoSource.youporn,
-    );
-  }
-
-  static String cleanTitle(String raw) {
-    try {
-      final bytes = latin1.encode(raw);
-      final decoded = utf8.decode(bytes, allowMalformed: true);
-      if (decoded.runes.where((r) => r > 127).length <
-          raw.runes.where((r) => r > 127).length) {
-        return decoded;
-      }
-    } catch (_) {}
-    return raw;
-  }
-
-  static FeedVideo? fromXvideos(Map<String, dynamic> j) {
-    final id = (j['id'] ?? j['video_id'] ?? '').toString();
-    if (id.isEmpty || id == '0') return null;
-    final thumb = j['thumb'] as String? ?? j['thumbnail'] as String? ??
-        j['default_thumb'] as String? ?? '';
-    if (thumb.isEmpty) return null;
-    return FeedVideo(
-      title:    cleanTitle(j['title'] as String? ?? ''),
-      thumb:    thumb,
-      embedUrl: 'https://www.xvideos.com/embedframe/$id',
-      duration: j['duration'] as String? ?? '',
-      views:    _fmtViews(j['views'] ?? j['nb_views']),
-      source:   VideoSource.xvideos,
-    );
-  }
-
-  static FeedVideo? fromXhamster(Map<String, dynamic> j) {
-    final id = (j['id'] ?? '').toString();
-    if (id.isEmpty) return null;
-    final thumb = j['thumbUrl'] as String? ?? j['thumb'] as String? ??
-        j['thumbnail'] as String? ?? '';
-    if (thumb.isEmpty) return null;
-    return FeedVideo(
-      title:    cleanTitle(j['title'] as String? ?? ''),
-      thumb:    thumb,
-      embedUrl: 'https://xhamster.com/xembed.php?video=$id',
-      duration: j['duration']?.toString() ?? '',
-      views:    _fmtViews(j['views']),
-      source:   VideoSource.xhamster,
-    );
-  }
-
-  static FeedVideo? fromSpankbang(Map<String, dynamic> j) {
-    final id = (j['id'] ?? j['video_id'] ?? '').toString();
-    if (id.isEmpty) return null;
-    final thumb = j['thumb'] as String? ?? j['thumbnail'] as String? ?? '';
-    if (thumb.isEmpty) return null;
-    return FeedVideo(
-      title:    cleanTitle(j['title'] as String? ?? ''),
-      thumb:    thumb,
-      embedUrl: 'https://spankbang.com/$id/embed/',
-      duration: j['duration']?.toString() ?? '',
-      views:    _fmtViews(j['views']),
-      source:   VideoSource.spankbang,
-    );
-  }
-
-  static FeedVideo fromRss({
-    required String title,
-    required String thumb,
-    required String embedUrl,
-    required VideoSource source,
-  }) => FeedVideo(
-    title: cleanTitle(title),
-    thumb: thumb,
-    embedUrl: embedUrl,
-    duration: '',
-    views: '',
-    source: source,
-  );
-
-  static String _fmtViews(dynamic raw) {
-    if (raw == null) return '';
-    final n = int.tryParse(raw.toString()) ?? 0;
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(0)}K';
-    return n > 0 ? n.toString() : '';
-  }
-
-  static String fmtViewsPublic(dynamic raw) => _fmtViews(raw);
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FeedFetcher
-// ─────────────────────────────────────────────────────────────────────────────
-class FeedFetcher {
-  static const _ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
-
-  static const _terms = [
-    '', 'amateur', 'teen', 'milf', 'blonde', 'brunette', 'asian', 'latina',
-    'big', 'hot', 'sexy', 'beautiful', 'young', 'wild', 'homemade',
-  ];
-
-  static Future<List<FeedVideo>> fetchEporner(int page) async {
-    final term = _terms[page % _terms.length];
-    try {
-      final r = await http.get(
-        Uri.parse('https://www.eporner.com/api/v2/video/search/'
-            '?query=$term&per_page=20&page=${page.clamp(1, 60)}&thumbsize=big&format=json'),
-        headers: {'User-Agent': _ua},
-      ).timeout(const Duration(seconds: 12));
-      if (r.statusCode != 200) return [];
-      final data = jsonDecode(r.body) as Map<String, dynamic>;
-      final videos = (data['videos'] as List? ?? []);
-      return videos
-          .map((v) => FeedVideo.fromEporner(v as Map<String, dynamic>))
-          .whereType<FeedVideo>()
-          .toList();
-    } catch (_) { return []; }
-  }
-
-  static Future<List<FeedVideo>> fetchPornhub(int page) async {
-    try {
-      final r = await http.get(
-        Uri.parse('https://www.pornhub.com/webmasters/search?search=&ordering=newest'
-            '&page=${page.clamp(1, 40)}&thumbsize=medium&format=json'),
-        headers: {'User-Agent': _ua},
-      ).timeout(const Duration(seconds: 12));
-      if (r.statusCode != 200) return [];
-      final data = jsonDecode(r.body) as Map<String, dynamic>;
-      final videos = (data['videos'] as List? ?? []);
-      return videos
-          .map((v) {
-            final inner = v['video'] as Map<String, dynamic>? ?? v as Map<String, dynamic>;
-            return FeedVideo.fromPornhub(inner);
-          })
-          .whereType<FeedVideo>()
-          .toList();
-    } catch (_) { return []; }
-  }
-
-  static Future<List<FeedVideo>> fetchRedtube(int page) async {
-    final term = _terms[page % _terms.length];
-    final order = ['mostviewed', 'rating', 'newestdate'][page % 3];
-    try {
-      final r = await http.get(
-        Uri.parse('https://api.redtube.com/?data=redtube.Videos.searchVideos'
-            '&output=json&thumbsize=medium&count=20'
-            '&search=$term&ordering=$order&page=$page'),
-        headers: {'User-Agent': _ua},
-      ).timeout(const Duration(seconds: 12));
-      if (r.statusCode != 200) return [];
-      final data = jsonDecode(r.body) as Map<String, dynamic>;
-      final videos = (data['videos'] as List? ?? []);
-      return videos
-          .map((v) {
-            final inner = v['video'] as Map<String, dynamic>? ?? v as Map<String, dynamic>;
-            return FeedVideo.fromRedtube(inner);
-          })
-          .whereType<FeedVideo>()
-          .toList();
-    } catch (_) { return []; }
-  }
-
-  static Future<List<FeedVideo>> fetchYouporn(int page) async {
-    try {
-      final r = await http.get(
-        Uri.parse('https://www.youporn.com/api/video/search/'
-            '?is_top=1&page=${page.clamp(1,15)}&per_page=20'),
-        headers: {'User-Agent': _ua, 'Accept': 'application/json',
-            'Referer': 'https://www.youporn.com/'},
-      ).timeout(const Duration(seconds: 12));
-      if (r.statusCode == 200) {
-        final data = jsonDecode(r.body);
-        final videos = (data['videos'] ?? data['data'] ?? data) as List? ?? [];
-        final result = videos
-            .map((v) => FeedVideo.fromYouporn(v as Map<String, dynamic>))
-            .whereType<FeedVideo>()
-            .toList();
-        if (result.isNotEmpty) return result;
-      }
-    } catch (_) {}
-    return [];
-  }
-
-  static Future<List<FeedVideo>> fetchXvideos(int page) async {
-    final urls = [
-      'https://www.xvideos.com/feeds/rss-new/0',
-      'https://www.xvideos.com/feeds/rss-most-viewed-alltime/0',
-    ];
-    final items = <FeedVideo>[];
-    for (final url in urls) {
-      try {
-        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
-            .timeout(const Duration(seconds: 14));
-        if (r.statusCode != 200) continue;
-        final doc = XmlDocument.parse(r.body);
-        for (final item in doc.findAllElements('item')) {
-          final link  = FeedFetcher._xml(item, 'link');
-          final title = FeedFetcher._xml(item, 'title');
-          final thumb = FeedFetcher._rssThumb(item);
-          if (link.isEmpty) continue;
-          final match = RegExp(r'/video(\d+)').firstMatch(link);
-          if (match == null) continue;
-          items.add(FeedVideo.fromRss(
-            title: title.isEmpty ? 'Vídeo' : title,
-            thumb: thumb,
-            embedUrl: 'https://www.xvideos.com/embedframe/${match.group(1)}',
-            source: VideoSource.xvideos,
-          ));
-        }
-        if (items.isNotEmpty) break;
-      } catch (_) {}
-    }
-    return items;
-  }
-
-  static Future<List<FeedVideo>> fetchXhamster(int page) async {
-    final urls = [
-      'https://www.xnxx.com/rss/latest_videos',
-      'https://www.xnxx.com/rss/best_videos',
-    ];
-    final items = <FeedVideo>[];
-    for (final url in urls) {
-      try {
-        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
-            .timeout(const Duration(seconds: 12));
-        if (r.statusCode != 200) continue;
-        final doc = XmlDocument.parse(r.body);
-        for (final item in doc.findAllElements('item')) {
-          final link  = FeedFetcher._xml(item, 'link');
-          final title = FeedFetcher._xml(item, 'title');
-          final thumb = FeedFetcher._rssThumb(item);
-          if (link.isEmpty) continue;
-          final match = RegExp(r'/video-(\w+)/').firstMatch(link);
-          if (match == null) continue;
-          items.add(FeedVideo.fromRss(
-            title: title.isEmpty ? 'Vídeo' : title,
-            thumb: thumb,
-            embedUrl: 'https://www.xnxx.com/embedframe/${match.group(1)}',
-            source: VideoSource.xhamster,
-          ));
-        }
-        if (items.isNotEmpty) break;
-      } catch (_) {}
-    }
-    return items;
-  }
-
-  static Future<List<FeedVideo>> fetchSpankbang(int page) async {
-    final urls = ['https://spankbang.com/rss/', 'https://spankbang.com/rss/trending/'];
-    final items = <FeedVideo>[];
-    for (final url in urls) {
-      try {
-        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
-            .timeout(const Duration(seconds: 12));
-        if (r.statusCode != 200) continue;
-        final doc = XmlDocument.parse(r.body);
-        for (final item in doc.findAllElements('item')) {
-          final link  = FeedFetcher._xml(item, 'link');
-          final title = FeedFetcher._xml(item, 'title');
-          final thumb = FeedFetcher._rssThumb(item);
-          if (link.isEmpty) continue;
-          final match = RegExp(r'^/([A-Za-z0-9]+)/').firstMatch(Uri.parse(link).path);
-          if (match == null) continue;
-          items.add(FeedVideo.fromRss(
-            title: title.isEmpty ? 'Vídeo' : title,
-            thumb: thumb,
-            embedUrl: 'https://spankbang.com/${match.group(1)}/embed/',
-            source: VideoSource.spankbang,
-          ));
-        }
-        if (items.isNotEmpty) break;
-      } catch (_) {}
-    }
-    return items;
-  }
-
-  static Future<List<FeedVideo>> fetchBravotube(int page) async {
-    final urls = ['https://www.bravotube.net/rss/new/', 'https://www.bravotube.net/rss/popular/'];
-    final items = <FeedVideo>[];
-    for (final url in urls) {
-      try {
-        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
-            .timeout(const Duration(seconds: 12));
-        if (r.statusCode != 200) continue;
-        final doc = XmlDocument.parse(r.body);
-        for (final item in doc.findAllElements('item')) {
-          final link  = FeedFetcher._xml(item, 'link');
-          final title = FeedFetcher._xml(item, 'title');
-          final thumb = FeedFetcher._rssThumb(item);
-          if (link.isEmpty) continue;
-          final match = RegExp(r'-(\d+)\.html').firstMatch(link);
-          if (match == null) continue;
-          items.add(FeedVideo.fromRss(
-            title: title, thumb: thumb,
-            embedUrl: 'https://www.bravotube.net/embed/${match.group(1)}/',
-            source: VideoSource.bravotube,
-          ));
-        }
-        if (items.isNotEmpty) break;
-      } catch (_) {}
-    }
-    return items;
-  }
-
-  static Future<List<FeedVideo>> fetchDrtuber(int page) async {
-    final urls = ['https://www.drtuber.com/rss/latest', 'https://www.drtuber.com/rss/popular'];
-    final items = <FeedVideo>[];
-    for (final url in urls) {
-      try {
-        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
-            .timeout(const Duration(seconds: 12));
-        if (r.statusCode != 200) continue;
-        final doc = XmlDocument.parse(r.body);
-        for (final item in doc.findAllElements('item')) {
-          final link  = FeedFetcher._xml(item, 'link');
-          final title = FeedFetcher._xml(item, 'title');
-          final thumb = FeedFetcher._rssThumb(item);
-          if (link.isEmpty) continue;
-          final match = RegExp(r'/video/(\d+)').firstMatch(link);
-          if (match == null) continue;
-          items.add(FeedVideo.fromRss(
-            title: title, thumb: thumb,
-            embedUrl: 'https://www.drtuber.com/embed/${match.group(1)}',
-            source: VideoSource.drtuber,
-          ));
-        }
-        if (items.isNotEmpty) break;
-      } catch (_) {}
-    }
-    return items;
-  }
-
-  static Future<List<FeedVideo>> fetchTxxx(int page) async {
-    final urls = ['https://www.txxx.com/rss/new/', 'https://www.txxx.com/rss/popular/'];
-    final items = <FeedVideo>[];
-    for (final url in urls) {
-      try {
-        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
-            .timeout(const Duration(seconds: 12));
-        if (r.statusCode != 200) continue;
-        final doc = XmlDocument.parse(r.body);
-        for (final item in doc.findAllElements('item')) {
-          final link  = FeedFetcher._xml(item, 'link');
-          final title = FeedFetcher._xml(item, 'title');
-          final thumb = FeedFetcher._rssThumb(item);
-          if (link.isEmpty) continue;
-          final match = RegExp(r'-(\d+)/?$').firstMatch(Uri.parse(link).path);
-          if (match == null) continue;
-          items.add(FeedVideo.fromRss(
-            title: title, thumb: thumb,
-            embedUrl: 'https://www.txxx.com/embed/${match.group(1)}/',
-            source: VideoSource.txxx,
-          ));
-        }
-        if (items.isNotEmpty) break;
-      } catch (_) {}
-    }
-    return items;
-  }
-
-  static Future<List<FeedVideo>> fetchGotporn(int page) async {
-    final urls = ['https://www.gotporn.com/rss/latest', 'https://www.gotporn.com/rss/popular'];
-    final items = <FeedVideo>[];
-    for (final url in urls) {
-      try {
-        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
-            .timeout(const Duration(seconds: 12));
-        if (r.statusCode != 200) continue;
-        final doc = XmlDocument.parse(r.body);
-        for (final item in doc.findAllElements('item')) {
-          final link  = FeedFetcher._xml(item, 'link');
-          final title = FeedFetcher._xml(item, 'title');
-          final thumb = FeedFetcher._rssThumb(item);
-          if (link.isEmpty) continue;
-          final match = RegExp(r'/video-(\d+)').firstMatch(link);
-          if (match == null) continue;
-          items.add(FeedVideo.fromRss(
-            title: title, thumb: thumb,
-            embedUrl: 'https://www.gotporn.com/video/embed/${match.group(1)}',
-            source: VideoSource.gotporn,
-          ));
-        }
-        if (items.isNotEmpty) break;
-      } catch (_) {}
-    }
-    return items;
-  }
-
-  static Future<List<FeedVideo>> fetchPorndig(int page) async {
-    final urls = ['https://www.porndig.com/rss', 'https://www.porndig.com/rss?category=latest'];
-    final items = <FeedVideo>[];
-    for (final url in urls) {
-      try {
-        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
-            .timeout(const Duration(seconds: 12));
-        if (r.statusCode != 200) continue;
-        final doc = XmlDocument.parse(r.body);
-        for (final item in doc.findAllElements('item')) {
-          final link  = FeedFetcher._xml(item, 'link');
-          final title = FeedFetcher._xml(item, 'title');
-          final thumb = FeedFetcher._rssThumb(item);
-          if (link.isEmpty) continue;
-          final match = RegExp(r'-(\d+)\.html').firstMatch(link);
-          if (match == null) continue;
-          items.add(FeedVideo.fromRss(
-            title: title, thumb: thumb,
-            embedUrl: 'https://www.porndig.com/embed/${match.group(1)}',
-            source: VideoSource.porndig,
-          ));
-        }
-        if (items.isNotEmpty) break;
-      } catch (_) {}
-    }
-    return items;
-  }
-
-  static String _xml(dynamic el, String tag) {
-    try { return el.findElements(tag).first.innerText.trim(); } catch (_) { return ''; }
-  }
-
-  static String _mediaAttr(dynamic item, String localName, String attr) {
-    try {
-      for (final child in (item as dynamic).childElements) {
-        final qn = child.qualifiedName as String? ?? '';
-        final ln = child.localName as String? ?? '';
-        if (qn == 'media:$localName' || ln == localName) {
-          final val = child.getAttribute(attr) as String? ?? '';
-          if (val.isNotEmpty) return val;
-        }
-      }
-    } catch (_) {}
-    return '';
-  }
-
-  static String _rssThumb(dynamic item) {
-    final mc = _mediaAttr(item, 'content', 'url');
-    if (mc.isNotEmpty) return mc;
-    final mt = _mediaAttr(item, 'thumbnail', 'url');
-    if (mt.isNotEmpty) return mt;
-    try {
-      for (final child in (item as dynamic).childElements) {
-        final ln = (child.localName as String? ?? '').toLowerCase();
-        if (ln == 'enclosure') {
-          final url = child.getAttribute('url') as String? ?? '';
-          final type = child.getAttribute('type') as String? ?? '';
-          if (url.isNotEmpty && (type.startsWith('image') ||
-              url.contains('.jpg') || url.contains('.png') || url.contains('.webp'))) {
-            return url;
-          }
-        }
-      }
-    } catch (_) {}
-    try {
-      final desc = _xml(item, 'description');
-      if (desc.isNotEmpty) {
-        final rx = RegExp('<img[^>]+src=["\'](.*?)["\']');
-        final m = rx.firstMatch(desc);
-        if (m != null) return m.group(1) ?? '';
-      }
-    } catch (_) {}
-    return '';
-  }
-
-  static Future<List<FeedVideo>> fetchAll(int page) async {
-    final rng = Random(DateTime.now().millisecondsSinceEpoch ^ page.hashCode);
-    final epPage = rng.nextInt(60) + 1;
-    final phPage = rng.nextInt(40) + 1;
-    final rtPage = rng.nextInt(30) + 1;
-    final ypPage = rng.nextInt(20) + 1;
-    final xvPage = rng.nextInt(50) + 1;
-    final xhPage = rng.nextInt(30) + 1;
-    final sbPage = rng.nextInt(20) + 1;
-
-    final results = await Future.wait([
-      fetchEporner(epPage),
-      fetchPornhub(phPage),
-      fetchRedtube(rtPage),
-      fetchYouporn(ypPage),
-      fetchXvideos(xvPage),
-      fetchXhamster(xhPage),
-      fetchSpankbang(sbPage),
-      fetchBravotube(page),
-      fetchDrtuber(page),
-      fetchTxxx(page),
-      fetchGotporn(page),
-      fetchPorndig(page),
-    ]);
-
-    final merged = <FeedVideo>[];
-    final lists = results.where((l) => l.isNotEmpty).toList();
-    if (lists.isEmpty) return [];
-
-    int maxLen = lists.map((l) => l.length).reduce((a, b) => a > b ? a : b);
-    for (int i = 0; i < maxLen; i++) {
-      for (final list in lists) {
-        if (i < list.length) merged.add(list[i]);
-      }
-    }
-    merged.shuffle(rng);
-    return merged;
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _ThumbShimmer (usado por _MiniPlayer e outros)
-// ─────────────────────────────────────────────────────────────────────────────
-class _ThumbShimmer extends StatefulWidget {
-  @override State<_ThumbShimmer> createState() => _ThumbShimmerState();
-}
-class _ThumbShimmerState extends State<_ThumbShimmer>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-  late final Animation<double> _a;
-  @override void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
-    _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
-  }
-  @override void dispose() { _c.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _a,
-    builder: (_, __) => Container(
-      height: 120,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment(_a.value - 1, 0), end: Alignment(_a.value + 1, 0),
-          colors: AppTheme.current.shimmer,
-        ),
-      ),
-    ),
-  );
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// faviconForSource (helper público, usado por explore_page.dart)
-// ─────────────────────────────────────────────────────────────────────────────
-String faviconForSource(VideoSource src) {
-  switch (src) {
-    case VideoSource.eporner:   return 'https://www.eporner.com/favicon.ico';
-    case VideoSource.pornhub:   return 'https://www.pornhub.com/favicon.ico';
-    case VideoSource.redtube:   return 'https://www.redtube.com/favicon.ico';
-    case VideoSource.youporn:   return 'https://www.youporn.com/favicon.ico';
-    case VideoSource.xvideos:   return 'https://www.xvideos.com/favicon.ico';
-    case VideoSource.xhamster:  return 'https://xhamster.com/favicon.ico';
-    case VideoSource.spankbang: return 'https://spankbang.com/favicon.ico';
-    case VideoSource.bravotube: return 'https://www.bravotube.net/favicon.ico';
-    case VideoSource.drtuber:   return 'https://www.drtuber.com/favicon.ico';
-    case VideoSource.txxx:      return 'https://www.txxx.com/favicon.ico';
-    case VideoSource.gotporn:   return 'https://www.gotporn.com/favicon.ico';
-    case VideoSource.porndig:   return 'https://www.porndig.com/favicon.ico';
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FreeBrowserPage
-// ─────────────────────────────────────────────────────────────────────────────
-class FreeBrowserPage extends StatelessWidget {
-  final String url, title;
-  const FreeBrowserPage({super.key, required this.url, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return BrowserPage(
-      site: SiteModel(
-          id: 'free', name: title, baseUrl: url,
-          allowedDomain: '', searchUrl: url, primaryColor: kPrimaryColor),
-      freeNavigation: true,
     );
   }
 }

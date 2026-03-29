@@ -631,3 +631,23 @@ class FeedFetcher {
     return merged;
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// faviconForSource (helper público, usado por explore_page.dart)
+// ─────────────────────────────────────────────────────────────────────────────
+String faviconForSource(VideoSource src) {
+  switch (src) {
+    case VideoSource.eporner:   return 'https://www.eporner.com/favicon.ico';
+    case VideoSource.pornhub:   return 'https://www.pornhub.com/favicon.ico';
+    case VideoSource.redtube:   return 'https://www.redtube.com/favicon.ico';
+    case VideoSource.youporn:   return 'https://www.youporn.com/favicon.ico';
+    case VideoSource.xvideos:   return 'https://www.xvideos.com/favicon.ico';
+    case VideoSource.xhamster:  return 'https://xhamster.com/favicon.ico';
+    case VideoSource.spankbang: return 'https://spankbang.com/favicon.ico';
+    case VideoSource.bravotube: return 'https://www.bravotube.net/favicon.ico';
+    case VideoSource.drtuber:   return 'https://www.drtuber.com/favicon.ico';
+    case VideoSource.txxx:      return 'https://www.txxx.com/favicon.ico';
+    case VideoSource.gotporn:   return 'https://www.gotporn.com/favicon.ico';
+    case VideoSource.porndig:   return 'https://www.porndig.com/favicon.ico';
+  }
+}
