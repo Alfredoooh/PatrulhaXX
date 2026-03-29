@@ -1,13 +1,3 @@
-// =============================================================================
-// settings_page.dart
-// patrulhaXX — Definições
-//
-// Copyright (c) 2024 patrulhaXX. Todos os direitos reservados.
-// Este ficheiro é propriedade exclusiva do projecto patrulhaXX.
-// Proibida a reprodução, distribuição ou modificação sem autorização escrita.
-// =============================================================================
-
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -66,6 +56,8 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    // Inicializa o ThemeMode local a partir do bool isDark do ThemeService
+    _cachedThemeMode = _ts.isDark ? ThemeMode.dark : ThemeMode.light;
     LockService.instance.isEnabled()
         .then((v) { if (mounted) setState(() => _lock = v); });
   }
@@ -106,7 +98,25 @@ class _SettingsPageState extends State<SettingsPage> {
               begin: const Offset(0, 0.18),
               end: Offset.zero,
             ).animate(curved),
-            child: _ThemeModal(ts: _ts, onChanged: () => setState(() {})),
+            child: _ThemeModal(
+              ts: _ts,
+              initialMode: _cachedThemeMode,
+              onChanged: (mode) {
+                // Aplica o novo ThemeMode ao ThemeService via isDark/setDark
+                switch (mode) {
+                  case ThemeMode.dark:
+                    _ts.setDark(true);
+                  case ThemeMode.light:
+                    _ts.setDark(false);
+                  case ThemeMode.system:
+                    // system: usa o brilho do sistema para decidir
+                    final brightness =
+                        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+                    _ts.setDark(brightness == Brightness.dark);
+                }
+                setState(() => _cachedThemeMode = mode);
+              },
+            ),
           ),
         );
       },
@@ -332,9 +342,15 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _divider() =>
       Divider(height: 1, color: _div, indent: 52, endIndent: 16);
 
+  // ── Converte o bool isDark do ThemeService para ThemeMode do Flutter ────────
+  // Nota: o ThemeService não expõe ThemeMode — guardamos o valor localmente
+  // na _ThemeModal e reflectimos aqui através de _resolvedThemeMode.
+  ThemeMode get _resolvedThemeMode => _cachedThemeMode;
+  ThemeMode _cachedThemeMode = ThemeMode.dark; // default; actualizado em initState
+
   // ── Descrição do tema actual ──────────────────────────────────────────────
   String get _themeLabel {
-    switch (_ts.themeMode) {
+    switch (_resolvedThemeMode) {
       case ThemeMode.system: return 'Automático (sistema)';
       case ThemeMode.light:  return 'Tema claro';
       case ThemeMode.dark:   return 'Tema escuro';
@@ -342,7 +358,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   String get _themeSvg {
-    switch (_ts.themeMode) {
+    switch (_resolvedThemeMode) {
       case ThemeMode.system: return _svgAutoTheme;
       case ThemeMode.light:  return _svgSun;
       case ThemeMode.dark:   return _svgDark;
@@ -650,8 +666,9 @@ class _ElasticOutCurve extends Curve {
 // =============================================================================
 class _ThemeModal extends StatefulWidget {
   final ThemeService ts;
-  final VoidCallback onChanged;
-  const _ThemeModal({required this.ts, required this.onChanged});
+  final ThemeMode initialMode;
+  final ValueChanged<ThemeMode> onChanged;
+  const _ThemeModal({required this.ts, required this.initialMode, required this.onChanged});
 
   @override
   State<_ThemeModal> createState() => _ThemeModalState();
@@ -663,13 +680,12 @@ class _ThemeModalState extends State<_ThemeModal> {
   @override
   void initState() {
     super.initState();
-    _selected = widget.ts.themeMode;
+    _selected = widget.initialMode;
   }
 
   void _pick(ThemeMode mode) {
     setState(() => _selected = mode);
-    widget.ts.setThemeMode(mode);
-    widget.onChanged();
+    widget.onChanged(mode);
     Future.delayed(const Duration(milliseconds: 180), () {
       if (mounted) Navigator.of(context).pop();
     });
