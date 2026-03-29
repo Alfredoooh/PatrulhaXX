@@ -1,3 +1,13 @@
+// =============================================================================
+// settings_page.dart
+// patrulhaXX — Definições
+//
+// Copyright (c) 2024 patrulhaXX. Todos os direitos reservados.
+// Este ficheiro é propriedade exclusiva do projecto patrulhaXX.
+// Proibida a reprodução, distribuição ou modificação sem autorização escrita.
+// =============================================================================
+
+import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -837,14 +847,14 @@ class _ThemeOption extends StatelessWidget {
             width: 22, height: 22,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: selected ? accentColor : Colors.transparent,
+              color: selected ? accentColor : const Color(0x00000000),
               border: Border.all(
                 color: selected ? accentColor : subColor.withOpacity(0.35),
                 width: 2,
               ),
             ),
             child: selected
-                ? const Icon(Icons.check_rounded, color: Colors.white, size: 13)
+                ? const Icon(Icons.check_rounded, color: Color(0xFFFFFFFF), size: 13)
                 : const SizedBox.shrink(),
           ),
         ]),
@@ -1026,7 +1036,7 @@ class _MiniSwitchState extends State<_MiniSwitch>
                       width: _thumb, height: _thumb,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white,
+                        color: Color(0xFFFFFFFF),
                         boxShadow: [
                           BoxShadow(
                             color: Color(0x33000000),
