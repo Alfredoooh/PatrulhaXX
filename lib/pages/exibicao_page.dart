@@ -535,11 +535,6 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     else { _webSend(nm ? 'px:mute' : 'px:unmute'); }
   }
 
-
-
-    } catch (_) {}
-  }
-
   void _showVideoMenu(BuildContext ctx, FeedVideo v, Offset pos) {
     final t = AppTheme.current;
     final RenderBox overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
