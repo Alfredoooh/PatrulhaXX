@@ -11,6 +11,9 @@ import 'package:animations/animations.dart';
 import '../models/feed_video_model.dart';
 import 'home_page.dart' show iosRoute;
 import '../services/theme_service.dart';
+import '../services/download_service.dart';
+import 'download_list_page.dart';
+import '../theme/app_theme.dart';
 
 // SVG do ícone de exibição (estado vazio)
 const _svgExibicaoOutline = '''
@@ -21,9 +24,6 @@ const _svgExibicaoOutline = '''
   <polygon points="10,8 16,11 10,14" fill="currentColor" stroke="none"/>
 </svg>
 ''';
-import '../services/download_service.dart';
-import 'download_list_page.dart';
-import '../theme/app_theme.dart';
 
 // ─── URLs ─────────────────────────────────────────────────────────────────────
 const _kAdsUrl = 'https://patrulhaxx.onrender.com/ads';
