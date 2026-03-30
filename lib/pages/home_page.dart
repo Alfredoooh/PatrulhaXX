@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -21,63 +22,11 @@ import '../models/feed_photo_model.dart';
 const kPrimaryColor = Color(0xFFFF9000);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Animação nativa iOS (Cupertino slide from right)
+// Animação nativa iOS — CupertinoPageRoute trata correctamente o slide
+// da página anterior sem fundo preto
 // ─────────────────────────────────────────────────────────────────────────────
 Route<T> iosRoute<T>(Widget page) {
-  return PageRouteBuilder<T>(
-    pageBuilder: (_, animation, secondaryAnimation) => page,
-    transitionDuration: const Duration(milliseconds: 400),
-    reverseTransitionDuration: const Duration(milliseconds: 340),
-    transitionsBuilder: (ctx, animation, secondaryAnimation, child) {
-      final enterSlide = Tween<Offset>(
-        begin: const Offset(1.0, 0.0),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(
-        parent: animation,
-        curve: const Cubic(0.25, 0.46, 0.45, 0.94),
-      ));
-
-      final exitSlide = Tween<Offset>(
-        begin: Offset.zero,
-        end: const Offset(-0.28, 0.0),
-      ).animate(CurvedAnimation(
-        parent: animation,
-        curve: const Cubic(0.25, 0.46, 0.45, 0.94),
-      ));
-
-      final shadowOpacity = Tween<double>(begin: 0.0, end: 1.0)
-          .animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
-
-      return Stack(
-        children: [
-          SlideTransition(
-            position: exitSlide,
-            child: Container(color: Colors.black),
-          ),
-          AnimatedBuilder(
-            animation: shadowOpacity,
-            builder: (_, __) => Positioned(
-              left: 0, top: 0, bottom: 0,
-              width: 20,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerRight,
-                    end: Alignment.centerLeft,
-                    colors: [
-                      Colors.black.withOpacity(0.12 * shadowOpacity.value),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SlideTransition(position: enterSlide, child: child),
-        ],
-      );
-    },
-  );
+  return CupertinoPageRoute<T>(builder: (_) => page);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
