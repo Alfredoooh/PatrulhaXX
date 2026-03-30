@@ -5,7 +5,8 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.android.gms.oss-licenses-plugin")
+    // NOTA: oss-licenses-plugin removido — incompatível com AGP 8.9.1 +
+    // mobile_scanner. Licenças expostas via LicensePage nativo do Flutter.
 }
 
 android {
@@ -46,6 +47,10 @@ android {
         }
         resources {
             excludes += setOf(
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt",
                 "META-INF/*.kotlin_module",
                 "META-INF/DEPENDENCIES",
                 "META-INF/MANIFEST.MF",
@@ -80,23 +85,9 @@ android {
     }
 }
 
-// Corrige conflito de atributos entre oss-licenses-plugin 0.10.6
-// e AGP 8.9.1 ao resolver variantes de subprojetos (ex: mobile_scanner).
-// O plugin tenta resolver configurações de runtime de forma ambígua
-// — forçar a versão da dependência resolve o conflito.
-configurations.all {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "com.google.android.gms" &&
-            requested.name == "play-services-oss-licenses") {
-            useVersion("17.1.0")
-        }
-    }
-}
-
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation("androidx.multidex:multidex:2.0.1")
-    implementation("com.google.android.gms:play-services-oss-licenses:17.1.0")
 }
 
 flutter {
