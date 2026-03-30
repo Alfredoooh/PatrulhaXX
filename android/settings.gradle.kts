@@ -14,14 +14,20 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "com.google.android.gms.oss-licenses-plugin") {
+                useModule("com.google.android.gms:oss-licenses-plugin:${requested.version}")
+            }
+        }
+    }
 }
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.9.1" apply false
-    // Kotlin atualizado para 2.1.0 — evita o warning do Flutter
     id("org.jetbrains.kotlin.android") version "2.1.0" apply false
-    // Plugin que gera o ecrã de licenças OSS automaticamente
     id("com.google.android.gms.oss-licenses-plugin") version "0.10.6" apply false
 }
 
