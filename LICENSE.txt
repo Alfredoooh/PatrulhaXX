@@ -1,0 +1,24 @@
+Copyright (c) 2024 patrulhaXX. Todos os direitos reservados.
+
+Este software e o seu código-fonte são propriedade exclusiva de patrulhaXX.
+É estritamente proibido, sem autorização prévia e escrita do titular dos direitos:
+
+  1. Copiar, reproduzir ou distribuir este software, no todo ou em parte;
+  2. Modificar, adaptar, traduzir ou criar obras derivadas;
+  3. Fazer engenharia reversa, descompilar ou desassemblar o software;
+  4. Sublicenciar, vender, alugar ou transferir o software a terceiros;
+  5. Utilizar o software para fins comerciais sem licença explícita.
+
+Este software é disponibilizado exclusivamente para uso pessoal e privado
+pelo utilizador final autorizado. Qualquer utilização fora deste âmbito
+constitui violação dos direitos de autor e poderá ser sujeita a acção legal.
+
+ESTE SOFTWARE É FORNECIDO "TAL COMO ESTÁ", SEM GARANTIAS DE QUALQUER TIPO,
+EXPRESSAS OU IMPLÍCITAS, INCLUINDO MAS NÃO SE LIMITANDO A GARANTIAS DE
+COMERCIALIZAÇÃO, ADEQUAÇÃO A UM FIM ESPECÍFICO E NÃO INFRAÇÃO.
+EM NENHUM CASO OS TITULARES DOS DIREITOS SERÃO RESPONSÁVEIS POR QUAISQUER
+DANOS DIRECTOS, INDIRECTOS, INCIDENTAIS, ESPECIAIS, EXEMPLARES OU
+CONSEQUENCIAIS RESULTANTES DO USO DESTE SOFTWARE.
+
+Para licenciamento comercial ou outras autorizações, contacte:
+  patrulhaXX — https://patrulhaxx.onrender.com

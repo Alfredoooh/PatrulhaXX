@@ -3,34 +3,52 @@ description: patrulhaXX - Navegação privada e segura.
 publish_to: "none"
 version: 1.0.0+1
 
+# Licença proprietária — ver ficheiro LICENSE na raiz do projecto.
+# Copyright (c) 2024 patrulhaXX. Todos os direitos reservados.
+license: "SEE LICENSE IN LICENSE"
+
 environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  flutter_inappwebview: 6.1.5
-  flutter_p2p_connection: ^3.0.3
-  flutter_svg: ^2.0.10+1
-  url_launcher: any # em vez da última versão
-  shared_preferences: ^2.3.2      # substitui flutter_secure_storage — sem Tink, sem R8 crash
-  qr_flutter: any
-  material_symbols_icons: any
-  lottie: ^3.1.0
-  google_fonts: ^6.2.1
-  path_provider: ^2.1.4
-  http: ^1.2.2
-  dio: ^5.4.3+1
-  video_player: ^2.8.6
-  chewie: ^1.8.1
-  mobile_scanner: ^5.2.3
-  animations: any
-  permission_handler: 11.3.1
-  cached_network_image: ^3.3.1
-  palette_generator: 0.3.3+3
-  cupertino_icons: ^1.0.8
-  flutter_staggered_grid_view: ^0.7.0
-  xml: ^6.5.0
+
+  # ── WebView & Navegação ──────────────────────────────────────────────────
+  flutter_inappwebview: 6.1.5        # Apache 2.0
+  url_launcher: any                  # BSD 3-Clause
+
+  # ── UI & Ícones ──────────────────────────────────────────────────────────
+  flutter_svg: ^2.0.10+1             # MIT
+  material_symbols_icons: any        # Apache 2.0
+  cupertino_icons: ^1.0.8            # MIT
+  lottie: ^3.1.0                     # MIT
+  google_fonts: ^6.2.1               # MIT
+  animations: any                    # BSD 3-Clause
+  flutter_staggered_grid_view: ^0.7.0 # MIT
+
+  # ── Multimédia ───────────────────────────────────────────────────────────
+  video_player: ^2.8.6               # BSD 3-Clause
+  chewie: ^1.8.1                     # MIT
+  cached_network_image: ^3.3.1       # MIT
+  palette_generator: 0.3.3+3         # BSD 3-Clause
+
+  # ── Rede & Dados ─────────────────────────────────────────────────────────
+  http: ^1.2.2                       # BSD 3-Clause
+  dio: ^5.4.3+1                      # MIT
+  xml: ^6.5.0                        # MIT
+
+  # ── Armazenamento & Preferências ─────────────────────────────────────────
+  shared_preferences: ^2.3.2         # BSD 3-Clause
+  path_provider: ^2.1.4              # BSD 3-Clause
+
+  # ── Hardware & Permissões ────────────────────────────────────────────────
+  permission_handler: 11.3.1         # MIT
+  mobile_scanner: ^5.2.3             # MIT
+  flutter_p2p_connection: ^3.0.3     # MIT
+
+  # ── QR Code ──────────────────────────────────────────────────────────────
+  qr_flutter: any                    # BSD 3-Clause
 
 dev_dependencies:
   flutter_test:
@@ -60,6 +78,6 @@ flutter:
     - assets/lottie/lock.json
     - assets/lottie/no_connection.json
     - assets/lottie/Cat_playing_animation.json
-    - assets/lottie/wrong_feedback.json 
+    - assets/lottie/wrong_feedback.json
     - assets/icons/svg/
     - assets/icons/svg/settings/

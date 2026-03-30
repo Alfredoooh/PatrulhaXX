@@ -17,6 +17,7 @@ import '../services/lock_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import 'lock_screen.dart';
+import 'licenses_page.dart';
 
 // =============================================================================
 // SVG Assets — todos em assets/icons/svg/settings/
@@ -98,7 +99,7 @@ class _SettingsPageState extends State<SettingsPage> {
         // Curva elástica: sobe rápido e abranda suavemente
         final curved = CurvedAnimation(
           parent: anim,
-          curve: const _ElasticOutCurve(period: 0.55),
+          curve: _kElasticOut,
           reverseCurve: Curves.easeInCubic,
         );
         return FadeTransition(
@@ -135,7 +136,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // ── Pin sheet ────────────────────────────────────────────────────────────────
   void _pinSheet({required LockMode mode, required VoidCallback onDone}) {
-    showModalBottomSheet(
+    _showElasticSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -210,11 +211,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _picker(String title, Widget child, VoidCallback onOk) {
-    showModalBottomSheet(
+    _showElasticSheet(
       context: context,
       backgroundColor: _card,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
         const SizedBox(height: 8),
         Center(child: Container(
@@ -242,11 +241,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _pickWallpaper() {
-    showModalBottomSheet(
+    _showElasticSheet(
       context: context,
       backgroundColor: _card,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: true,
       builder: (_) => StatefulBuilder(
         builder: (ctx, setLocal) => Column(mainAxisSize: MainAxisSize.min, children: [
@@ -567,6 +564,16 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
             const SizedBox(height: 8),
+            _section([
+              _TapRow(
+                svgAsset: _svgReload,
+                label: 'Licenças de software',
+                sub: 'Dependências open source',
+                textColor: _text, subColor: _sub,
+                onTap: () => openOssLicenses(),
+              ),
+            ]),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -574,11 +581,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _confirmClear() {
-    showModalBottomSheet(
+    _showElasticSheet(
       context: context,
       backgroundColor: _card,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -625,50 +630,67 @@ class _SettingsPageState extends State<SettingsPage> {
 }
 
 // =============================================================================
-// _ElasticOutCurve — curva elástica personalizada (sobe rápido, abranda suave)
+// _kElasticOut / _kElasticIn — curvas nativas do Flutter
+// ElasticOutCurve: sobe rápido com pequeno ressalto no fim (period=0.55)
 // =============================================================================
-class _ElasticOutCurve extends Curve {
-  const _ElasticOutCurve({this.period = 0.55});
-  final double period;
+const _kElasticOut = ElasticOutCurve(0.55);
+const _kElasticIn  = ElasticInCurve(0.55);
 
-  @override
-  double transformInternal(double t) {
-    if (t == 0 || t == 1) return t;
-    final s = period / 4.0;
-    return _pow2(-10.0 * t) *
-        _sin((t - s) * (2.0 * 3.141592653589793) / period) +
-        1.0;
-  }
-
-  // 2^x via e^(x*ln2)
-  static double _pow2(double x) {
-    const ln2 = 0.6931471805599453;
-    return _expNative(x * ln2);
-  }
-
-  static double _expNative(double x) {
-    // Identidade: e^x usando expansão de Taylor (converge rápido)
-    double sum = 1.0, term = 1.0;
-    for (int i = 1; i <= 25; i++) {
-      term *= x / i;
-      sum  += term;
-      if (term.abs() < 1e-14) break;
-    }
-    return sum;
-  }
-
-  static double _sin(double x) {
-    // Reduz x para [-pi, pi]
-    const pi2 = 6.283185307179586;
-    x = x - (x / pi2).truncateToDouble() * pi2;
-    // Taylor: sin(x) = x - x³/3! + x⁵/5! - ...
-    double sum = x, term = x;
-    for (int i = 1; i <= 10; i++) {
-      term *= -x * x / ((2 * i) * (2 * i + 1));
-      sum  += term;
-    }
-    return sum;
-  }
+// =============================================================================
+// _showElasticSheet — showModalBottomSheet com animação elástica (subida rápida
+// que abranda suavemente, saída rápida)
+// =============================================================================
+Future<T?> _showElasticSheet<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  Color? backgroundColor,
+  ShapeBorder? shape,
+  bool isScrollControlled = false,
+}) {
+  return showGeneralDialog<T>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: '',
+    barrierColor: Colors.black54,
+    transitionDuration: const Duration(milliseconds: 440),
+    pageBuilder: (_, __, ___) => const SizedBox.shrink(),
+    transitionBuilder: (ctx, anim, _, __) {
+      final elasticIn = CurvedAnimation(
+        parent: anim,
+        curve: _kElasticOut,
+        reverseCurve: Curves.easeInCubic,
+      );
+      final fadeAnim = CurvedAnimation(parent: anim, curve: Curves.easeOut);
+      return FadeTransition(
+        opacity: fadeAnim,
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 1),
+              end: Offset.zero,
+            ).animate(elasticIn),
+            child: Material(
+              color: Colors.transparent,
+              child: SafeArea(
+                top: false,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: backgroundColor ??
+                        AppTheme.current.card,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20)),
+                  ),
+                  child: Builder(builder: builder),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
 }
 
 // =============================================================================

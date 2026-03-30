@@ -5,28 +5,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:lottie/lottie.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:animations/animations.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/feed_video_model.dart';
 import 'home_page.dart' show iosRoute;
 import '../services/theme_service.dart';
 import '../services/download_service.dart';
 import 'download_list_page.dart';
 import '../theme/app_theme.dart';
-
-// SVG do ícone de exibição (estado vazio)
-const _svgExibicaoOutline = '''
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="2" y="3" width="20" height="14" rx="2"/>
-  <path d="M8 21h8M12 17v4"/>
-  <polygon points="10,8 16,11 10,14" fill="currentColor" stroke="none"/>
-</svg>
-''';
-
-// ─── URLs ─────────────────────────────────────────────────────────────────────
-const _kAdsUrl = 'https://patrulhaxx.onrender.com/ads';
 
 // ─── SVGs ─────────────────────────────────────────────────────────────────────
 const _svgSaveLater =
@@ -188,7 +175,7 @@ class _LocalAssetPlayerState extends State<_LocalAssetPlayer> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Play/Pause overlay — auto-hide
+// Play/Pause overlay — auto-hide, não bloqueia WebView
 // ─────────────────────────────────────────────────────────────────────────────
 class _PlayPauseOverlay extends StatefulWidget {
   final bool playing;
@@ -252,7 +239,7 @@ class _PlayPauseOverlayState extends State<_PlayPauseOverlay>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Botão flutuante do player
+// Botão flutuante do player (mute + download)
 // ─────────────────────────────────────────────────────────────────────────────
 class _PlayerBtn extends StatelessWidget {
   final String svg;
@@ -270,175 +257,9 @@ class _PlayerBtn extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Estado vazio — animado
 // ─────────────────────────────────────────────────────────────────────────────
-class _EmptyBody extends StatefulWidget {
-  final VoidCallback onAdsLinkTap;
-  const _EmptyBody({required this.onAdsLinkTap});
-  @override State<_EmptyBody> createState() => _EmptyBodyState();
-}
-
-class _EmptyBodyState extends State<_EmptyBody>
-    with TickerProviderStateMixin {
-  late final AnimationController _enterCtrl;
-  late final AnimationController _pulseCtrl;
-  late final AnimationController _floatCtrl;
-
-  late final Animation<double> _fadeTitle;
-  late final Animation<double> _fadeSubtitle;
-  late final Animation<double> _fadeLink;
-  late final Animation<double> _slideTitle;
-  late final Animation<double> _pulse;
-  late final Animation<double> _float;
-
-  @override
-  void initState() {
-    super.initState();
-    _enterCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..repeat(reverse: true);
-    _floatCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))..repeat(reverse: true);
-
-    _fadeTitle    = CurvedAnimation(parent: _enterCtrl, curve: const Interval(0.0, 0.5, curve: Curves.easeOut));
-    _slideTitle   = Tween<double>(begin: 24, end: 0).animate(
-        CurvedAnimation(parent: _enterCtrl, curve: const Interval(0.0, 0.6, curve: Curves.easeOutCubic)));
-    _fadeSubtitle = CurvedAnimation(parent: _enterCtrl, curve: const Interval(0.3, 0.75, curve: Curves.easeOut));
-    _fadeLink     = CurvedAnimation(parent: _enterCtrl, curve: const Interval(0.55, 1.0, curve: Curves.easeOut));
-    _pulse        = Tween<double>(begin: 0.93, end: 1.07).animate(
-        CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
-    _float        = Tween<double>(begin: -7, end: 7).animate(
-        CurvedAnimation(parent: _floatCtrl, curve: Curves.easeInOut));
-
-    _enterCtrl.forward();
-  }
-
-  @override
-  void dispose() {
-    _enterCtrl.dispose();
-    _pulseCtrl.dispose();
-    _floatCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      AnimatedBuilder(
-        animation: _enterCtrl,
-        builder: (_, __) => Transform.translate(
-          offset: Offset(0, _slideTitle.value),
-          child: Opacity(
-            opacity: _fadeTitle.value.clamp(0.0, 1.0),
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-              decoration: BoxDecoration(
-                color: t.surface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: t.borderSoft),
-              ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Container(
-                    width: 38, height: 38,
-                    decoration: BoxDecoration(
-                      color: AppTheme.ytRed.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(child: SvgPicture.string(_svgExibicaoOutline,
-                        width: 20, height: 20,
-                        colorFilter: ColorFilter.mode(AppTheme.ytRed, BlendMode.srcIn))),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text('Bem-vindo ao nuxx',
-                    style: TextStyle(color: t.text, fontSize: 17,
-                        fontWeight: FontWeight.w700, letterSpacing: -0.3))),
-                ]),
-                const SizedBox(height: 12),
-                FadeTransition(
-                  opacity: _fadeSubtitle,
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    _StepRow(icon: Icons.play_circle_outline_rounded, label: 'Toca num vídeo', color: const Color(0xFF7ED321)),
-                    const SizedBox(height: 6),
-                    _StepRow(icon: Icons.tv_rounded, label: 'O player arranca aqui', color: AppTheme.ytRed),
-                  ]),
-                ),
-                const SizedBox(height: 14),
-                FadeTransition(
-                  opacity: _fadeLink,
-                  child: GestureDetector(
-                    onTap: widget.onAdsLinkTap,
-                    child: Row(children: [
-                      Icon(Icons.campaign_outlined, color: t.emptyLinkText, size: 15),
-                      const SizedBox(width: 5),
-                      Text('Publicitar a minha marca', style: TextStyle(
-                          color: t.emptyLinkText, fontSize: 13, fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.underline,
-                          decorationColor: t.emptyLinkText)),
-                    ]),
-                  ),
-                ),
-              ]),
-            ),
-          ),
-        ),
-      ),
-
-      Expanded(
-        child: AnimatedBuilder(
-          animation: Listenable.merge([_pulseCtrl, _floatCtrl, _enterCtrl]),
-          builder: (_, __) => Opacity(
-            opacity: _fadeTitle.value.clamp(0.0, 1.0),
-            child: Transform.translate(
-              offset: Offset(0, _float.value),
-              child: Transform.scale(
-                scale: _pulse.value,
-                child: Center(
-                  child: SizedBox(width: 180, height: 180,
-                    child: Lottie.asset('assets/lottie/Cat_playing_animation.json',
-                      repeat: true, animate: true,
-                      errorBuilder: (_, __, ___) => SvgPicture.string(
-                        _svgExibicaoOutline, width: 80, height: 80,
-                        colorFilter: ColorFilter.mode(
-                            t.emptyIcon.withOpacity(0.4), BlendMode.srcIn)))),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ]);
-  }
-}
-
-class _StepRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  const _StepRow({required this.icon, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    return Row(children: [
-      Container(
-        width: 28, height: 28,
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(7),
-        ),
-        child: Icon(icon, color: color, size: 15),
-      ),
-      const SizedBox(width: 10),
-      Text(label, style: TextStyle(color: t.text, fontSize: 13, fontWeight: FontWeight.w500)),
-    ]);
-  }
-}
-
-
+// Estado vazio — animado, com pulso e fade escalonado
 // ─────────────────────────────────────────────────────────────────────────────
-// Card relacionado — horizontal compacto com animação de entrada
 // ─────────────────────────────────────────────────────────────────────────────
 class _RelatedCard extends StatefulWidget {
   final FeedVideo video;
@@ -446,6 +267,7 @@ class _RelatedCard extends StatefulWidget {
   final void Function(Offset) onMenuTap;
   final int index;
 
+  // ✅ FIX: adicionado {super.key} para aceitar o parâmetro key (ex: ValueKey)
   const _RelatedCard({
     super.key,
     required this.video,
@@ -490,6 +312,7 @@ class _RelatedCardState extends State<_RelatedCard>
       CurvedAnimation(parent: _ac, curve: Curves.easeOutCubic));
     _fade = CurvedAnimation(parent: _ac, curve: Curves.easeOut);
 
+    // Stagger por índice
     Future.delayed(Duration(milliseconds: 40 * widget.index.clamp(0, 15)), () {
       if (mounted) _ac.forward();
     });
@@ -574,74 +397,6 @@ class _ThumbCompactState extends State<_ThumbCompact> {
   }
 }
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Secção de sugestões — rola de forma independente
-// ─────────────────────────────────────────────────────────────────────────────
-class _SuggestionsSection extends StatefulWidget {
-  final bool loading;
-  final List<FeedVideo> related;
-  final void Function(FeedVideo) onVideoTap;
-  final void Function(FeedVideo, Offset) onMenuTap;
-
-  const _SuggestionsSection({
-    required this.loading,
-    required this.related,
-    required this.onVideoTap,
-    required this.onMenuTap,
-  });
-
-  @override
-  State<_SuggestionsSection> createState() => _SuggestionsSectionState();
-}
-
-class _SuggestionsSectionState extends State<_SuggestionsSection> {
-  final ScrollController _scroll = ScrollController();
-
-  @override void dispose() { _scroll.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-
-    return CustomScrollView(
-      controller: _scroll,
-      physics: const BouncingScrollPhysics(),
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-            child: Text('Relacionados', style: TextStyle(
-                color: t.text, fontSize: 13.5, fontWeight: FontWeight.w600)),
-          ),
-        ),
-        if (widget.loading)
-          SliverList(
-            delegate: SliverChildListDelegate(_skeletonCards(5)),
-          )
-        else
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (_, i) {
-                if (i >= widget.related.length) return const SizedBox(height: 32);
-                final v = widget.related[i];
-                return _RelatedCard(
-                  key: ValueKey(v.embedUrl),
-                  video: v,
-                  index: i,
-                  onTap: () => widget.onVideoTap(v),
-                  onMenuTap: (pos) => widget.onMenuTap(v, pos),
-                );
-              },
-              childCount: widget.related.length + 1,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-
 // ─────────────────────────────────────────────────────────────────────────────
 // ExibicaoPage
 // ─────────────────────────────────────────────────────────────────────────────
@@ -650,18 +405,8 @@ class ExibicaoPage extends StatefulWidget {
   final FeedVideo? currentVideo;
   final void Function(FeedVideo) onVideoTap;
   final bool isActive;
-  // 10 primeiros vídeos do explore passados directamente — sem fetch adicional
-  final List<FeedVideo> exploreVideos;
-
-  const ExibicaoPage({
-    super.key,
-    this.embedUrl,
-    this.currentVideo,
-    required this.onVideoTap,
-    this.isActive = true,
-    this.exploreVideos = const [],
-  });
-
+  const ExibicaoPage({super.key, this.embedUrl, this.currentVideo,
+      required this.onVideoTap, this.isActive = true});
   @override State<ExibicaoPage> createState() => _ExibicaoPageState();
 }
 
@@ -669,29 +414,36 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   @override bool get wantKeepAlive => true;
 
-  // Sugestões: vêm dos 10 primeiros vídeos do explore, sem fetch
-  List<FeedVideo> get _related => widget.exploreVideos
-      .where((v) => v.embedUrl != widget.embedUrl)
-      .take(10)
-      .toList();
-
+  final List<FeedVideo> _related = [];
+  bool   _loadingRelated = false;
   InAppWebViewController? _webCtrl;
-  VideoPlayerController?  _localCtrl;
-  bool _muted         = false;
-  bool _playing       = true;
-  bool _playerLoading = true;
+  VideoPlayerController? _localCtrl;
+  bool   _muted          = false;
+  bool   _playing        = true;
+  bool   _playerLoading  = true;
+  FeedVideo? _nextVideo;
+  String _detectedEngine = '—';
 
+  // Animação de troca de vídeo (descrição fixa anima internamente)
+  late final AnimationController _descAnim;
   late final AnimationController _playerEnterAnim;
+
+  // ScrollController para a lista de sugestões apenas
+  final ScrollController _suggestionsScroll = ScrollController();
 
   bool get _isEmpty => widget.embedUrl == null || widget.currentVideo == null;
 
   @override void initState() {
     super.initState();
+    _descAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    )..forward();
     _playerEnterAnim = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
     )..forward();
-    if (!_isEmpty) _startPlayerTimeout();
+    if (!_isEmpty) { _loadRelated(); _startPlayerTimeout(); }
   }
 
   void _startPlayerTimeout() {
@@ -703,8 +455,11 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   @override void didUpdateWidget(ExibicaoPage old) {
     super.didUpdateWidget(old);
     if (widget.currentVideo != old.currentVideo && !_isEmpty) {
+      // Anima a descrição ao trocar vídeo
+      _descAnim.forward(from: 0.0);
       _playerEnterAnim.forward(from: 0.0);
-      setState(() { _playerLoading = true; _playing = true; });
+      setState(() { _playerLoading = true; _playing = true; _detectedEngine = '—'; });
+      _loadRelated();
       _startPlayerTimeout();
     }
     if (widget.isActive != old.isActive) {
@@ -714,12 +469,25 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   }
 
   @override void dispose() {
+    _descAnim.dispose();
     _playerEnterAnim.dispose();
+    _suggestionsScroll.dispose();
     super.dispose();
   }
 
   void _webSend(String msg) =>
       _webCtrl?.evaluateJavascript(source: "window.postMessage('$msg','*')");
+
+  Future<void> _loadRelated() async {
+    if (!mounted) return;
+    setState(() { _loadingRelated = true; _related.clear(); });
+    final videos = await FeedFetcher.fetchAll(Random().nextInt(30) + 1);
+    if (!mounted) return;
+    setState(() {
+      _related..clear()..addAll(videos.where((v) => v.embedUrl != widget.embedUrl).take(20));
+      _loadingRelated = false;
+    });
+  }
 
   void _snack(String msg) {
     final t = AppTheme.current;
@@ -736,7 +504,8 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     try {
       final result = await _webCtrl!.evaluateJavascript(source: r'''
         (function(){
-          var v=document.querySelector('video');
+          var E=window.__pxEngine;
+          var v=(E&&E.videoEl)||document.querySelector('video');
           if(!v)return '__none__';
           var s=v.currentSrc||v.src||'';
           if(s&&s.startsWith('http'))return s;
@@ -766,9 +535,9 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     else { _webSend(nm ? 'px:mute' : 'px:unmute'); }
   }
 
-  Future<void> _openAdsUrl() async {
-    final uri = Uri.parse(_kAdsUrl);
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+
+    } catch (_) {}
   }
 
   void _showVideoMenu(BuildContext ctx, FeedVideo v, Offset pos) {
@@ -789,7 +558,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
       switch (val) {
         case 'save':     _snack('Guardado para assistir mais tarde'); break;
         case 'playlist': _snack('Adicionado à playlist'); break;
-        case 'next':     _snack('Será exibido a seguir'); break;
+        case 'next':     setState(() => _nextVideo = v); _snack('Será exibido a seguir'); break;
       }
     });
   }
@@ -839,7 +608,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                   color: Colors.black,
                   child: Stack(children: [
 
-                    // ── WebView — carrega embed directamente, sem injecções ────
+                    // ── WebView tamanho real, UA desktop ──────────────────────
                     if (!_isEmpty)
                       Positioned.fill(
                         child: InAppWebView(
@@ -871,11 +640,47 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                                 'AppleWebKit/537.36 (KHTML, like Gecko) '
                                 'Chrome/124.0.0.0 Safari/537.36',
                           ),
-                          onWebViewCreated: (ctrl) => _webCtrl = ctrl,
-                          onLoadStop: (ctrl, _) {
+                          onWebViewCreated: (ctrl) {
+                            _webCtrl = ctrl;
+                            ctrl.addJavaScriptHandler(
+                              handlerName: 'pxFingerprint',
+                              callback: (args) {
+                                if (!mounted || args.isEmpty) return;
+                                try {
+                                  String eng = '?';
+                                  if (args[0] is String) {
+                                    eng = RegExp(r'"engine":"([^"]+)"')
+                                        .firstMatch(args[0] as String)?.group(1) ?? '?';
+                                  } else {
+                                    eng = (args[0] as Map)['engine']?.toString() ?? '?';
+                                  }
+                                  setState(() => _detectedEngine = eng);
+                                } catch (_) {}
+                              },
+                            );
+                            ctrl.addJavaScriptHandler(
+                              handlerName: 'pxState',
+                              callback: (args) {
+                                if (!mounted || args.isEmpty) return;
+                                try {
+                                  final raw = args[0];
+                                  bool paused = false;
+                                  if (raw is String) {
+                                    paused = raw.contains('"paused":true');
+                                  } else if (raw is Map) {
+                                    paused = raw['paused'] == true;
+                                  }
+                                  if (mounted && _playing == paused) {
+                                    setState(() => _playing = !paused);
+                                  }
+                                } catch (_) {}
+                              },
+                            );
+                          },
+                          onLoadStop: (ctrl, _) async {
                             if (mounted) setState(() => _playerLoading = false);
                           },
-                          onLoadError: (ctrl, url, code, msg) {
+                          onLoadError: (ctrl, url, code, msg) async {
                             if (mounted) setState(() => _playerLoading = false);
                           },
                           shouldOverrideUrlLoading: (ctrl, action) async {
@@ -883,11 +688,11 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                             final navType = action.navigationType;
                             if (navType == NavigationType.LINK_ACTIVATED ||
                                 navType == NavigationType.FORM_SUBMITTED) {
-                              const embedDomains = ['eporner.com','pornhub.com','redtube.com',
+                              final embedDomains = ['eporner.com','pornhub.com','redtube.com',
                                 'embed.redtube.com','youporn.com','xvideos.com','xhamster.com',
                                 'spankbang.com','bravotube.net','drtuber.com','txxx.com',
                                 'gotporn.com','porndig.com','xnxx.com','xvideos2.com'];
-                              if (!embedDomains.any((d) => url.contains(d)) && url.startsWith('http')) {
+                              if (!embedDomains.any((d)=>url.contains(d)) && url.startsWith('http')) {
                                 return NavigationActionPolicy.CANCEL;
                               }
                             }
@@ -896,7 +701,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                         ),
                       ),
 
-                    // ── Vídeo local quando vazio ──────────────────────────────
+                    // ── Video vazio: LocalAssetPlayer em tamanho real ──────────
                     if (_isEmpty)
                       Positioned.fill(
                         child: _LocalAssetPlayer(
@@ -904,7 +709,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                           onReady: (ctrl) { if (mounted) setState(() => _localCtrl = ctrl); }),
                       ),
 
-                    // ── Thumbnail enquanto carrega ─────────────────────────────
+                    // ── Thumbnail enquanto carrega (cobre o WebView invisível) ──
                     if (!_isEmpty && _playerLoading)
                       Positioned.fill(child: Stack(children: [
                         if (video?.thumb != null && video!.thumb.isNotEmpty)
@@ -917,18 +722,18 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                             color: Colors.white70, strokeWidth: 1.5)),
                       ])),
 
-                    // ── Play/Pause overlay ────────────────────────────────────
+                    // ── Play/Pause overlay ──────────────────────────────────────
                     Positioned.fill(child: _PlayPauseOverlay(
                         playing: _playing, onTap: _togglePlay)),
 
-                    // ── Gradiente inferior ────────────────────────────────────
+                    // ── Gradiente inferior ──────────────────────────────────────
                     Positioned(left:0, right:0, bottom:0,
                       child: Container(height: 72,
                         decoration: const BoxDecoration(gradient: LinearGradient(
                           begin: Alignment.bottomCenter, end: Alignment.topCenter,
                           colors: [Color(0xCC000000), Colors.transparent])))),
 
-                    // ── Botões bottom-right ───────────────────────────────────
+                    // ── Botões bottom-right ─────────────────────────────────────
                     Positioned(bottom:8, right:8,
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
                         _PlayerBtn(svg: _muted ? _svgVolOff : _svgVolOn, onTap: _toggleMute),
@@ -940,20 +745,220 @@ class _ExibicaoPageState extends State<ExibicaoPage>
               ),
             ),
 
-            // ── Sugestões dos 10 primeiros do explore ─────────────────────────
+            // ── Descrição FIXA (não rola) com gradiente em baixo ─────────────
+            if (!_isEmpty && video != null)
+              AnimatedBuilder(
+                animation: _descAnim,
+                builder: (_, child) => FadeTransition(
+                  opacity: _descAnim,
+                  child: Transform.translate(
+                    offset: Offset(0, (1 - _descAnim.value) * 16),
+                    child: child,
+                  ),
+                ),
+                child: _VideoDescription(
+                  video: video,
+                  detectedEngine: _detectedEngine,
+                  nextVideo: _nextVideo,
+                  onNextVideoTap: () {
+                    if (_nextVideo != null) {
+                      widget.onVideoTap(_nextVideo!);
+                      setState(() => _nextVideo = null);
+                    }
+                  },
+                  onNextVideoClose: () => setState(() => _nextVideo = null),
+                ),
+              ),
+
+            // ── Sugestões (rola independentemente) ───────────────────────────
             Expanded(
               child: _isEmpty
-                  ? _EmptyBody(onAdsLinkTap: _openAdsUrl)
+                  ? const SizedBox.shrink()
                   : _SuggestionsSection(
-                      loading: false,
+                      loading: _loadingRelated,
                       related: _related,
-                      onVideoTap: widget.onVideoTap,
+                      onVideoTap: (v) {
+                        if (_nextVideo?.embedUrl == v.embedUrl) {
+                          setState(() => _nextVideo = null);
+                        }
+                        widget.onVideoTap(v);
+                      },
                       onMenuTap: (v, pos) => _showVideoMenu(context, v, pos),
                     ),
             ),
           ]),
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Descrição fixa do vídeo — com gradiente de fundo dependente do tema
+// ─────────────────────────────────────────────────────────────────────────────
+class _VideoDescription extends StatelessWidget {
+  final FeedVideo video;
+  final String detectedEngine;
+  final FeedVideo? nextVideo;
+  final VoidCallback onNextVideoTap;
+  final VoidCallback onNextVideoClose;
+
+  const _VideoDescription({
+    required this.video,
+    required this.detectedEngine,
+    required this.nextVideo,
+    required this.onNextVideoTap,
+    required this.onNextVideoClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+
+    final gradientColors = t.isDark
+        ? [t.bg, t.bg.withOpacity(0.96), t.bg.withOpacity(0.0)]
+        : [t.bg, t.bg.withOpacity(0.96), t.bg.withOpacity(0.0)];
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: gradientColors,
+          stops: const [0.0, 0.75, 1.0],
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Título
+        Text(video.title, style: TextStyle(color: t.text, fontSize: 14.5,
+            fontWeight: FontWeight.w600, height: 1.3)),
+        const SizedBox(height: 6),
+
+        // Fonte + views + engine badge
+        Row(children: [
+          Text(video.sourceLabel, style: TextStyle(
+              color: t.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w500)),
+          if (video.views.isNotEmpty)
+            Text('  ·  ${video.views} vis.',
+                style: TextStyle(color: t.textHint, fontSize: 11.5)),
+          if (detectedEngine != '—') ...[
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: AppTheme.ytRed.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(4)),
+              child: Text(detectedEngine, style: TextStyle(
+                  color: AppTheme.ytRed, fontSize: 10, fontWeight: FontWeight.w700))),
+          ],
+        ]),
+
+        const SizedBox(height: 10),
+        Divider(color: t.divider, thickness: 1, height: 1),
+        const SizedBox(height: 8),
+
+        // Banner "próximo vídeo"
+        if (nextVideo != null) ...[
+          GestureDetector(
+            onTap: onNextVideoTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: t.isDark ? const Color(0xFF2A1A1A) : const Color(0xFFFFF0F0),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: t.isDark ? const Color(0xFF5A2020) : const Color(0xFFFFCCCC))),
+              child: Row(children: [
+                SvgPicture.string(_svgPlaylist, width: 15, height: 15,
+                    colorFilter: ColorFilter.mode(AppTheme.ytRed, BlendMode.srcIn)),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Seguinte:', style: TextStyle(color: AppTheme.ytRed,
+                      fontSize: 11, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(nextVideo!.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: t.text, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                  Text(nextVideo!.sourceLabel,
+                      style: TextStyle(color: t.textSecondary, fontSize: 11)),
+                ])),
+                GestureDetector(
+                  onTap: onNextVideoClose,
+                  child: Padding(padding: const EdgeInsets.only(left: 8),
+                      child: Icon(Icons.close_rounded, color: t.iconTertiary, size: 18))),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Secção de sugestões — rola de forma independente
+// ─────────────────────────────────────────────────────────────────────────────
+class _SuggestionsSection extends StatefulWidget {
+  final bool loading;
+  final List<FeedVideo> related;
+  final void Function(FeedVideo) onVideoTap;
+  final void Function(FeedVideo, Offset) onMenuTap;
+
+  const _SuggestionsSection({
+    required this.loading,
+    required this.related,
+    required this.onVideoTap,
+    required this.onMenuTap,
+  });
+
+  @override
+  State<_SuggestionsSection> createState() => _SuggestionsSectionState();
+}
+
+class _SuggestionsSectionState extends State<_SuggestionsSection> {
+  final ScrollController _scroll = ScrollController();
+
+  @override void dispose() { _scroll.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+
+    return CustomScrollView(
+      controller: _scroll,
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+            child: Text('Relacionados', style: TextStyle(
+                color: t.text, fontSize: 13.5, fontWeight: FontWeight.w600)),
+          ),
+        ),
+        if (widget.loading)
+          SliverList(
+            delegate: SliverChildListDelegate(_skeletonCards(5)),
+          )
+        else
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (_, i) {
+                if (i >= widget.related.length) {
+                  return const SizedBox(height: 32);
+                }
+                final v = widget.related[i];
+                return _RelatedCard(
+                  key: ValueKey(v.embedUrl),
+                  video: v,
+                  index: i,
+                  onTap: () => widget.onVideoTap(v),
+                  onMenuTap: (pos) => widget.onMenuTap(v, pos),
+                );
+              },
+              childCount: widget.related.length + 1,
+            ),
+          ),
+      ],
     );
   }
 }

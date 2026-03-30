@@ -1,0 +1,226 @@
+AVISOS DE TERCEIROS — patrulhaXX
+=================================
+
+Este produto inclui software de terceiros licenciado sob os termos abaixo.
+
+-------------------------------------------------------------------------------
+1. Flutter SDK
+   Copyright 2013 The Flutter Authors.
+   Licença: BSD 3-Clause
+   https://github.com/flutter/flutter/blob/master/LICENSE
+
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
+   * Redistributions of source code must retain the above copyright notice,
+     this list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above copyright notice,
+     this list of conditions and the following disclaimer in the documentation
+     and/or other materials provided with the distribution.
+   * Neither the name of the copyright holder nor the names of its contributors
+     may be used to endorse or promote products derived from this software
+     without specific prior written permission.
+
+-------------------------------------------------------------------------------
+2. flutter_inappwebview 6.1.5
+   Copyright 2019 Lorenzo Pichilli.
+   Licença: Apache 2.0
+   https://github.com/pichillilorenzo/flutter_inappwebview/blob/master/LICENSE
+
+-------------------------------------------------------------------------------
+3. flutter_p2p_connection ^3.0.3
+   Copyright 2023 Redhook Consulting.
+   Licença: MIT
+   https://github.com/redhook-consulting/flutter_p2p_connection/blob/main/LICENSE
+
+-------------------------------------------------------------------------------
+4. flutter_svg ^2.0.10+1
+   Copyright 2018 Dan Field.
+   Licença: MIT
+   https://github.com/dnfield/flutter_svg/blob/master/LICENSE
+
+-------------------------------------------------------------------------------
+5. url_launcher
+   Copyright 2013 The Flutter Authors.
+   Licença: BSD 3-Clause
+   https://github.com/flutter/packages/blob/main/packages/url_launcher/url_launcher/LICENSE
+
+-------------------------------------------------------------------------------
+6. shared_preferences ^2.3.2
+   Copyright 2013 The Flutter Authors.
+   Licença: BSD 3-Clause
+   https://github.com/flutter/packages/blob/main/packages/shared_preferences/shared_preferences/LICENSE
+
+-------------------------------------------------------------------------------
+7. qr_flutter
+   Copyright 2019 Luke Freeman.
+   Licença: BSD 3-Clause
+   https://github.com/theyakka/qr.flutter/blob/master/LICENSE
+
+-------------------------------------------------------------------------------
+8. material_symbols_icons
+   Copyright 2023 Loren Sands-Ramshaw.
+   Licença: Apache 2.0
+   https://github.com/timmaffett/material_symbols_icons/blob/master/LICENSE
+
+   Os ícones Material Symbols são copyright Google LLC.
+   Licença: Apache 2.0
+   https://github.com/google/material-design-icons/blob/master/LICENSE
+
+-------------------------------------------------------------------------------
+9. lottie ^3.1.0
+   Copyright 2020 Xaveir G.
+   Licença: MIT
+   https://github.com/xvrh/lottie-flutter/blob/master/LICENSE
+
+-------------------------------------------------------------------------------
+10. google_fonts ^6.2.1
+    Copyright 2019 The Flutter Authors.
+    Licença: MIT
+    https://github.com/material-foundation/flutter-packages/blob/main/packages/google_fonts/LICENSE
+
+    As fontes individuais são copyright dos respectivos autores e distribuídas
+    sob as suas próprias licenças (maioritariamente OFL e Apache 2.0).
+    Consultar: https://fonts.google.com
+
+-------------------------------------------------------------------------------
+11. path_provider ^2.1.4
+    Copyright 2013 The Flutter Authors.
+    Licença: BSD 3-Clause
+    https://github.com/flutter/packages/blob/main/packages/path_provider/path_provider/LICENSE
+
+-------------------------------------------------------------------------------
+12. http ^1.2.2
+    Copyright 2013 Dart Authors.
+    Licença: BSD 3-Clause
+    https://github.com/dart-lang/http/blob/master/pkgs/http/LICENSE
+
+-------------------------------------------------------------------------------
+13. dio ^5.4.3+1
+    Copyright 2018 wendux.
+    Licença: MIT
+    https://github.com/cfug/dio/blob/main/dio/LICENSE
+
+-------------------------------------------------------------------------------
+14. video_player ^2.8.6
+    Copyright 2013 The Flutter Authors.
+    Licença: BSD 3-Clause
+    https://github.com/flutter/packages/blob/main/packages/video_player/video_player/LICENSE
+
+-------------------------------------------------------------------------------
+15. chewie ^1.8.1
+    Copyright 2017 Brian Egan.
+    Licença: MIT
+    https://github.com/brianegan/chewie/blob/master/LICENSE
+
+-------------------------------------------------------------------------------
+16. mobile_scanner ^5.2.3
+    Copyright 2021 Julian Steenbakker.
+    Licença: MIT
+    https://github.com/juliansteenbakker/mobile_scanner/blob/master/LICENSE
+
+-------------------------------------------------------------------------------
+17. animations
+    Copyright 2013 The Flutter Authors.
+    Licença: BSD 3-Clause
+    https://github.com/flutter/packages/blob/main/packages/animations/LICENSE
+
+-------------------------------------------------------------------------------
+18. permission_handler 11.3.1
+    Copyright 2018 Baseflow.
+    Licença: MIT
+    https://github.com/Baseflow/flutter-permission-handler/blob/master/permission_handler/LICENSE
+
+-------------------------------------------------------------------------------
+19. cached_network_image ^3.3.1
+    Copyright 2019 Rene Floor.
+    Licença: MIT
+    https://github.com/Baseflow/flutter_cached_network_image/blob/master/LICENSE
+
+-------------------------------------------------------------------------------
+20. palette_generator 0.3.3+3
+    Copyright 2013 The Flutter Authors.
+    Licença: BSD 3-Clause
+    https://github.com/flutter/packages/blob/main/packages/palette_generator/LICENSE
+
+-------------------------------------------------------------------------------
+21. cupertino_icons ^1.0.8
+    Copyright 2016 Vladimir Kharlampidi.
+    Licença: MIT
+    https://github.com/flutter/cupertino_icons/blob/master/LICENSE
+
+-------------------------------------------------------------------------------
+22. flutter_staggered_grid_view ^0.7.0
+    Copyright 2020 Romain Rastel.
+    Licença: MIT
+    https://github.com/letsar/flutter_staggered_grid_view/blob/master/LICENSE
+
+-------------------------------------------------------------------------------
+23. xml ^6.5.0
+    Copyright 2009 Lukas Renggli.
+    Licença: MIT
+    https://github.com/renggli/dart-xml/blob/master/LICENSE
+
+-------------------------------------------------------------------------------
+
+TEXTO COMPLETO DAS LICENÇAS REFERENCIADAS
+==========================================
+
+BSD 3-CLAUSE LICENSE (aplicável aos itens: 1, 5, 6, 7, 11, 12, 14, 17, 20)
+-----------------------------------------------------------------------------
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+MIT LICENSE (aplicável aos itens: 3, 4, 9, 10, 13, 15, 16, 18, 19, 21, 22, 23)
+--------------------------------------------------------------------------------
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+APACHE LICENSE 2.0 (aplicável aos itens: 2, 8)
+-----------------------------------------------
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
