@@ -13,7 +13,6 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.WindowManager
 import androidx.core.content.FileProvider
-import com.google.android.gms.oss.licenses.OssLicensesMenuActivity
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -100,20 +99,6 @@ class MainActivity : FlutterActivity() {
                         } catch (e: Exception) {
                             result.error("GATEWAY_ERROR", e.message, null)
                         }
-                    }
-                    else -> result.notImplemented()
-                }
-            }
-
-
-        // Canal: licenças OSS
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.patrulhaxx/licenses")
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "showLicenses" -> {
-                        OssLicensesMenuActivity.setActivityTitle("Licenças de software")
-                        startActivity(Intent(this, OssLicensesMenuActivity::class.java))
-                        result.success(null)
                     }
                     else -> result.notImplemented()
                 }
