@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -465,24 +466,26 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     if (_isDirect) _initDirectPlayer(widget.embedUrl!);
   }
 
+  // FIX: usa _directCtrl diretamente após setState para evitar ambiguidade
+  // de resolução de 'ctrl' no compilador de release (tree-shaking/AOT)
   void _initDirectPlayer(String url) {
     _directCtrl?.dispose();
     _directCtrl = null;
     _directInitialized = false;
-    final ctrl = VideoPlayerController.networkUrl(Uri.parse(url))
-      ..initialize().then((_) {
-        if (!mounted) return;
-        setState(() {
-          _directCtrl = ctrl;
-          _directInitialized = true;
-          _playerLoading = false;
-        });
-        ctrl.setLooping(true);
-        ctrl.setVolume(_muted ? 0.0 : 1.0);
-        if (_playing) ctrl.play();
-      }).catchError((_) {
-        if (mounted) setState(() => _playerLoading = false);
+    final pending = VideoPlayerController.networkUrl(Uri.parse(url));
+    pending.initialize().then((_) {
+      if (!mounted) return;
+      setState(() {
+        _directCtrl = pending;
+        _directInitialized = true;
+        _playerLoading = false;
       });
+      _directCtrl!.setLooping(true);
+      _directCtrl!.setVolume(_muted ? 0.0 : 1.0);
+      if (_playing) _directCtrl!.play();
+    }).catchError((_) {
+      if (mounted) setState(() => _playerLoading = false);
+    });
   }
 
   void _startPlayerTimeout() {
