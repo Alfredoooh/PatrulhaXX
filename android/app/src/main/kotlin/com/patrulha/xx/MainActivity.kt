@@ -104,9 +104,7 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-                // Canal: auto-update via PackageInstaller Session API
-        // Instala o APK sobre si próprio sem diálogo do sistema,
-        // desde que o APK novo esteja assinado com o mesmo certificado.
+        // Canal: auto-update via PackageInstaller Session API
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.patrulhaxx/update")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -198,11 +196,18 @@ class MainActivity : FlutterActivity() {
                 registerReceiver(receiver, intentFilter)
             }
 
+            // FIX: FLAG_IMMUTABLE só existe em API 23+
+            val pendingFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+
             val pendingIntent = PendingIntent.getBroadcast(
                 this,
                 sessionId,
                 Intent(ACTION_INSTALL_COMPLETE),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                pendingFlags
             )
             session.commit(pendingIntent.intentSender)
 

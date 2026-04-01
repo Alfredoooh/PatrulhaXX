@@ -38,6 +38,9 @@
         <meta-data android:name="io.flutter.embedding.android.NormalTheme"
             android:resource="@style/NormalTheme"/>
 
+        <!-- FIX: SplashScreenDrawable removido — API depreciada no Flutter 3.x
+             que pode causar ClassNotFoundException em algumas versões -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -48,8 +51,6 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize"
             android:screenOrientation="portrait">
-            <meta-data android:name="io.flutter.embedding.android.SplashScreenDrawable"
-                android:resource="@drawable/launch_background"/>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

@@ -5,8 +5,6 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
-    // NOTA: oss-licenses-plugin removido — incompatível com AGP 8.9.1 +
-    // mobile_scanner. Licenças expostas via LicensePage nativo do Flutter.
 }
 
 android {
@@ -39,7 +37,9 @@ android {
 
     packaging {
         jniLibs {
-            useLegacyPackaging = false
+            // FIX: useLegacyPackaging = true para compatibilidade com Android < 6
+            // e dispositivos que não suportam extração de .so em runtime
+            useLegacyPackaging = true
             pickFirsts += setOf(
                 "**/libflutter.so",
                 "**/libc++_shared.so",
@@ -54,11 +54,12 @@ android {
                 "META-INF/*.kotlin_module",
                 "META-INF/DEPENDENCIES",
                 "META-INF/MANIFEST.MF",
+                // FIX: excluir apenas o ficheiro específico, não "**/*.bin" que
+                // pode remover assets internos do Flutter engine
                 "DebugProbesKt.bin",
                 "kotlin-tooling-metadata.json",
                 "**/kotlin/**",
                 "**/*.proto",
-                "**/*.bin",
             )
         }
     }
