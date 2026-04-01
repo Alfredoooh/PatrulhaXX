@@ -1,48 +1,284 @@
 workflows:
-  android-release:
-    name: nuxxx Android Release
+
+  android-compatibility-test:
+    name: "Android Compatibility Test (API 21→30)"
     max_build_duration: 60
+    instance_type: mac_mini_m1  # emuladores Android correm melhor em mac_mini_m1
+
     environment:
       flutter: stable
-      java: 17
+      android_signing:
+        - your_keystore  # substitui pelo nome do teu keystore no Codemagic
       vars:
-        KEYSTORE_PATH: /tmp/nuxxx.jks
-        KEY_ALIAS: nuxxx
-      # No painel do Codemagic em Environment variables adiciona:
-      # KEYSTORE_BASE64  → output do: base64 -w 0 nuxxx.jks
-      # KEYSTORE_PASSWORD → a password do keystore
-      # KEY_PASSWORD      → a password da key
+        PACKAGE_NAME: "com.patrulha.xx"
 
     scripts:
-      - name: Flutter packages
+
+      # ── 1. Dependências Flutter ──────────────────────────────────────────
+      - name: Get Flutter packages
         script: flutter pub get
 
-      - name: Restaurar keystore
+      # ── 2. Build APK debug (mais rápido para testes de compatibilidade) ──
+      - name: Build debug APK
         script: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          flutter build apk --debug \
+            --target-platform android-arm,android-arm64 \
+            --no-tree-shake-icons
+        # O APK fica em build/app/outputs/flutter-apk/app-debug.apk
 
-      - name: key.properties
+      # ── 3. Testes de compatibilidade nos emuladores ──────────────────────
+      #
+      # Estratégia: para cada API level, inicia o emulador, instala o APK,
+      # verifica que a app arranca sem crash (smoke test), e termina.
+      # Se o processo da app morrer nos primeiros 10s → crash detectado.
+      #
+      # APIs testadas:
+      #   API 22  → Android 5.1  (o mais antigo suportado: minSdk=21)
+      #   API 26  → Android 8.0
+      #   API 29  → Android 10
+      #   API 30  → Android 11
+
+      - name: "Smoke test — API 22 (Android 5.1)"
         script: |
-          cat > android/key.properties << KEOF
-          storePassword=$KEYSTORE_PASSWORD
-          keyPassword=$KEY_PASSWORD
-          keyAlias=$KEY_ALIAS
-          storeFile=$KEYSTORE_PATH
-          KEOF
+          set -e
+          API=22
+          AVD_NAME="test_avd_${API}"
 
-      - name: Build APK
+          echo "▶ A criar AVD para API $API..."
+          echo "no" | avdmanager create avd \
+            --force \
+            --name "$AVD_NAME" \
+            --package "system-images;android-${API};default;x86" \
+            --device "pixel"
+
+          echo "▶ A iniciar emulador..."
+          $ANDROID_HOME/emulator/emulator \
+            -avd "$AVD_NAME" \
+            -no-window \
+            -no-audio \
+            -no-boot-anim \
+            -gpu swiftshader_indirect \
+            -memory 2048 &
+          EMULATOR_PID=$!
+
+          echo "▶ A aguardar boot completo..."
+          adb wait-for-device
+          timeout 180 bash -c '
+            until adb shell getprop sys.boot_completed 2>/dev/null | grep -q "^1$"; do
+              sleep 3
+            done
+          '
+          adb shell input keyevent 82  # desbloqueia ecrã
+
+          echo "▶ A instalar APK..."
+          adb install -r build/app/outputs/flutter-apk/app-debug.apk
+
+          echo "▶ A lançar app..."
+          adb shell am start -n "${PACKAGE_NAME}/.MainActivity"
+
+          echo "▶ A aguardar 15s e verificar se não crashou..."
+          sleep 15
+
+          # Verifica se o processo ainda está vivo
+          PID=$(adb shell "pidof ${PACKAGE_NAME}" 2>/dev/null || echo "")
+          if [ -z "$PID" ]; then
+            echo "❌ CRASH DETECTADO na API $API — processo morreu!"
+            # Captura logcat dos últimos 5s para diagnóstico
+            adb logcat -d -t 100 | grep -E "AndroidRuntime|FATAL|${PACKAGE_NAME}" || true
+            kill $EMULATOR_PID || true
+            exit 1
+          else
+            echo "✅ API $API OK — app em execução (PID=$PID)"
+          fi
+
+          # Captura screenshot como artefacto visual
+          adb exec-out screencap -p > "screenshot_api${API}.png" || true
+
+          # Recolhe logcat completo como artefacto
+          adb logcat -d > "logcat_api${API}.txt" || true
+
+          kill $EMULATOR_PID || true
+          avdmanager delete avd --name "$AVD_NAME" || true
+
+      - name: "Smoke test — API 26 (Android 8.0)"
         script: |
-          flutter build apk --release \
-            --obfuscate \
-            --split-debug-info=build/debug-info
+          set -e
+          API=26
+          AVD_NAME="test_avd_${API}"
 
+          echo "▶ A criar AVD para API $API..."
+          echo "no" | avdmanager create avd \
+            --force \
+            --name "$AVD_NAME" \
+            --package "system-images;android-${API};google_apis;x86" \
+            --device "pixel_2"
+
+          echo "▶ A iniciar emulador..."
+          $ANDROID_HOME/emulator/emulator \
+            -avd "$AVD_NAME" \
+            -no-window \
+            -no-audio \
+            -no-boot-anim \
+            -gpu swiftshader_indirect \
+            -memory 2048 &
+          EMULATOR_PID=$!
+
+          echo "▶ A aguardar boot completo..."
+          adb wait-for-device
+          timeout 180 bash -c '
+            until adb shell getprop sys.boot_completed 2>/dev/null | grep -q "^1$"; do
+              sleep 3
+            done
+          '
+          adb shell input keyevent 82
+
+          echo "▶ A instalar APK..."
+          adb install -r build/app/outputs/flutter-apk/app-debug.apk
+
+          echo "▶ A lançar app..."
+          adb shell am start -n "${PACKAGE_NAME}/.MainActivity"
+
+          sleep 15
+
+          PID=$(adb shell "pidof ${PACKAGE_NAME}" 2>/dev/null || echo "")
+          if [ -z "$PID" ]; then
+            echo "❌ CRASH DETECTADO na API $API — processo morreu!"
+            adb logcat -d -t 100 | grep -E "AndroidRuntime|FATAL|${PACKAGE_NAME}" || true
+            kill $EMULATOR_PID || true
+            exit 1
+          else
+            echo "✅ API $API OK — app em execução (PID=$PID)"
+          fi
+
+          adb exec-out screencap -p > "screenshot_api${API}.png" || true
+          adb logcat -d > "logcat_api${API}.txt" || true
+
+          kill $EMULATOR_PID || true
+          avdmanager delete avd --name "$AVD_NAME" || true
+
+      - name: "Smoke test — API 29 (Android 10)"
+        script: |
+          set -e
+          API=29
+          AVD_NAME="test_avd_${API}"
+
+          echo "▶ A criar AVD para API $API..."
+          echo "no" | avdmanager create avd \
+            --force \
+            --name "$AVD_NAME" \
+            --package "system-images;android-${API};google_apis;x86" \
+            --device "pixel_3"
+
+          echo "▶ A iniciar emulador..."
+          $ANDROID_HOME/emulator/emulator \
+            -avd "$AVD_NAME" \
+            -no-window \
+            -no-audio \
+            -no-boot-anim \
+            -gpu swiftshader_indirect \
+            -memory 2048 &
+          EMULATOR_PID=$!
+
+          echo "▶ A aguardar boot completo..."
+          adb wait-for-device
+          timeout 180 bash -c '
+            until adb shell getprop sys.boot_completed 2>/dev/null | grep -q "^1$"; do
+              sleep 3
+            done
+          '
+          adb shell input keyevent 82
+
+          echo "▶ A instalar APK..."
+          adb install -r build/app/outputs/flutter-apk/app-debug.apk
+
+          echo "▶ A lançar app..."
+          adb shell am start -n "${PACKAGE_NAME}/.MainActivity"
+
+          sleep 15
+
+          PID=$(adb shell "pidof ${PACKAGE_NAME}" 2>/dev/null || echo "")
+          if [ -z "$PID" ]; then
+            echo "❌ CRASH DETECTADO na API $API — processo morreu!"
+            adb logcat -d -t 100 | grep -E "AndroidRuntime|FATAL|${PACKAGE_NAME}" || true
+            kill $EMULATOR_PID || true
+            exit 1
+          else
+            echo "✅ API $API OK — app em execução (PID=$PID)"
+          fi
+
+          adb exec-out screencap -p > "screenshot_api${API}.png" || true
+          adb logcat -d > "logcat_api${API}.txt" || true
+
+          kill $EMULATOR_PID || true
+          avdmanager delete avd --name "$AVD_NAME" || true
+
+      - name: "Smoke test — API 30 (Android 11)"
+        script: |
+          set -e
+          API=30
+          AVD_NAME="test_avd_${API}"
+
+          echo "▶ A criar AVD para API $API..."
+          echo "no" | avdmanager create avd \
+            --force \
+            --name "$AVD_NAME" \
+            --package "system-images;android-${API};google_apis;x86" \
+            --device "pixel_4"
+
+          echo "▶ A iniciar emulador..."
+          $ANDROID_HOME/emulator/emulator \
+            -avd "$AVD_NAME" \
+            -no-window \
+            -no-audio \
+            -no-boot-anim \
+            -gpu swiftshader_indirect \
+            -memory 2048 &
+          EMULATOR_PID=$!
+
+          echo "▶ A aguardar boot completo..."
+          adb wait-for-device
+          timeout 180 bash -c '
+            until adb shell getprop sys.boot_completed 2>/dev/null | grep -q "^1$"; do
+              sleep 3
+            done
+          '
+          adb shell input keyevent 82
+
+          echo "▶ A instalar APK..."
+          adb install -r build/app/outputs/flutter-apk/app-debug.apk
+
+          echo "▶ A lançar app..."
+          adb shell am start -n "${PACKAGE_NAME}/.MainActivity"
+
+          sleep 15
+
+          PID=$(adb shell "pidof ${PACKAGE_NAME}" 2>/dev/null || echo "")
+          if [ -z "$PID" ]; then
+            echo "❌ CRASH DETECTADO na API $API — processo morreu!"
+            adb logcat -d -t 100 | grep -E "AndroidRuntime|FATAL|${PACKAGE_NAME}" || true
+            kill $EMULATOR_PID || true
+            exit 1
+          else
+            echo "✅ API $API OK — app em execução (PID=$PID)"
+          fi
+
+          adb exec-out screencap -p > "screenshot_api${API}.png" || true
+          adb logcat -d > "logcat_api${API}.txt" || true
+
+          kill $EMULATOR_PID || true
+          avdmanager delete avd --name "$AVD_NAME" || true
+
+    # ── Artefactos: screenshots + logcats de cada API ────────────────────
     artifacts:
-      - build/app/outputs/flutter-apk/app-release.apk
+      - build/app/outputs/flutter-apk/app-debug.apk
+      - screenshot_api*.png
+      - logcat_api*.txt
 
+    # ── Notificações: resultado no email ─────────────────────────────────
     publishing:
       email:
         recipients:
-          - o-teu-email@gmail.com
+          - your@email.com   # substitui pelo teu email
         notify:
           success: true
           failure: true
