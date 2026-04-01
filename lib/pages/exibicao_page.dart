@@ -15,6 +15,21 @@ import '../services/download_service.dart';
 import 'download_list_page.dart';
 import '../theme/app_theme.dart';
 
+// ─── Detecta se o URL é um link directo de vídeo (mp4/m3u8/etc.)
+// em vez de uma página de embed
+bool _isDirectVideoUrl(String url) {
+  if (url.isEmpty) return false;
+  final lower = url.toLowerCase().split('?').first;
+  return lower.endsWith('.mp4') ||
+      lower.endsWith('.m3u8') ||
+      lower.endsWith('.webm') ||
+      lower.endsWith('.mkv') ||
+      lower.endsWith('.mov') ||
+      lower.endsWith('.avi') ||
+      lower.endsWith('.flv') ||
+      lower.endsWith('.ts');
+}
+
 // ─── SVGs ─────────────────────────────────────────────────────────────────────
 const _svgSaveLater =
     '<svg id="Layer_1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
@@ -432,6 +447,9 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   final ScrollController _suggestionsScroll = ScrollController();
 
   bool get _isEmpty => widget.embedUrl == null || widget.currentVideo == null;
+  bool get _isDirect => !_isEmpty && _isDirectVideoUrl(widget.embedUrl!);
+  VideoPlayerController? _directCtrl;
+  bool _directInitialized = false;
 
   @override void initState() {
     super.initState();
@@ -444,6 +462,27 @@ class _ExibicaoPageState extends State<ExibicaoPage>
       duration: const Duration(milliseconds: 600),
     )..forward();
     if (!_isEmpty) { _loadRelated(); _startPlayerTimeout(); }
+    if (_isDirect) _initDirectPlayer(widget.embedUrl!);
+  }
+
+  void _initDirectPlayer(String url) {
+    _directCtrl?.dispose();
+    _directCtrl = null;
+    _directInitialized = false;
+    final ctrl = VideoPlayerController.networkUrl(Uri.parse(url))
+      ..initialize().then((_) {
+        if (!mounted) return;
+        setState(() {
+          _directCtrl = ctrl;
+          _directInitialized = true;
+          _playerLoading = false;
+        });
+        ctrl.setLooping(true);
+        ctrl.setVolume(_muted ? 0.0 : 1.0);
+        if (_playing) ctrl.play();
+      }).catchError((_) {
+        if (mounted) setState(() => _playerLoading = false);
+      });
   }
 
   void _startPlayerTimeout() {
@@ -455,15 +494,26 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   @override void didUpdateWidget(ExibicaoPage old) {
     super.didUpdateWidget(old);
     if (widget.currentVideo != old.currentVideo && !_isEmpty) {
-      // Anima a descrição ao trocar vídeo
       _descAnim.forward(from: 0.0);
       _playerEnterAnim.forward(from: 0.0);
-      setState(() { _playerLoading = true; _playing = true; _detectedEngine = '—'; });
+      setState(() { _playerLoading = true; _playing = true; _detectedEngine = '—';
+                    _directInitialized = false; });
+      // Trocar player directo se necessário
+      if (_isDirect) {
+        _initDirectPlayer(widget.embedUrl!);
+      } else {
+        _directCtrl?.dispose();
+        _directCtrl = null;
+      }
       _loadRelated();
       _startPlayerTimeout();
     }
     if (widget.isActive != old.isActive) {
-      _webSend(widget.isActive ? 'px:play' : 'px:pause');
+      if (_isDirect) {
+        widget.isActive ? _directCtrl?.play() : _directCtrl?.pause();
+      } else {
+        _webSend(widget.isActive ? 'px:play' : 'px:pause');
+      }
       setState(() => _playing = widget.isActive);
     }
   }
@@ -472,6 +522,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     _descAnim.dispose();
     _playerEnterAnim.dispose();
     _suggestionsScroll.dispose();
+    _directCtrl?.dispose();
     super.dispose();
   }
 
@@ -524,15 +575,25 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   void _togglePlay() {
     final np = !_playing;
     setState(() => _playing = np);
-    if (_isEmpty) { np ? _localCtrl?.play() : _localCtrl?.pause(); }
-    else { _webSend(np ? 'px:play' : 'px:pause'); }
+    if (_isEmpty) {
+      np ? _localCtrl?.play() : _localCtrl?.pause();
+    } else if (_isDirect) {
+      np ? _directCtrl?.play() : _directCtrl?.pause();
+    } else {
+      _webSend(np ? 'px:play' : 'px:pause');
+    }
   }
 
   void _toggleMute() {
     final nm = !_muted;
     setState(() => _muted = nm);
-    if (_isEmpty) { _localCtrl?.setVolume(nm ? 0.0 : 1.0); }
-    else { _webSend(nm ? 'px:mute' : 'px:unmute'); }
+    if (_isEmpty) {
+      _localCtrl?.setVolume(nm ? 0.0 : 1.0);
+    } else if (_isDirect) {
+      _directCtrl?.setVolume(nm ? 0.0 : 1.0);
+    } else {
+      _webSend(nm ? 'px:mute' : 'px:unmute');
+    }
   }
 
   void _showVideoMenu(BuildContext ctx, FeedVideo v, Offset pos) {
@@ -603,8 +664,49 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                   color: Colors.black,
                   child: Stack(children: [
 
-                    // ── WebView tamanho real, UA desktop ──────────────────────
-                    if (!_isEmpty)
+                    // ── DIRECT: VideoPlayer nativo ────────────────────────
+                    if (!_isEmpty && _isDirect) ...[
+                      Positioned.fill(
+                        child: _directInitialized && _directCtrl != null
+                            ? FittedBox(fit: BoxFit.cover,
+                                child: SizedBox(
+                                  width: _directCtrl!.value.size.width,
+                                  height: _directCtrl!.value.size.height,
+                                  child: VideoPlayer(_directCtrl!)))
+                            : const ColoredBox(color: Colors.black),
+                      ),
+                      // Thumbnail enquanto inicializa
+                      if (_playerLoading)
+                        Positioned.fill(child: Stack(children: [
+                          if (video?.thumb != null && video!.thumb.isNotEmpty)
+                            Image.network(video.thumb, fit: BoxFit.cover,
+                              width: double.infinity, height: double.infinity,
+                              headers: const {'User-Agent': 'Mozilla/5.0'},
+                              errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black)),
+                          Container(color: Colors.black54),
+                          const Center(child: CircularProgressIndicator(
+                              color: Colors.white70, strokeWidth: 1.5)),
+                        ])),
+                      // Play/Pause overlay
+                      Positioned.fill(child: _PlayPauseOverlay(
+                          playing: _playing, onTap: _togglePlay)),
+                      // Gradiente inferior
+                      Positioned(left:0, right:0, bottom:0,
+                        child: Container(height: 72,
+                          decoration: const BoxDecoration(gradient: LinearGradient(
+                            begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                            colors: [Color(0xCC000000), Colors.transparent])))),
+                      // Botões: mute + download (link directo tem download)
+                      Positioned(bottom:8, right:8,
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                          _PlayerBtn(svg: _muted ? _svgVolOff : _svgVolOn, onTap: _toggleMute),
+                          const SizedBox(height: 8),
+                          _PlayerBtn(svg: _svgDl, onTap: _forceDownload),
+                        ])),
+                    ],
+
+                    // ── EMBED: WebView puro sem controlos do app ──────────
+                    if (!_isEmpty && !_isDirect) ...[
                       Positioned.fill(
                         child: InAppWebView(
                           key: ValueKey(widget.embedUrl),
@@ -695,8 +797,25 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                           },
                         ),
                       ),
+                      // Thumbnail enquanto carrega
+                      if (_playerLoading)
+                        Positioned.fill(child: Stack(children: [
+                          if (video?.thumb != null && video!.thumb.isNotEmpty)
+                            Image.network(video.thumb, fit: BoxFit.cover,
+                              width: double.infinity, height: double.infinity,
+                              headers: const {'User-Agent': 'Mozilla/5.0'},
+                              errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black)),
+                          Container(color: Colors.black54),
+                          const Center(child: CircularProgressIndicator(
+                              color: Colors.white70, strokeWidth: 1.5)),
+                        ])),
+                      // Embeds: SEM play/pause overlay, SEM botão de download
+                      // Apenas botão de mute para não interferir com o player nativo
+                      Positioned(bottom:8, right:8,
+                        child: _PlayerBtn(svg: _muted ? _svgVolOff : _svgVolOn, onTap: _toggleMute)),
+                    ],
 
-                    // ── Video vazio: LocalAssetPlayer em tamanho real ──────────
+                    // ── Video vazio: LocalAssetPlayer ─────────────────────
                     if (_isEmpty)
                       Positioned.fill(
                         child: _LocalAssetPlayer(
@@ -704,37 +823,10 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                           onReady: (ctrl) { if (mounted) setState(() => _localCtrl = ctrl); }),
                       ),
 
-                    // ── Thumbnail enquanto carrega (cobre o WebView invisível) ──
-                    if (!_isEmpty && _playerLoading)
-                      Positioned.fill(child: Stack(children: [
-                        if (video?.thumb != null && video!.thumb.isNotEmpty)
-                          Image.network(video.thumb, fit: BoxFit.cover,
-                            width: double.infinity, height: double.infinity,
-                            headers: const {'User-Agent': 'Mozilla/5.0'},
-                            errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black)),
-                        Container(color: Colors.black54),
-                        const Center(child: CircularProgressIndicator(
-                            color: Colors.white70, strokeWidth: 1.5)),
-                      ])),
-
-                    // ── Play/Pause overlay ──────────────────────────────────────
-                    Positioned.fill(child: _PlayPauseOverlay(
-                        playing: _playing, onTap: _togglePlay)),
-
-                    // ── Gradiente inferior ──────────────────────────────────────
-                    Positioned(left:0, right:0, bottom:0,
-                      child: Container(height: 72,
-                        decoration: const BoxDecoration(gradient: LinearGradient(
-                          begin: Alignment.bottomCenter, end: Alignment.topCenter,
-                          colors: [Color(0xCC000000), Colors.transparent])))),
-
-                    // ── Botões bottom-right ─────────────────────────────────────
-                    Positioned(bottom:8, right:8,
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        _PlayerBtn(svg: _muted ? _svgVolOff : _svgVolOn, onTap: _toggleMute),
-                        const SizedBox(height: 8),
-                        _PlayerBtn(svg: _svgDl, onTap: _forceDownload),
-                      ])),
+                    // ── Play/Pause overlay para estado vazio ──────────────
+                    if (_isEmpty)
+                      Positioned.fill(child: _PlayPauseOverlay(
+                          playing: _playing, onTap: _togglePlay)),
                   ]),
                 ),
               ),
@@ -776,7 +868,17 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                         if (_nextVideo?.embedUrl == v.embedUrl) {
                           setState(() => _nextVideo = null);
                         }
-                        widget.onVideoTap(v);
+                        // Animação iOS nativa: push de nova ExibicaoPage
+                        Navigator.of(context).push(
+                          CupertinoPageRoute(
+                            builder: (_) => ExibicaoPage(
+                              embedUrl: v.embedUrl,
+                              currentVideo: v,
+                              onVideoTap: widget.onVideoTap,
+                              isActive: true,
+                            ),
+                          ),
+                        );
                       },
                       onMenuTap: (v, pos) => _showVideoMenu(context, v, pos),
                     ),

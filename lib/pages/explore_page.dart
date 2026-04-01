@@ -52,17 +52,22 @@ class _ExplorePageState extends State<ExplorePage>
   int _page = 1;
   _ChipFilter _chip = _ChipFilter.todos;
   final ScrollController _scroll = ScrollController();
+  late final PageController _pageController;
+  bool _pageAnimating = false;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(
+      initialPage: _ChipFilter.values.indexOf(_chip),
+    );
     _fetch();
-    _scroll.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _scroll.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -73,8 +78,8 @@ class _ExplorePageState extends State<ExplorePage>
   }
 
   // ── Filtro dinâmico por chip ──────────────────────────────────────────────
-  List<FeedVideo> get _filtered {
-    switch (_chip) {
+  List<FeedVideo> _filteredFor(_ChipFilter chip) {
+    switch (chip) {
       case _ChipFilter.todos:
         return _videos;
       case _ChipFilter.recentes:
@@ -156,7 +161,7 @@ class _ExplorePageState extends State<ExplorePage>
 
   Future<void> _fetchMore() async {
     if (_fetching || _loading || _refreshing) return;
-    _fetching = true;
+    setState(() => _fetching = true);
     try {
       final videos = await FeedFetcher.fetchAll(_page);
       if (!mounted) { _fetching = false; return; }
@@ -167,7 +172,7 @@ class _ExplorePageState extends State<ExplorePage>
         });
       }
     } catch (_) {}
-    _fetching = false;
+    if (mounted) setState(() => _fetching = false);
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -198,10 +203,31 @@ class _ExplorePageState extends State<ExplorePage>
                     ? _buildSkeletons()
                     : _error
                         ? _buildError()
-                        : _buildGrid(),
+                        : PageView.builder(
+                            controller: _pageController,
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: _ChipFilter.values.length,
+                            onPageChanged: (i) {
+                              if (!_pageAnimating) {
+                                setState(() => _chip = _ChipFilter.values[i]);
+                              }
+                            },
+                            itemBuilder: (_, i) => _buildGrid(
+                              _ChipFilter.values[i],
+                            ),
+                          ),
               ),
             ),
           ]),
+
+          // ── Loader de fetch-more no centro inferior ────────────────────
+          if (_fetching && !_loading && !_refreshing)
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Center(child: _DotsLoader(isDark: isDark)),
+            ),
 
           // ── AppBar sobreposto ──────────────────────────────────────────
           Positioned(
@@ -210,7 +236,16 @@ class _ExplorePageState extends State<ExplorePage>
               topPad: topPad,
               selectedChip: _chip,
               isDark: isDark,
-              onChipChanged: (c) => setState(() => _chip = c),
+              onChipChanged: (c) {
+                setState(() => _chip = c);
+                final idx = _ChipFilter.values.indexOf(c);
+                _pageAnimating = true;
+                _pageController.animateToPage(
+                  idx,
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOutCubic,
+                ).then((_) => _pageAnimating = false);
+              },
               onSearchTap: () => Navigator.push(
                   context, iosRoute(const SearchPage())),
             ),
@@ -254,7 +289,7 @@ class _ExplorePageState extends State<ExplorePage>
         crossAxisCount: 2,
         mainAxisSpacing: 3,
         crossAxisSpacing: 3,
-        childAspectRatio: 16 / 10, // proporcional ao tamanho real dos cards
+        childAspectRatio: 16 / 11, // proporcional ao tamanho real dos cards
       ),
       padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
       itemCount: 12,
@@ -262,8 +297,8 @@ class _ExplorePageState extends State<ExplorePage>
     );
   }
 
-  Widget _buildGrid() {
-    final list = _filtered;
+  Widget _buildGrid([_ChipFilter? chipOverride]) {
+    final list = _filteredFor(chipOverride ?? _chip);
     if (list.isEmpty) {
       final t = AppTheme.current;
       return Center(
@@ -272,9 +307,16 @@ class _ExplorePageState extends State<ExplorePage>
       );
     }
 
-    return GridView.builder(
-      controller: _scroll,
-      // Efeito elástico nativo iOS com bounce no topo e no fundo
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (n is ScrollUpdateNotification &&
+            n.metrics.pixels >= n.metrics.maxScrollExtent - 700) {
+          _fetchMore();
+        }
+        return false;
+      },
+      child: GridView.builder(
+      // Sem controller — scroll gerido por NotificationListener + PageView
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
       ),
@@ -282,23 +324,18 @@ class _ExplorePageState extends State<ExplorePage>
         crossAxisCount: 2,
         mainAxisSpacing: 3,
         crossAxisSpacing: 3,
-        childAspectRatio: 16 / 10,
+        childAspectRatio: 16 / 11,
       ),
       padding: const EdgeInsets.fromLTRB(3, 6, 3, 32),
-      itemCount: list.length + 1,
+      itemCount: list.length,
       itemBuilder: (_, i) {
-        if (i == list.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: _DotsLoader()),
-          );
-        }
         return _VideoCard(
           key: ValueKey(list[i].embedUrl),
           video: list[i],
           onTap: () => widget.onVideoTap(list[i]),
         );
       },
+    ),
     );
   }
 }
@@ -534,24 +571,34 @@ class _ExploreAppBar extends StatelessWidget {
                   duration: const Duration(milliseconds: 220),
                   curve: Curves.easeOutCubic,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: selected ? indicatorColor : Colors.transparent,
-                        width: 2.5,
-                        strokeAlign: BorderSide.strokeAlignInside,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutCubic,
+                        style: TextStyle(
+                          color: selected ? t.text : t.textSecondary,
+                          fontSize: 13,
+                          fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                        ),
+                        child: Text(label),
                       ),
-                    ),
-                  ),
-                  child: AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutCubic,
-                    style: TextStyle(
-                      color: selected ? t.text : t.textSecondary,
-                      fontSize: 13,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                    ),
-                    child: Text(label),
+                      Positioned(
+                        bottom: -6,
+                        left: 0,
+                        right: 0,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          height: 2.5,
+                          decoration: BoxDecoration(
+                            color: selected ? indicatorColor : Colors.transparent,
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -607,9 +654,9 @@ class _VideoCard extends StatelessWidget {
       onTap: onTap,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(5),
-        child: Stack(children: [
+        child: Stack(fit: StackFit.expand, children: [
           // Thumbnail com cache persistente
-          _ThumbImg(url: video.thumb, headers: _headers),
+          Positioned.fill(child: _ThumbImg(url: video.thumb, headers: _headers)),
 
           // Overlay gradient com source label e duração
           Positioned(

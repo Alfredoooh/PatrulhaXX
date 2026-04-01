@@ -1,12 +1,3 @@
-// =============================================================================
-// settings_page.dart
-// patrulhaXX — Definições
-//
-// Copyright (c) 2024 patrulhaXX. Todos os direitos reservados.
-// Este ficheiro é propriedade exclusiva do projecto patrulhaXX.
-// Proibida a reprodução, distribuição ou modificação sem autorização escrita.
-// =============================================================================
-
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -41,6 +32,14 @@ const _svgTrash      = 'assets/icons/svg/settings/settings_trash.svg';
 const _svgReload     = 'assets/icons/svg/settings/settings_reload.svg';
 const _svgBack       = 'assets/icons/svg/settings/settings_back.svg';
 const _svgChevron    = 'assets/icons/svg/settings/settings_chevron.svg';
+
+// ── Lucide SVG inline (fallback para ícones sem asset dedicado) ───────────────
+// Usado por _LucideIcon quando o svgAsset não existe / não é atribuído
+const _lucideShield = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>''';
+const _lucideEye = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>''';
+const _lucideRefreshCw = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>''';
+const _lucideScrollText = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/></svg>''';
+const _lucideTimer = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>''';
 
 const _secureChannel = MethodChannel('com.patrulhaxx/secure');
 
@@ -93,34 +92,31 @@ class _SettingsPageState extends State<SettingsPage> {
       barrierDismissible: true,
       barrierLabel: 'Fechar',
       barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 480),
+      transitionDuration: const Duration(milliseconds: 380),
       pageBuilder: (_, __, ___) => const SizedBox.shrink(),
       transitionBuilder: (ctx, anim, _, __) {
-        // Curva elástica: sobe rápido e abranda suavemente
-        final curved = CurvedAnimation(
+        final slide = CurvedAnimation(
           parent: anim,
-          curve: _kElasticOut,
-          reverseCurve: Curves.easeInCubic,
+          curve: _kIOSEnter,
+          reverseCurve: _kIOSExit,
         );
         return FadeTransition(
           opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
           child: SlideTransition(
             position: Tween<Offset>(
-              begin: const Offset(0, 0.18),
+              begin: const Offset(0, 0.12),
               end: Offset.zero,
-            ).animate(curved),
+            ).animate(slide),
             child: _ThemeModal(
               ts: _ts,
               initialMode: _cachedThemeMode,
               onChanged: (mode) {
-                // Aplica o novo ThemeMode ao ThemeService via isDark/setDark
                 switch (mode) {
                   case ThemeMode.dark:
                     _ts.setDark(true);
                   case ThemeMode.light:
                     _ts.setDark(false);
                   case ThemeMode.system:
-                    // system: usa o brilho do sistema para decidir
                     final brightness =
                         WidgetsBinding.instance.platformDispatcher.platformBrightness;
                     _ts.setDark(brightness == Brightness.dark);
@@ -448,6 +444,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 _divider(),
                 _TapRow(
                   svgAsset: _svgLock,
+                  lucideSvg: _lucideTimer,
                   label: 'Bloquear após',
                   sub: _ts.lockDelayLabel,
                   textColor: _text, subColor: _sub,
@@ -462,6 +459,7 @@ class _SettingsPageState extends State<SettingsPage> {
             _section([
               _SwitchRow(
                 svgAsset: _svgLock,
+                lucideSvg: _lucideEye,
                 label: 'Privacidade nos recentes',
                 sub: _ts.privacyRecent
                     ? 'App aparece em preto' : 'Conteúdo visível',
@@ -510,6 +508,7 @@ class _SettingsPageState extends State<SettingsPage> {
             _section([
               _TapRow(
                 svgAsset: _svgReload,
+                lucideSvg: _lucideRefreshCw,
                 label: 'Recarregar ícones',
                 sub: 'Baixa novamente os favicons',
                 textColor: _text, subColor: _sub,
@@ -554,7 +553,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const SizedBox(width: 14),
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('patrulhaXX', style: TextStyle(color: _text,
+                    Text('nuxxx', style: TextStyle(color: _text,
                         fontSize: 15, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 2),
                     Text('Versão 1.0.0 · Navegação privada',
@@ -567,6 +566,7 @@ class _SettingsPageState extends State<SettingsPage> {
             _section([
               _TapRow(
                 svgAsset: _svgReload,
+                lucideSvg: _lucideScrollText,
                 label: 'Licenças de software',
                 sub: 'Dependências open source',
                 textColor: _text, subColor: _sub,
@@ -636,6 +636,10 @@ class _SettingsPageState extends State<SettingsPage> {
 const _kElasticOut = ElasticOutCurve(0.55);
 const _kElasticIn  = ElasticInCurve(0.55);
 
+// Curva iOS nativa: entrada suave de baixo, saída rápida — sem ressalto
+const _kIOSEnter = Interval(0.0, 1.0, curve: Curves.linearToEaseOut);
+const _kIOSExit  = Interval(0.0, 1.0, curve: Curves.easeIn);
+
 // =============================================================================
 // _showElasticSheet — showModalBottomSheet com animação elástica (subida rápida
 // que abranda suavemente, saída rápida)
@@ -652,24 +656,24 @@ Future<T?> _showElasticSheet<T>({
     barrierDismissible: true,
     barrierLabel: '',
     barrierColor: Colors.black54,
-    transitionDuration: const Duration(milliseconds: 440),
+    transitionDuration: const Duration(milliseconds: 380),
     pageBuilder: (_, __, ___) => const SizedBox.shrink(),
     transitionBuilder: (ctx, anim, _, __) {
-      final elasticIn = CurvedAnimation(
+      final slide = CurvedAnimation(
         parent: anim,
-        curve: _kElasticOut,
-        reverseCurve: Curves.easeInCubic,
+        curve: _kIOSEnter,
+        reverseCurve: _kIOSExit,
       );
-      final fadeAnim = CurvedAnimation(parent: anim, curve: Curves.easeOut);
+      final fade = CurvedAnimation(parent: anim, curve: Curves.easeOut);
       return FadeTransition(
-        opacity: fadeAnim,
+        opacity: fade,
         child: Align(
           alignment: Alignment.bottomCenter,
           child: SlideTransition(
             position: Tween<Offset>(
               begin: const Offset(0, 1),
               end: Offset.zero,
-            ).animate(elasticIn),
+            ).animate(slide),
             child: Material(
               color: Colors.transparent,
               child: SafeArea(
@@ -677,8 +681,7 @@ Future<T?> _showElasticSheet<T>({
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: backgroundColor ??
-                        AppTheme.current.card,
+                    color: backgroundColor ?? AppTheme.current.card,
                     borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(20)),
                   ),
@@ -718,9 +721,7 @@ class _ThemeModalState extends State<_ThemeModal> {
   void _pick(ThemeMode mode) {
     setState(() => _selected = mode);
     widget.onChanged(mode);
-    Future.delayed(const Duration(milliseconds: 180), () {
-      if (mounted) Navigator.of(context).pop();
-    });
+    Navigator.of(context).pop();
   }
 
   @override
@@ -886,16 +887,57 @@ class _ThemeOption extends StatelessWidget {
 }
 
 // =============================================================================
+// _SvgIcon — tenta asset SVG; se falhar usa Lucide SVG string inline
+// =============================================================================
+class _SvgIcon extends StatelessWidget {
+  final String? assetPath;
+  final String? lucideSvg;
+  final double size;
+  final Color color;
+
+  const _SvgIcon({
+    this.assetPath,
+    this.lucideSvg,
+    this.size = 20,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cf = ColorFilter.mode(color, BlendMode.srcIn);
+    if (assetPath != null) {
+      return SvgPicture.asset(
+        assetPath!,
+        width: size, height: size,
+        colorFilter: cf,
+        errorBuilder: (_, __, ___) => lucideSvg != null
+            ? SvgPicture.string(lucideSvg!, width: size, height: size, colorFilter: cf)
+            : SizedBox(width: size, height: size),
+      );
+    }
+    if (lucideSvg != null) {
+      return SvgPicture.string(
+        lucideSvg!, width: size, height: size, colorFilter: cf,
+      );
+    }
+    return SizedBox(width: size, height: size);
+  }
+}
+
+// =============================================================================
 // _TapRow
 // =============================================================================
 class _TapRow extends StatelessWidget {
-  final String svgAsset, label, sub;
+  final String svgAsset;
+  final String? lucideSvg;
+  final String label, sub;
   final VoidCallback onTap;
   final Color textColor, subColor;
   final bool destructive;
 
   const _TapRow({
-    required this.svgAsset, required this.label, required this.sub,
+    required this.svgAsset, this.lucideSvg,
+    required this.label, required this.sub,
     required this.onTap, required this.textColor, required this.subColor,
     this.destructive = false,
   });
@@ -910,10 +952,8 @@ class _TapRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(children: [
-          SvgPicture.asset(svgAsset, width: 20, height: 20,
-              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn)),
+          _SvgIcon(assetPath: svgAsset, lucideSvg: lucideSvg, color: iconColor),
           const SizedBox(width: 14),
-          // Texto mais à esquerda
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(label, style: TextStyle(color: fgColor, fontSize: 14,
                 fontWeight: FontWeight.w500)),
@@ -921,9 +961,8 @@ class _TapRow extends StatelessWidget {
             Text(sub, style: TextStyle(color: subColor, fontSize: 12)),
           ]),
           const Spacer(),
-          SvgPicture.asset(_svgChevron, width: 16, height: 16,
-              colorFilter: ColorFilter.mode(
-                  subColor.withOpacity(0.5), BlendMode.srcIn)),
+          _SvgIcon(assetPath: _svgChevron, lucideSvg: null,
+              size: 16, color: subColor.withOpacity(0.5)),
         ]),
       ),
     );
@@ -934,13 +973,16 @@ class _TapRow extends StatelessWidget {
 // _SwitchRow
 // =============================================================================
 class _SwitchRow extends StatelessWidget {
-  final String svgAsset, label, sub;
+  final String svgAsset;
+  final String? lucideSvg;
+  final String label, sub;
   final bool value;
   final Color textColor, subColor;
   final ValueChanged<bool> onChanged;
 
   const _SwitchRow({
-    required this.svgAsset, required this.label, required this.sub,
+    required this.svgAsset, this.lucideSvg,
+    required this.label, required this.sub,
     required this.value, required this.textColor, required this.subColor,
     required this.onChanged,
   });
@@ -950,10 +992,8 @@ class _SwitchRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       child: Row(children: [
-        SvgPicture.asset(svgAsset, width: 20, height: 20,
-            colorFilter: ColorFilter.mode(subColor, BlendMode.srcIn)),
+        _SvgIcon(assetPath: svgAsset, lucideSvg: lucideSvg, color: subColor),
         const SizedBox(width: 14),
-        // Texto mais à esquerda
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: TextStyle(color: textColor, fontSize: 14,
               fontWeight: FontWeight.w500)),

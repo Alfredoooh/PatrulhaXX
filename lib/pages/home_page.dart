@@ -89,6 +89,7 @@ class _HomePageState extends State<HomePage>
   bool _miniPlayerActive = false;
   late final AnimationController _fadeIn;
   late final AnimationController _tabAnim;
+  late final AnimationController _drawerAnim;
 
   Color _wallpaperColor = Colors.black;
 
@@ -104,6 +105,8 @@ class _HomePageState extends State<HomePage>
     _tabAnim = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 340));
     _tabAnim.value = 1.0;
+    _drawerAnim = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 300));
     final saved = ThemeService.instance.wallpaperColor;
     if (saved != null) _wallpaperColor = saved;
   }
@@ -122,6 +125,7 @@ class _HomePageState extends State<HomePage>
     WidgetsBinding.instance.removeObserver(this);
     _fadeIn.dispose();
     _tabAnim.dispose();
+    _drawerAnim.dispose();
     super.dispose();
   }
 
@@ -164,11 +168,36 @@ class _HomePageState extends State<HomePage>
         key: _scaffoldKey,
         extendBody: false,
         backgroundColor: AppTheme.current.bg,
+        drawerScrimColor: Colors.black.withOpacity(0.35),
+        onDrawerChanged: (isOpen) {
+          if (isOpen) {
+            _drawerAnim.forward();
+          } else {
+            _drawerAnim.reverse();
+          }
+        },
         drawer: _NavDrawer(
           onDownloads: () { _scaffoldKey.currentState?.closeDrawer(); _openDownloads(); },
           onSettings:  () { _scaffoldKey.currentState?.closeDrawer(); _openSettings(); },
         ),
-        body: Column(children: [
+        body: AnimatedBuilder(
+          animation: _drawerAnim,
+          builder: (_, child) {
+            final t = CurvedAnimation(parent: _drawerAnim, curve: Curves.easeOutCubic).value;
+            final scale = 1.0 - (t * 0.06);
+            final translateX = t * 24.0;
+            return Transform(
+              transform: Matrix4.identity()
+                ..translate(translateX)
+                ..scale(scale, scale),
+              alignment: Alignment.centerRight,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(t * 14),
+                child: child,
+              ),
+            );
+          },
+          child: Column(children: [
           Expanded(
             child: AnimatedBuilder(
               animation: ThemeService.instance,
@@ -239,6 +268,7 @@ class _HomePageState extends State<HomePage>
             safeBottom: safeBottom,
           ),
         ]),
+        ),  // AnimatedBuilder
       ),
     );
   }
@@ -597,9 +627,9 @@ class _NavDrawer extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
             child: Row(children: [
-              SvgPicture.asset('assets/icons/svg/shorts_active.svg', width: 28, height: 28),
+              Image.asset('assets/logo.png', width: 28, height: 28),
               const SizedBox(width: 10),
-              Text('patrulhaXX',
+              Text('nuxxx',
                 style: TextStyle(
                   color: t.text, fontSize: 18,
                   fontWeight: FontWeight.w700, letterSpacing: -0.3,
@@ -622,7 +652,7 @@ class _NavDrawer extends StatelessWidget {
           Divider(color: t.divider, height: 1, thickness: 1),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-            child: Text('patrulhaXX',
+            child: Text('nuxxx',
                 style: TextStyle(color: t.textTertiary, fontSize: 11)),
           ),
         ]),
@@ -808,30 +838,18 @@ class _HomeAppBar extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text('Início',
-                style: TextStyle(
-                  color: t.text, fontSize: 20,
-                  fontWeight: FontWeight.w700, letterSpacing: -0.5,
-                )),
-            ),
+            const SizedBox(width: 10),
+            Expanded(child: _SearchTriggerCompact()),
             if (collapseProgress > 0.1)
               Opacity(
                 opacity: collapseProgress,
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  _IconBtn(
-                    assetPath: 'assets/icons/svg/search.svg',
-                    onTap: () => Navigator.push(context, iosRoute(const SearchPage())),
-                    color: t.icon,
-                  ),
                   const SizedBox(width: 4),
                   _IconBtn(
                     assetPath: 'assets/icons/svg/drawer_download.svg',
                     onTap: onDownloads,
                     color: t.icon,
                   ),
-                  const SizedBox(width: 4),
                   _IconBtn(
                     assetPath: 'assets/icons/svg/drawer_settings.svg',
                     onTap: onSettings,
@@ -850,8 +868,6 @@ class _HomeAppBar extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SizedBox(height: 10),
-                    const _SearchTrigger(),
                     const SizedBox(height: 10),
                     _ActionRow(
                       onDownloads: onDownloads,
@@ -1093,6 +1109,55 @@ class _PhotoCardSkeletonState extends State<_PhotoCardSkeleton>
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// _SearchTriggerCompact  (para a appbar)
+// ─────────────────────────────────────────────────────────────────────────────
+class _SearchTriggerCompact extends StatelessWidget {
+  const _SearchTriggerCompact();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return OpenContainer(
+      transitionDuration: const Duration(milliseconds: 420),
+      transitionType: ContainerTransitionType.fadeThrough,
+      openColor: AppTheme.current.bg,
+      closedColor: Colors.transparent,
+      closedElevation: 0,
+      openElevation: 0,
+      closedShape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(100)),
+      ),
+      openShape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.zero,
+      ),
+      closedBuilder: (_, openContainer) => GestureDetector(
+        onTap: openContainer,
+        child: Container(
+          height: 38,
+          decoration: BoxDecoration(
+            color: t.inputBg,
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(color: t.inputBorder),
+          ),
+          child: Row(children: [
+            const SizedBox(width: 12),
+            SvgPicture.asset('assets/icons/svg/search.svg', width: 16, height: 16,
+                colorFilter: ColorFilter.mode(t.inputHint, BlendMode.srcIn)),
+            const SizedBox(width: 8),
+            Text(
+              'Pesquisar...',
+              style: TextStyle(color: t.inputHint, fontSize: 13.5),
+            ),
+          ]),
+        ),
+      ),
+      openBuilder: (_, __) => const SearchPage(),
+    );
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // _SearchTrigger
 // ─────────────────────────────────────────────────────────────────────────────
 class _SearchTrigger extends StatelessWidget {
@@ -1184,16 +1249,20 @@ class _ActionBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Widget iconWidget = isDownloads
-        ? Image.asset('assets/icons/downloads_folder.png', width: 38, height: 38)
-        : SvgPicture.asset(assetPath!, width: 38, height: 38);
+    final Widget iconWidget = SvgPicture.asset(
+      isDownloads
+          ? 'assets/icons/svg/drawer_download.svg'
+          : assetPath ?? 'assets/icons/svg/drawer_settings.svg',
+      width: 20, height: 20,
+      colorFilter: ColorFilter.mode(contentColor, BlendMode.srcIn),
+    );
 
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOutCubic,
-        height: 48,
+        height: 44,
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(100),
@@ -1228,6 +1297,7 @@ class _SitesRow extends StatelessWidget {
       height: 88,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: sites.length,
         itemBuilder: (_, i) => _SiteCell(site: sites[i], onTap: () => onTap(sites[i])),
