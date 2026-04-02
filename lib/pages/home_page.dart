@@ -22,11 +22,33 @@ import '../models/feed_photo_model.dart';
 const kPrimaryColor = Color(0xFFFF9000);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Animação nativa iOS — CupertinoPageRoute trata correctamente o slide
-// da página anterior sem fundo preto
+// Animação nativa iOS — CupertinoPageRoute
 // ─────────────────────────────────────────────────────────────────────────────
 Route<T> iosRoute<T>(Widget page) {
   return CupertinoPageRoute<T>(builder: (_) => page);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Animação da esquerda para a direita — para o drawer como página
+// ─────────────────────────────────────────────────────────────────────────────
+Route<T> drawerRoute<T>(Widget page) {
+  return PageRouteBuilder<T>(
+    opaque: false,
+    barrierColor: Colors.transparent,
+    pageBuilder: (_, __, ___) => page,
+    transitionDuration: const Duration(milliseconds: 320),
+    reverseTransitionDuration: const Duration(milliseconds: 260),
+    transitionsBuilder: (_, animation, __, child) {
+      final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(-1.0, 0.0),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      );
+    },
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,14 +104,12 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
-  int _tab = 1;
+  int _tab = 0;
   String? _selectedEmbedUrl;
   FeedVideo? _selectedVideo;
   bool _miniPlayerActive = false;
   late final AnimationController _fadeIn;
   late final AnimationController _tabAnim;
-  late final AnimationController _drawerAnim;
 
   Color _wallpaperColor = Colors.black;
 
@@ -105,8 +125,6 @@ class _HomePageState extends State<HomePage>
     _tabAnim = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 340));
     _tabAnim.value = 1.0;
-    _drawerAnim = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 300));
     final saved = ThemeService.instance.wallpaperColor;
     if (saved != null) _wallpaperColor = saved;
   }
@@ -125,7 +143,6 @@ class _HomePageState extends State<HomePage>
     WidgetsBinding.instance.removeObserver(this);
     _fadeIn.dispose();
     _tabAnim.dispose();
-    _drawerAnim.dispose();
     super.dispose();
   }
 
@@ -141,6 +158,16 @@ class _HomePageState extends State<HomePage>
 
   void _openDownloads() => Navigator.push(context, iosRoute(const DownloadsPage()));
   void _openSettings()  => Navigator.push(context, iosRoute(const SettingsPage()));
+
+  void _openDrawer() {
+    Navigator.push(
+      context,
+      drawerRoute(_DrawerPage(
+        onDownloads: () { Navigator.pop(context); _openDownloads(); },
+        onSettings:  () { Navigator.pop(context); _openSettings(); },
+      )),
+    );
+  }
 
   void _switchTab(int i) {
     if (i == _tab) return;
@@ -165,110 +192,78 @@ class _HomePageState extends State<HomePage>
         statusBarIconBrightness: AppTheme.current.statusBar,
       ),
       child: Scaffold(
-        key: _scaffoldKey,
         extendBody: false,
         backgroundColor: AppTheme.current.bg,
-        drawerScrimColor: Colors.black.withOpacity(0.35),
-        onDrawerChanged: (isOpen) {
-          if (isOpen) {
-            _drawerAnim.forward();
-          } else {
-            _drawerAnim.reverse();
-          }
-        },
-        drawer: _NavDrawer(
-          onDownloads: () { _scaffoldKey.currentState?.closeDrawer(); _openDownloads(); },
-          onSettings:  () { _scaffoldKey.currentState?.closeDrawer(); _openSettings(); },
-        ),
         body: AnimatedBuilder(
-          animation: _drawerAnim,
-          builder: (_, child) {
-            final t = CurvedAnimation(parent: _drawerAnim, curve: Curves.easeOutCubic).value;
-            final scale = 1.0 - (t * 0.06);
-            final translateX = t * 24.0;
-            return Transform(
-              transform: Matrix4.identity()
-                ..translate(translateX)
-                ..scale(scale, scale),
-              alignment: Alignment.centerRight,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(t * 14),
+          animation: ThemeService.instance,
+          builder: (_, __) {
+            return AnimatedBuilder(
+              animation: _tabAnim,
+              builder: (_, child) => FadeTransition(
+                opacity: _tabAnim,
                 child: child,
+              ),
+              child: IndexedStack(
+                index: _tab,
+                children: [
+                  _HomeTab(
+                    fadeIn: _fadeIn,
+                    onOpen: _openSite,
+                    onMenu: _openDrawer,
+                    onColorExtracted: _onColorExtracted,
+                  ),
+                  ExplorePage(
+                    onVideoTap: (FeedVideo video) {
+                      setState(() {
+                        _selectedEmbedUrl = video.embedUrl;
+                        _selectedVideo = video;
+                        _tab = 2;
+                      });
+                      _tabAnim.forward(from: 0.0);
+                    },
+                  ),
+                  ExibicaoPage(
+                    embedUrl: _selectedEmbedUrl,
+                    currentVideo: _selectedVideo,
+                    isActive: _tab == 2,
+                    onVideoTap: (FeedVideo video) {
+                      setState(() {
+                        _selectedEmbedUrl = video.embedUrl;
+                        _selectedVideo = video;
+                      });
+                    },
+                  ),
+                  // Tab 3 — Pesquisa
+                  const _SearchTab(),
+                ],
               ),
             );
           },
-          child: Column(children: [
-          Expanded(
-            child: AnimatedBuilder(
-              animation: ThemeService.instance,
-              builder: (_, __) {
-                return AnimatedBuilder(
-                  animation: _tabAnim,
-                  builder: (_, child) => FadeTransition(
-                    opacity: _tabAnim,
-                    child: child,
-                  ),
-                  child: IndexedStack(
-                    index: _tab,
-                    children: [
-                      _HomeTab(
-                        fadeIn: _fadeIn,
-                        onOpen: _openSite,
-                        onDownloads: _openDownloads,
-                        onSettings: _openSettings,
-                        onMenu: () => _scaffoldKey.currentState?.openDrawer(),
-                        onColorExtracted: _onColorExtracted,
-                      ),
-                      ExplorePage(
-                        onVideoTap: (FeedVideo video) {
-                          setState(() {
-                            _selectedEmbedUrl = video.embedUrl;
-                            _selectedVideo = video;
-                            _tab = 2;
-                          });
-                          _tabAnim.forward(from: 0.0);
-                        },
-                      ),
-                      ExibicaoPage(
-                        embedUrl: _selectedEmbedUrl,
-                        currentVideo: _selectedVideo,
-                        isActive: _tab == 2,
-                        onVideoTap: (FeedVideo video) {
-                          setState(() {
-                            _selectedEmbedUrl = video.embedUrl;
-                            _selectedVideo = video;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                );
-              },
+        ),
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_miniPlayerActive && _selectedVideo != null)
+              _MiniPlayer(
+                video: _selectedVideo!,
+                onTap: () => setState(() {
+                  _miniPlayerActive = false;
+                  _tab = 2;
+                }),
+                onClose: () => setState(() {
+                  _miniPlayerActive = false;
+                  _selectedVideo = null;
+                  _selectedEmbedUrl = null;
+                }),
+              ),
+            _BottomNav(
+              tab: _tab,
+              onTab: _switchTab,
+              navH: _kNavH,
+              safeBottom: safeBottom,
             ),
-          ),
-
-          if (_miniPlayerActive && _selectedVideo != null)
-            _MiniPlayer(
-              video: _selectedVideo!,
-              onTap: () => setState(() {
-                _miniPlayerActive = false;
-                _tab = 2;
-              }),
-              onClose: () => setState(() {
-                _miniPlayerActive = false;
-                _selectedVideo = null;
-                _selectedEmbedUrl = null;
-              }),
-            ),
-
-          _BottomNav(
-            tab: _tab,
-            onTab: _switchTab,
-            navH: _kNavH,
-            safeBottom: safeBottom,
-          ),
-        ]),
-        ),  // AnimatedBuilder
+          ],
+        ),
       ),
     );
   }
@@ -432,7 +427,7 @@ class _MiniPlayerState extends State<_MiniPlayer>
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _BottomNav
+// _BottomNav — sem linha divisória, com gradiente transparente no topo
 // ─────────────────────────────────────────────────────────────────────────────
 class _BottomNav extends StatelessWidget {
   final int tab;
@@ -450,39 +445,69 @@ class _BottomNav extends StatelessWidget {
       listenable: ThemeService.instance,
       builder: (_, __) {
         final t = AppTheme.current;
-        return Container(
-          decoration: BoxDecoration(
-            color: t.bg,
-            border: Border(top: BorderSide(color: t.navBorder, width: 0.5)),
-          ),
-          padding: EdgeInsets.only(bottom: safeBottom),
-          height: navH + safeBottom,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _NavIcon(
-                label: 'Início',
-                assetFilled: 'assets/icons/svg/browse_filled.svg',
-                assetOutline: 'assets/icons/svg/browse_outline.svg',
-                active: tab == 0,
-                onTap: () => onTab(0),
+        // Cor base do nav — usamos sempre preto ou branco dependendo do tema
+        // para o gradiente ser consistente independentemente do tema
+        final isDark = AppTheme.current.statusBar == Brightness.light;
+        final baseColor = isDark ? Colors.black : Colors.white;
+
+        return Stack(
+          children: [
+            // Gradiente: transparente em cima, cor sólida em baixo
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      baseColor.withOpacity(0.0),
+                      baseColor.withOpacity(0.72),
+                      baseColor.withOpacity(0.96),
+                    ],
+                    stops: const [0.0, 0.35, 1.0],
+                  ),
+                ),
               ),
-              _NavIcon(
-                label: 'Explorar',
-                assetFilled: 'assets/icons/svg/explore_filled.svg',
-                assetOutline: 'assets/icons/svg/explore_outline.svg',
-                active: tab == 1,
-                onTap: () => onTab(1),
+            ),
+            // Conteúdo do nav
+            Container(
+              padding: EdgeInsets.only(bottom: safeBottom),
+              height: navH + safeBottom,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _NavIcon(
+                    label: 'Início',
+                    assetFilled: 'assets/icons/svg/browse_filled.svg',
+                    assetOutline: 'assets/icons/svg/browse_outline.svg',
+                    active: tab == 0,
+                    onTap: () => onTab(0),
+                  ),
+                  _NavIcon(
+                    label: 'Explorar',
+                    assetFilled: 'assets/icons/svg/explore_filled.svg',
+                    assetOutline: 'assets/icons/svg/explore_outline.svg',
+                    active: tab == 1,
+                    onTap: () => onTab(1),
+                  ),
+                  _NavIcon(
+                    label: 'Exibição',
+                    assetFilled: 'assets/icons/svg/exibicao_filled.svg',
+                    assetOutline: 'assets/icons/svg/exibicao_outline.svg',
+                    active: tab == 2,
+                    onTap: () => onTab(2),
+                  ),
+                  _NavIcon(
+                    label: 'Pesquisa',
+                    assetFilled: 'assets/icons/svg/search_filled.svg',
+                    assetOutline: 'assets/icons/svg/search_outline.svg',
+                    active: tab == 3,
+                    onTap: () => onTab(3),
+                  ),
+                ],
               ),
-              _NavIcon(
-                label: 'Exibição',
-                assetFilled: 'assets/icons/svg/exibicao_filled.svg',
-                assetOutline: 'assets/icons/svg/exibicao_outline.svg',
-                active: tab == 2,
-                onTap: () => onTab(2),
-              ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
@@ -607,55 +632,81 @@ class _WallpaperColorExtractorState extends State<_WallpaperColorExtractor> {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _NavDrawer
+// _DrawerPage — página que simula o drawer com animação esquerda→direita
+// A parte direita é transparente para parecer um drawer real
 // ─────────────────────────────────────────────────────────────────────────────
-class _NavDrawer extends StatelessWidget {
+class _DrawerPage extends StatelessWidget {
   final VoidCallback onDownloads;
   final VoidCallback onSettings;
-  const _NavDrawer({required this.onDownloads, required this.onSettings});
+  const _DrawerPage({required this.onDownloads, required this.onSettings});
 
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    return Drawer(
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-      backgroundColor: t.drawerBg,
-      elevation: 0,
-      child: SafeArea(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-            child: Row(children: [
-              Image.asset('assets/logo.png', width: 28, height: 28),
-              const SizedBox(width: 10),
-              Text('nuxxx',
-                style: TextStyle(
-                  color: t.text, fontSize: 18,
-                  fontWeight: FontWeight.w700, letterSpacing: -0.3,
-                )),
-            ]),
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Largura do painel do drawer — ~80% da tela como um drawer normal
+    const drawerWidth = 280.0;
+
+    return Material(
+      color: Colors.transparent,
+      child: Stack(
+        children: [
+          // Scrim — toque fora fecha
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                color: Colors.black.withOpacity(0.38),
+              ),
+            ),
           ),
-          Divider(color: t.divider, height: 1, thickness: 1),
-          const SizedBox(height: 4),
-          _DrawerItemSvg(
-            assetPath: 'assets/icons/svg/drawer_download.svg',
-            label: 'Downloads',
-            onTap: () { Navigator.pop(context); onDownloads(); },
+          // Painel do drawer
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: drawerWidth,
+            child: Container(
+              color: t.drawerBg,
+              child: SafeArea(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: Row(children: [
+                      Image.asset('assets/logo.png', width: 28, height: 28),
+                      const SizedBox(width: 10),
+                      Text('nuxxx',
+                        style: TextStyle(
+                          color: t.text, fontSize: 18,
+                          fontWeight: FontWeight.w700, letterSpacing: -0.3,
+                        )),
+                    ]),
+                  ),
+                  Divider(color: t.divider, height: 1, thickness: 1),
+                  const SizedBox(height: 4),
+                  _DrawerItemSvg(
+                    assetPath: 'assets/icons/svg/drawer_download.svg',
+                    label: 'Downloads',
+                    onTap: onDownloads,
+                  ),
+                  _DrawerItemSvg(
+                    assetPath: 'assets/icons/svg/drawer_settings.svg',
+                    label: 'Definições',
+                    onTap: onSettings,
+                  ),
+                  const Spacer(),
+                  Divider(color: t.divider, height: 1, thickness: 1),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+                    child: Text('nuxxx',
+                        style: TextStyle(color: t.textTertiary, fontSize: 11)),
+                  ),
+                ]),
+              ),
+            ),
           ),
-          _DrawerItemSvg(
-            assetPath: 'assets/icons/svg/drawer_settings.svg',
-            label: 'Definições',
-            onTap: () { Navigator.pop(context); onSettings(); },
-          ),
-          const Spacer(),
-          Divider(color: t.divider, height: 1, thickness: 1),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-            child: Text('nuxxx',
-                style: TextStyle(color: t.textTertiary, fontSize: 11)),
-          ),
-        ]),
+        ],
       ),
     );
   }
@@ -702,14 +753,12 @@ class _DrawerItemSvg extends StatelessWidget {
 class _HomeTab extends StatefulWidget {
   final AnimationController fadeIn;
   final void Function(SiteModel) onOpen;
-  final VoidCallback onDownloads, onSettings, onMenu;
+  final VoidCallback onMenu;
   final void Function(Color) onColorExtracted;
 
   const _HomeTab({
     required this.fadeIn,
     required this.onOpen,
-    required this.onDownloads,
-    required this.onSettings,
     required this.onMenu,
     required this.onColorExtracted,
   });
@@ -777,8 +826,6 @@ class _HomeTabState extends State<_HomeTab> {
               builder: (_, __) => _HomeAppBar(
                 collapseProgress: _collapseProgress,
                 onMenu: widget.onMenu,
-                onDownloads: widget.onDownloads,
-                onSettings: widget.onSettings,
               ),
             ),
           ),
@@ -806,13 +853,11 @@ class _HomeTabState extends State<_HomeTab> {
 // ─── AppBar da _HomeTab ───────────────────────────────────────────────────────
 class _HomeAppBar extends StatelessWidget {
   final double collapseProgress;
-  final VoidCallback onMenu, onDownloads, onSettings;
+  final VoidCallback onMenu;
 
   const _HomeAppBar({
     required this.collapseProgress,
     required this.onMenu,
-    required this.onDownloads,
-    required this.onSettings,
   });
 
   @override
@@ -820,86 +865,88 @@ class _HomeAppBar extends StatelessWidget {
     final t = AppTheme.current;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(children: [
-            GestureDetector(
-              onTap: onMenu,
-              behavior: HitTestBehavior.opaque,
-              child: SizedBox(
-                width: 38, height: 44,
-                child: Center(
-                  child: SvgPicture.asset(
-                    'assets/icons/svg/hamburger.svg', width: 22, height: 22,
-                    colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: _SearchTriggerCompact()),
-            if (collapseProgress > 0.1)
-              Opacity(
-                opacity: collapseProgress,
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const SizedBox(width: 4),
-                  _IconBtn(
-                    assetPath: 'assets/icons/svg/drawer_download.svg',
-                    onTap: onDownloads,
-                    color: t.icon,
-                  ),
-                  _IconBtn(
-                    assetPath: 'assets/icons/svg/drawer_settings.svg',
-                    onTap: onSettings,
-                    color: t.icon,
-                  ),
-                ]),
-              ),
-          ]),
-
-          ClipRect(
-            child: Align(
-              alignment: Alignment.topCenter,
-              heightFactor: (1.0 - collapseProgress).clamp(0.0, 1.0),
-              child: Opacity(
-                opacity: (1.0 - collapseProgress * 1.5).clamp(0.0, 1.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 10),
-                    _ActionRow(
-                      onDownloads: onDownloads,
-                      onSettings: onSettings,
-                    ),
-                    const SizedBox(height: 14),
-                  ],
-                ),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+      child: Row(children: [
+        // Botão do menu (hamburger)
+        GestureDetector(
+          onTap: onMenu,
+          behavior: HitTestBehavior.opaque,
+          child: SizedBox(
+            width: 38, height: 44,
+            child: Center(
+              child: SvgPicture.asset(
+                'assets/icons/svg/hamburger.svg', width: 22, height: 22,
+                colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 10),
+        // Logo / título centrado
+        Expanded(
+          child: Center(
+            child: Image.asset('assets/logo.png', width: 28, height: 28),
+          ),
+        ),
+        const SizedBox(width: 10),
+        // Botão "+" no topo direito
+        GestureDetector(
+          onTap: () {
+            // Acção do botão plus — a definir conforme necessário
+          },
+          behavior: HitTestBehavior.opaque,
+          child: SizedBox(
+            width: 38, height: 44,
+            child: Center(
+              child: Container(
+                width: 30, height: 30,
+                decoration: BoxDecoration(
+                  color: t.inputBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: t.inputBorder),
+                ),
+                child: Icon(Icons.add_rounded, color: t.icon, size: 20),
+              ),
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }
 
-class _IconBtn extends StatelessWidget {
-  final String assetPath;
-  final VoidCallback onTap;
-  final Color color;
-  const _IconBtn({required this.assetPath, required this.onTap, required this.color});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _SearchTab — tab de pesquisa com o search input grande
+// ─────────────────────────────────────────────────────────────────────────────
+class _SearchTab extends StatelessWidget {
+  const _SearchTab();
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
+    final t = AppTheme.current;
+    return SafeArea(
+      bottom: false,
       child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: SvgPicture.asset(assetPath, width: 20, height: 20,
-            colorFilter: ColorFilter.mode(color, BlendMode.srcIn)),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                'Pesquisa',
+                style: TextStyle(
+                  color: t.text,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.4,
+                ),
+              ),
+            ),
+            _SearchTrigger(),
+          ],
+        ),
       ),
     );
   }
@@ -1109,56 +1156,7 @@ class _PhotoCardSkeletonState extends State<_PhotoCardSkeleton>
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _SearchTriggerCompact  (para a appbar)
-// ─────────────────────────────────────────────────────────────────────────────
-class _SearchTriggerCompact extends StatelessWidget {
-  const _SearchTriggerCompact();
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    return OpenContainer(
-      transitionDuration: const Duration(milliseconds: 420),
-      transitionType: ContainerTransitionType.fadeThrough,
-      openColor: AppTheme.current.bg,
-      closedColor: Colors.transparent,
-      closedElevation: 0,
-      openElevation: 0,
-      closedShape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(100)),
-      ),
-      openShape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.zero,
-      ),
-      closedBuilder: (_, openContainer) => GestureDetector(
-        onTap: openContainer,
-        child: Container(
-          height: 38,
-          decoration: BoxDecoration(
-            color: t.inputBg,
-            borderRadius: BorderRadius.circular(100),
-            border: Border.all(color: t.inputBorder),
-          ),
-          child: Row(children: [
-            const SizedBox(width: 12),
-            SvgPicture.asset('assets/icons/svg/search.svg', width: 16, height: 16,
-                colorFilter: ColorFilter.mode(t.inputHint, BlendMode.srcIn)),
-            const SizedBox(width: 8),
-            Text(
-              'Pesquisar...',
-              style: TextStyle(color: t.inputHint, fontSize: 13.5),
-            ),
-          ]),
-        ),
-      ),
-      openBuilder: (_, __) => const SearchPage(),
-    );
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _SearchTrigger
+// _SearchTrigger  (versão grande para o tab de pesquisa)
 // ─────────────────────────────────────────────────────────────────────────────
 class _SearchTrigger extends StatelessWidget {
   const _SearchTrigger();
@@ -1201,83 +1199,6 @@ class _SearchTrigger extends StatelessWidget {
         ),
       ),
       openBuilder: (_, __) => const SearchPage(),
-    );
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _ActionRow
-// ─────────────────────────────────────────────────────────────────────────────
-class _ActionRow extends StatelessWidget {
-  final VoidCallback onDownloads, onSettings;
-
-  const _ActionRow({required this.onDownloads, required this.onSettings});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    return Row(children: [
-      Expanded(child: _ActionBtn(
-        label: 'Downloads', onTap: onDownloads,
-        bgColor: t.btnGhost, borderColor: t.border, contentColor: t.text,
-        isDownloads: true,
-      )),
-      const SizedBox(width: 10),
-      Expanded(child: _ActionBtn(
-        assetPath: 'assets/icons/svg/settings_gradient.svg',
-        label: 'Definições', onTap: onSettings,
-        bgColor: t.btnGhost, borderColor: t.border, contentColor: t.text,
-      )),
-    ]);
-  }
-}
-
-class _ActionBtn extends StatelessWidget {
-  final String? assetPath;
-  final String label;
-  final VoidCallback onTap;
-  final Color bgColor, borderColor, contentColor;
-  final bool isDownloads;
-
-  const _ActionBtn({
-    this.assetPath,
-    required this.label, required this.onTap,
-    required this.bgColor, required this.borderColor, required this.contentColor,
-    this.isDownloads = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final Widget iconWidget = SvgPicture.asset(
-      isDownloads
-          ? 'assets/icons/svg/drawer_download.svg'
-          : assetPath ?? 'assets/icons/svg/drawer_settings.svg',
-      width: 20, height: 20,
-      colorFilter: ColorFilter.mode(contentColor, BlendMode.srcIn),
-    );
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOutCubic,
-        height: 44,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(100),
-          border: Border.all(color: borderColor),
-        ),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          iconWidget,
-          const SizedBox(width: 8),
-          Text(label,
-              style: TextStyle(
-                  color: contentColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500)),
-        ]),
-      ),
     );
   }
 }
