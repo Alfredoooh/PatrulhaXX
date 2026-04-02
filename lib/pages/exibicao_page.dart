@@ -150,18 +150,44 @@ List<Widget> _skeletonCards(int n) => List.generate(n, (_) =>
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Empty state — slideshow estilo Pinterest com imagens de assets/images/
+// SVGs usados no empty state
 // ─────────────────────────────────────────────────────────────────────────────
+const _svgChevronLeft =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M15.5 19l-7-7 7-7" stroke="currentColor" stroke-width="2.2" '
+    'stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
 
-/// Imagens do app usadas no empty state. Adiciona/remove conforme os teus assets.
-const List<String> _emptyStateImages = [
-  'assets/images/story_1.jpg',
-  'assets/images/story_2.jpg',
-  'assets/images/story_3.jpg',
-  'assets/images/story_4.jpg',
-  'assets/images/story_5.jpg',
-];
+const _svgGlobe =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z" stroke="currentColor" '
+    'stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+    '<path d="M2 12h20M12 2c-2.76 3.45-4 6.9-4 10s1.24 6.55 4 10c2.76-3.45 4-6.9 4-10S14.76 5.45 12 2z" '
+    'stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+    '</svg>';
 
+const _svgStorefront =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M3 9l1.5-6h15L21 9" stroke="currentColor" stroke-width="1.8" '
+    'fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+    '<path d="M3 9h18v1a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0V9z" '
+    'stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+    '<path d="M5 13v8h14v-8" stroke="currentColor" stroke-width="1.8" '
+    'fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+    '</svg>';
+
+const _svgImageBroken =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" '
+    'stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+    '<path d="M3 15l5-5 4 4 3-3 6 6" stroke="currentColor" stroke-width="1.8" '
+    'fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+    '<circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>'
+    '</svg>';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Empty state — slideshow com TODAS as imagens de assets/images/ (carregamento
+// dinâmico via AssetManifest — não depende de nomes hardcoded)
+// ─────────────────────────────────────────────────────────────────────────────
 class _EmptyStoryViewer extends StatefulWidget {
   const _EmptyStoryViewer();
   @override State<_EmptyStoryViewer> createState() => _EmptyStoryViewerState();
@@ -170,6 +196,7 @@ class _EmptyStoryViewer extends StatefulWidget {
 class _EmptyStoryViewerState extends State<_EmptyStoryViewer>
     with SingleTickerProviderStateMixin {
   int _current = 0;
+  List<String> _images = [];
   late final PageController _pageCtrl;
   late final AnimationController _fadeCtrl;
   late final Animation<double> _fadeAnim;
@@ -180,7 +207,26 @@ class _EmptyStoryViewerState extends State<_EmptyStoryViewer>
     _fadeCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 320));
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
-    _fadeCtrl.forward();
+    _loadImages();
+  }
+
+  Future<void> _loadImages() async {
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    final keys = manifest.listAssets()
+        .where((k) {
+          final lower = k.toLowerCase();
+          return k.startsWith('assets/images/') &&
+              (lower.endsWith('.jpg') ||
+               lower.endsWith('.jpeg') ||
+               lower.endsWith('.png') ||
+               lower.endsWith('.webp'));
+        })
+        .toList()
+      ..sort();
+    if (mounted) {
+      setState(() => _images = keys);
+      _fadeCtrl.forward();
+    }
   }
 
   @override void dispose() {
@@ -190,7 +236,7 @@ class _EmptyStoryViewerState extends State<_EmptyStoryViewer>
   }
 
   void _goTo(int index) {
-    if (index < 0 || index >= _emptyStateImages.length) return;
+    if (_images.isEmpty || index < 0 || index >= _images.length) return;
     _fadeCtrl.forward(from: 0.0);
     setState(() => _current = index);
     _pageCtrl.animateToPage(index,
@@ -200,6 +246,16 @@ class _EmptyStoryViewerState extends State<_EmptyStoryViewer>
   @override Widget build(BuildContext context) {
     final t = AppTheme.current;
 
+    if (_images.isEmpty) {
+      return ColoredBox(
+        color: t.isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEEEEEE),
+        child: Center(child: SvgPicture.string(_svgImageBroken,
+            width: 40, height: 40,
+            colorFilter: ColorFilter.mode(
+                t.isDark ? Colors.white24 : Colors.black26, BlendMode.srcIn))),
+      );
+    }
+
     return GestureDetector(
       onTapUp: (d) {
         final half = context.size!.width / 2;
@@ -207,26 +263,29 @@ class _EmptyStoryViewerState extends State<_EmptyStoryViewer>
       },
       child: Stack(fit: StackFit.expand, children: [
 
-        // ── PageView de imagens ──────────────────────────────────────────────
+        // ── PageView de imagens de assets/images/ ────────────────────────────
         PageView.builder(
           controller: _pageCtrl,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: _emptyStateImages.length,
+          itemCount: _images.length,
           itemBuilder: (_, i) => FadeTransition(
             opacity: i == _current ? _fadeAnim : const AlwaysStoppedAnimation(1.0),
             child: Image.asset(
-              _emptyStateImages[i],
+              _images[i],
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => ColoredBox(
                 color: t.isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEEEEEE),
-                child: Center(child: Icon(Icons.image_outlined,
-                    color: t.isDark ? Colors.white24 : Colors.black26, size: 40)),
+                child: Center(child: SvgPicture.string(_svgImageBroken,
+                    width: 36, height: 36,
+                    colorFilter: ColorFilter.mode(
+                        t.isDark ? Colors.white24 : Colors.black26,
+                        BlendMode.srcIn))),
               ),
             ),
           ),
         ),
 
-        // ── Gradiente superior escuro (para o back button ficar legível) ─────
+        // ── Gradiente superior ───────────────────────────────────────────────
         Positioned(top: 0, left: 0, right: 0,
           child: Container(height: 80,
             decoration: const BoxDecoration(
@@ -243,19 +302,16 @@ class _EmptyStoryViewerState extends State<_EmptyStoryViewer>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.bottomCenter, end: Alignment.topCenter,
-                colors: [
-                  Colors.black.withOpacity(0.6),
-                  Colors.transparent,
-                ]),
+                colors: [Colors.black.withOpacity(0.6), Colors.transparent]),
             ),
           ),
         ),
 
-        // ── Indicadores de página (dots animados estilo Pinterest) ───────────
+        // ── Indicadores (dots estilo Pinterest) ──────────────────────────────
         Positioned(bottom: 14, left: 0, right: 0,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(_emptyStateImages.length, (i) {
+            children: List.generate(_images.length, (i) {
               final active = i == _current;
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 260),
@@ -281,7 +337,7 @@ class _EmptyStoryViewerState extends State<_EmptyStoryViewer>
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '${_current + 1} / ${_emptyStateImages.length}',
+              '${_current + 1} / ${_images.length}',
               style: const TextStyle(
                   color: Colors.white, fontSize: 11.5,
                   fontWeight: FontWeight.w600, letterSpacing: 0.3),
@@ -1032,7 +1088,8 @@ class _EmptyStateBody extends StatelessWidget {
                         : const Color(0xFFE0E0E0)),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.storefront_rounded, size: 14, color: t.textSecondary),
+                SvgPicture.string(_svgStorefront, width: 14, height: 14,
+                    colorFilter: ColorFilter.mode(t.textSecondary, BlendMode.srcIn)),
                 const SizedBox(width: 6),
                 Text(
                   'Scalixa Studio', // ← o nome da tua marca
@@ -1085,9 +1142,10 @@ class _EmptyStateBody extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.language_rounded,
-                      size: 18,
-                      color: t.isDark ? Colors.white70 : Colors.black87),
+                  SvgPicture.string(_svgGlobe, width: 18, height: 18,
+                      colorFilter: ColorFilter.mode(
+                          t.isDark ? Colors.white70 : Colors.black87,
+                          BlendMode.srcIn)),
                   const SizedBox(width: 8),
                   Text(
                     'Visitar o site',
