@@ -24,7 +24,7 @@ android {
 
     defaultConfig {
         applicationId = "com.patrulha.xx"
-        minSdk = 21
+        minSdk = 24          // FIX: era 21 — flutter_inappwebview requer API 24+
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -37,8 +37,6 @@ android {
 
     packaging {
         jniLibs {
-            // FIX: useLegacyPackaging = true para compatibilidade com Android < 6
-            // e dispositivos que não suportam extração de .so em runtime
             useLegacyPackaging = true
             pickFirsts += setOf(
                 "**/libflutter.so",
@@ -54,8 +52,6 @@ android {
                 "META-INF/*.kotlin_module",
                 "META-INF/DEPENDENCIES",
                 "META-INF/MANIFEST.MF",
-                // FIX: excluir apenas o ficheiro específico, não "**/*.bin" que
-                // pode remover assets internos do Flutter engine
                 "DebugProbesKt.bin",
                 "kotlin-tooling-metadata.json",
                 "**/kotlin/**",

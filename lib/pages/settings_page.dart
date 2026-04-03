@@ -6,18 +6,10 @@ import '../services/favicon_service.dart';
 import '../services/download_service.dart';
 import '../services/lock_service.dart';
 import '../services/theme_service.dart';
+import '../services/app_icon_service.dart';
 import '../theme/app_theme.dart';
 import 'lock_screen.dart';
 import 'licenses_page.dart';
-
-// =============================================================================
-// SVG Assets — todos em assets/icons/svg/settings/
-// =============================================================================
-// Colocar os ficheiros da pasta svg/ em:  assets/icons/svg/settings/
-// E registar no pubspec.yaml:
-//   flutter:
-//     assets:
-//       - assets/icons/svg/settings/
 
 const _svgDark       = 'assets/icons/svg/settings/settings_dark.svg';
 const _svgSun        = 'assets/icons/svg/settings/settings_sun.svg';
@@ -33,13 +25,14 @@ const _svgReload     = 'assets/icons/svg/settings/settings_reload.svg';
 const _svgBack       = 'assets/icons/svg/settings/settings_back.svg';
 const _svgChevron    = 'assets/icons/svg/settings/settings_chevron.svg';
 
-// ── Lucide SVG inline (fallback para ícones sem asset dedicado) ───────────────
-// Usado por _LucideIcon quando o svgAsset não existe / não é atribuído
 const _lucideShield = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>''';
 const _lucideEye = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>''';
 const _lucideRefreshCw = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>''';
 const _lucideScrollText = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/></svg>''';
 const _lucideTimer = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>''';
+
+// SVG inline para o ícone de "app icon" nas settings
+const _lucideAppIcon = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="12" height="12" x="2" y="2" rx="2"/><path d="M14 2c1.1 0 2 .9 2 2v4c0 1.1-.9 2-2 2"/><path d="M20 2c1.1 0 2 .9 2 2v4c0 1.1-.9 2-2 2"/><path d="M10 18H5c-1.7 0-3-1.3-3-3v-1"/><polyline points="7 21 10 18 7 15"/><rect width="12" height="12" x="10" y="10" rx="2"/></svg>''';
 
 const _secureChannel = MethodChannel('com.patrulhaxx/secure');
 
@@ -54,6 +47,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _lock = false;
+  AppIconVariant _activeIcon = AppIconVariant.classic;
   final _ts = ThemeService.instance;
 
   AppTheme get _t   => AppTheme.current;
@@ -66,10 +60,11 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
-    // Inicializa o ThemeMode local a partir do bool isDark do ThemeService
     _cachedThemeMode = _ts.isDark ? ThemeMode.dark : ThemeMode.light;
     LockService.instance.isEnabled()
         .then((v) { if (mounted) setState(() => _lock = v); });
+    AppIconService.getActiveIcon()
+        .then((v) { if (mounted) setState(() => _activeIcon = v); });
   }
 
   void _snack(String msg) {
@@ -85,7 +80,7 @@ class _SettingsPageState extends State<SettingsPage> {
     try { _secureChannel.invokeMethod('setSecure', {'enable': v}); } catch (_) {}
   }
 
-  // ── Modal de tema ────────────────────────────────────────────────────────────
+  // ── Modal de tema ─────────────────────────────────────────────────────────
   void _pickTheme() {
     showGeneralDialog(
       context: context,
@@ -130,7 +125,25 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // ── Pin sheet ────────────────────────────────────────────────────────────────
+  // ── Modal de ícone — showCupertinoModalPopup empurra a tela atrás ─────────
+  void _pickIcon() {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (ctx) => _IconPickerSheet(
+        current: _activeIcon,
+        onChanged: (variant) async {
+          try {
+            await AppIconService.setIcon(variant);
+            if (mounted) setState(() => _activeIcon = variant);
+          } catch (e) {
+            if (mounted) _snack('Erro ao trocar ícone');
+          }
+        },
+      ),
+    );
+  }
+
+  // ── Pin sheet ─────────────────────────────────────────────────────────────
   void _pinSheet({required LockMode mode, required VoidCallback onDone}) {
     _showElasticSheet(
       context: context,
@@ -345,13 +358,9 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _divider() =>
       Divider(height: 1, color: _div, indent: 52, endIndent: 16);
 
-  // ── Converte o bool isDark do ThemeService para ThemeMode do Flutter ────────
-  // Nota: o ThemeService não expõe ThemeMode — guardamos o valor localmente
-  // na _ThemeModal e reflectimos aqui através de _resolvedThemeMode.
   ThemeMode get _resolvedThemeMode => _cachedThemeMode;
-  ThemeMode _cachedThemeMode = ThemeMode.dark; // default; actualizado em initState
+  ThemeMode _cachedThemeMode = ThemeMode.dark;
 
-  // ── Descrição do tema actual ──────────────────────────────────────────────
   String get _themeLabel {
     switch (_resolvedThemeMode) {
       case ThemeMode.system: return 'Automático (sistema)';
@@ -365,6 +374,14 @@ class _SettingsPageState extends State<SettingsPage> {
       case ThemeMode.system: return _svgAutoTheme;
       case ThemeMode.light:  return _svgSun;
       case ThemeMode.dark:   return _svgDark;
+    }
+  }
+
+  String get _iconLabel {
+    switch (_activeIcon) {
+      case AppIconVariant.classic:  return 'Classic';
+      case AppIconVariant.light:    return 'Light';
+      case AppIconVariant.original: return 'Original';
     }
   }
 
@@ -393,7 +410,7 @@ class _SettingsPageState extends State<SettingsPage> {
           padding: const EdgeInsets.only(top: 8, bottom: 32),
           children: [
 
-            // ── Aparência ────────────────────────────────────────────────
+            // ── Aparência ──────────────────────────────────────────────
             _label('Aparência'),
             _section([
               _TapRow(
@@ -413,10 +430,20 @@ class _SettingsPageState extends State<SettingsPage> {
                 textColor: _text, subColor: _sub,
                 onTap: _pickWallpaper,
               ),
+              _divider(),
+              // ── Ícone do app ─────────────────────────────────────────
+              _TapRow(
+                svgAsset: _svgDark,
+                lucideSvg: _lucideAppIcon,
+                label: 'Ícone do app',
+                sub: _iconLabel,
+                textColor: _text, subColor: _sub,
+                onTap: _pickIcon,
+              ),
             ]),
             const SizedBox(height: 16),
 
-            // ── Segurança ────────────────────────────────────────────────
+            // ── Segurança ──────────────────────────────────────────────
             _label('Segurança'),
             _section([
               _SwitchRow(
@@ -454,7 +481,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ]),
             const SizedBox(height: 16),
 
-            // ── Privacidade ──────────────────────────────────────────────
+            // ── Privacidade ────────────────────────────────────────────
             _label('Privacidade'),
             _section([
               _SwitchRow(
@@ -482,7 +509,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ]),
             const SizedBox(height: 16),
 
-            // ── Navegação ────────────────────────────────────────────────
+            // ── Navegação ──────────────────────────────────────────────
             _label('Navegação'),
             _section([
               _TapRow(
@@ -503,7 +530,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ]),
             const SizedBox(height: 16),
 
-            // ── Manutenção ───────────────────────────────────────────────
+            // ── Manutenção ─────────────────────────────────────────────
             _label('Manutenção'),
             _section([
               _TapRow(
@@ -530,7 +557,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ]),
             const SizedBox(height: 16),
 
-            // ── Sobre ────────────────────────────────────────────────────
+            // ── Sobre ──────────────────────────────────────────────────
             _label('Sobre'),
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -630,20 +657,213 @@ class _SettingsPageState extends State<SettingsPage> {
 }
 
 // =============================================================================
-// _kElasticOut / _kElasticIn — curvas nativas do Flutter
-// ElasticOutCurve: sobe rápido com pequeno ressalto no fim (period=0.55)
+// _IconPickerSheet — CupertinoModalPopup: empurra a tela atrás ao subir
 // =============================================================================
-const _kElasticOut = ElasticOutCurve(0.55);
-const _kElasticIn  = ElasticInCurve(0.55);
+class _IconPickerSheet extends StatefulWidget {
+  final AppIconVariant current;
+  final ValueChanged<AppIconVariant> onChanged;
+  const _IconPickerSheet({required this.current, required this.onChanged});
 
-// Curva iOS nativa: entrada suave de baixo, saída rápida — sem ressalto
+  @override
+  State<_IconPickerSheet> createState() => _IconPickerSheetState();
+}
+
+class _IconPickerSheetState extends State<_IconPickerSheet> {
+  late AppIconVariant _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.current;
+  }
+
+  // Dados de cada opção de ícone
+  static const _icons = [
+    (
+      variant: AppIconVariant.classic,
+      label: 'Classic',
+      sub: 'Fundo vermelho • predefinido',
+      // Imagem do ícone Classic (fundo vermelho + texto branco)
+      asset: 'assets/icons/ic_classic.png',
+    ),
+    (
+      variant: AppIconVariant.light,
+      label: 'Light',
+      sub: 'Fundo branco',
+      asset: 'assets/icons/ic_light.png',
+    ),
+    (
+      variant: AppIconVariant.original,
+      label: 'Original',
+      sub: 'Ícone original',
+      asset: 'assets/icons/ic_original.png',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    final bottom = MediaQuery.of(context).padding.bottom;
+
+    return CupertinoPopupSurface(
+      isSurfacePainted: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: t.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle
+              const SizedBox(height: 10),
+              Center(
+                child: Container(
+                  width: 36, height: 4,
+                  decoration: BoxDecoration(
+                    color: t.sheetHandle,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Título
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Text(
+                      'Ícone do app',
+                      style: TextStyle(
+                        color: t.text,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Text(
+                        'Fechar',
+                        style: TextStyle(
+                          color: t.textSecondary,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Aviso "o app vai fechar e reabrir"
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: Text(
+                  'O app irá fechar e reabrir ao alterar o ícone. É o comportamento normal do Android.',
+                  style: TextStyle(color: t.textSecondary, fontSize: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Grelha de ícones
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: _icons.map((data) {
+                    final isSelected = _selected == data.variant;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _selected = data.variant);
+                        widget.onChanged(data.variant);
+                        Navigator.pop(context);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutBack,
+                        width: 96,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppTheme.ytRed.withOpacity(0.12)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppTheme.ytRed
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            // Preview do ícone
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(18),
+                              child: Image.asset(
+                                data.asset,
+                                width: 64, height: 64,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: 64, height: 64,
+                                  decoration: BoxDecoration(
+                                    color: t.cardAlt,
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: Icon(
+                                    Icons.apps_rounded,
+                                    color: t.textSecondary,
+                                    size: 28,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              data.label,
+                              style: TextStyle(
+                                color: isSelected ? AppTheme.ytRed : t.text,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              data.sub,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: t.textSecondary,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+              SizedBox(height: 24 + bottom),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Curvas e helpers (mantidos exatamente como no original)
+// =============================================================================
 const _kIOSEnter = Interval(0.0, 1.0, curve: Curves.linearToEaseOut);
 const _kIOSExit  = Interval(0.0, 1.0, curve: Curves.easeIn);
 
-// =============================================================================
-// _showElasticSheet — showModalBottomSheet com animação elástica (subida rápida
-// que abranda suavemente, saída rápida)
-// =============================================================================
 Future<T?> _showElasticSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -697,7 +917,7 @@ Future<T?> _showElasticSheet<T>({
 }
 
 // =============================================================================
-// _ThemeModal — modal com 3 opções de tema
+// _ThemeModal (sem alterações)
 // =============================================================================
 class _ThemeModal extends StatefulWidget {
   final ThemeService ts;
@@ -749,7 +969,6 @@ class _ThemeModalState extends State<_ThemeModal> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Handle
               const SizedBox(height: 10),
               Center(child: Container(
                 width: 36, height: 4,
@@ -759,8 +978,6 @@ class _ThemeModalState extends State<_ThemeModal> {
                 ),
               )),
               const SizedBox(height: 14),
-
-              // Título
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(children: [
@@ -771,17 +988,13 @@ class _ThemeModalState extends State<_ThemeModal> {
                 ]),
               ),
               const SizedBox(height: 8),
-
-              // Opções
               _ThemeOption(
                 svgAsset: _svgAutoTheme,
                 label: 'Automático',
                 sub: 'Segue as definições do sistema',
                 selected: _selected == ThemeMode.system,
-                textColor: t.text,
-                subColor: t.textSecondary,
-                accentColor: AppTheme.ytRed,
-                iconColor: t.iconSub,
+                textColor: t.text, subColor: t.textSecondary,
+                accentColor: AppTheme.ytRed, iconColor: t.iconSub,
                 onTap: () => _pick(ThemeMode.system),
               ),
               Divider(height: 1, color: t.divider, indent: 52, endIndent: 16),
@@ -790,10 +1003,8 @@ class _ThemeModalState extends State<_ThemeModal> {
                 label: 'Tema claro',
                 sub: 'Interface sempre clara',
                 selected: _selected == ThemeMode.light,
-                textColor: t.text,
-                subColor: t.textSecondary,
-                accentColor: AppTheme.ytRed,
-                iconColor: t.iconSub,
+                textColor: t.text, subColor: t.textSecondary,
+                accentColor: AppTheme.ytRed, iconColor: t.iconSub,
                 onTap: () => _pick(ThemeMode.light),
               ),
               Divider(height: 1, color: t.divider, indent: 52, endIndent: 16),
@@ -802,13 +1013,10 @@ class _ThemeModalState extends State<_ThemeModal> {
                 label: 'Tema escuro',
                 sub: 'Interface sempre escura',
                 selected: _selected == ThemeMode.dark,
-                textColor: t.text,
-                subColor: t.textSecondary,
-                accentColor: AppTheme.ytRed,
-                iconColor: t.iconSub,
+                textColor: t.text, subColor: t.textSecondary,
+                accentColor: AppTheme.ytRed, iconColor: t.iconSub,
                 onTap: () => _pick(ThemeMode.dark),
               ),
-
               SizedBox(height: 12 + bottom),
             ],
           ),
@@ -819,7 +1027,7 @@ class _ThemeModalState extends State<_ThemeModal> {
 }
 
 // =============================================================================
-// _ThemeOption — linha de opção dentro do modal de tema
+// _ThemeOption (sem alterações)
 // =============================================================================
 class _ThemeOption extends StatelessWidget {
   final String svgAsset, label, sub;
@@ -828,15 +1036,9 @@ class _ThemeOption extends StatelessWidget {
   final VoidCallback onTap;
 
   const _ThemeOption({
-    required this.svgAsset,
-    required this.label,
-    required this.sub,
-    required this.selected,
-    required this.textColor,
-    required this.subColor,
-    required this.accentColor,
-    required this.iconColor,
-    required this.onTap,
+    required this.svgAsset, required this.label, required this.sub,
+    required this.selected, required this.textColor, required this.subColor,
+    required this.accentColor, required this.iconColor, required this.onTap,
   });
 
   @override
@@ -853,7 +1055,6 @@ class _ThemeOption extends StatelessWidget {
               selected ? accentColor : iconColor, BlendMode.srcIn),
           ),
           const SizedBox(width: 14),
-          // Texto mais à esquerda — sem Expanded para não empurrar
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(label, style: TextStyle(
               color: selected ? accentColor : textColor,
@@ -863,7 +1064,6 @@ class _ThemeOption extends StatelessWidget {
             Text(sub, style: TextStyle(color: subColor, fontSize: 12)),
           ]),
           const Spacer(),
-          // Indicador animado de selecção
           AnimatedContainer(
             duration: const Duration(milliseconds: 260),
             curve: Curves.easeOutBack,
@@ -887,7 +1087,7 @@ class _ThemeOption extends StatelessWidget {
 }
 
 // =============================================================================
-// _SvgIcon — tenta asset SVG; se falhar usa Lucide SVG string inline
+// _SvgIcon (sem alterações)
 // =============================================================================
 class _SvgIcon extends StatelessWidget {
   final String? assetPath;
@@ -896,10 +1096,8 @@ class _SvgIcon extends StatelessWidget {
   final Color color;
 
   const _SvgIcon({
-    this.assetPath,
-    this.lucideSvg,
-    this.size = 20,
-    required this.color,
+    this.assetPath, this.lucideSvg,
+    this.size = 20, required this.color,
   });
 
   @override
@@ -907,25 +1105,21 @@ class _SvgIcon extends StatelessWidget {
     final cf = ColorFilter.mode(color, BlendMode.srcIn);
     if (assetPath != null) {
       return SvgPicture.asset(
-        assetPath!,
-        width: size, height: size,
-        colorFilter: cf,
+        assetPath!, width: size, height: size, colorFilter: cf,
         errorBuilder: (_, __, ___) => lucideSvg != null
             ? SvgPicture.string(lucideSvg!, width: size, height: size, colorFilter: cf)
             : SizedBox(width: size, height: size),
       );
     }
     if (lucideSvg != null) {
-      return SvgPicture.string(
-        lucideSvg!, width: size, height: size, colorFilter: cf,
-      );
+      return SvgPicture.string(lucideSvg!, width: size, height: size, colorFilter: cf);
     }
     return SizedBox(width: size, height: size);
   }
 }
 
 // =============================================================================
-// _TapRow
+// _TapRow (sem alterações)
 // =============================================================================
 class _TapRow extends StatelessWidget {
   final String svgAsset;
@@ -970,7 +1164,7 @@ class _TapRow extends StatelessWidget {
 }
 
 // =============================================================================
-// _SwitchRow
+// _SwitchRow (sem alterações)
 // =============================================================================
 class _SwitchRow extends StatelessWidget {
   final String svgAsset;
@@ -1008,7 +1202,7 @@ class _SwitchRow extends StatelessWidget {
 }
 
 // =============================================================================
-// _MiniSwitch — switch com animação elástica no thumb
+// _MiniSwitch (sem alterações)
 // =============================================================================
 class _MiniSwitch extends StatefulWidget {
   final bool value;
@@ -1039,14 +1233,12 @@ class _MiniSwitchState extends State<_MiniSwitch>
     );
     if (widget.value) _ctrl.value = 1.0;
 
-    // Posição do thumb com efeito elástico
     _position = CurvedAnimation(
       parent: _ctrl,
       curve: Curves.easeOutBack,
       reverseCurve: Curves.easeInBack,
     );
 
-    // Scale do thumb: aperta ligeiramente ao transitar
     _scale = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.82), weight: 30),
       TweenSequenceItem(
@@ -1056,7 +1248,6 @@ class _MiniSwitchState extends State<_MiniSwitch>
       ),
     ]).animate(_ctrl);
 
-    // Cor de fundo
     _bgAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
   }
 

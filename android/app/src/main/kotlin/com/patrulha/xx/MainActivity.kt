@@ -2,10 +2,12 @@ package com.patrulha.xx
 
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageInstaller
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -16,6 +18,7 @@ import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugins.GeneratedPluginRegistrant
 import java.io.File
 import java.io.FileInputStream
 
@@ -23,6 +26,13 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val ACTION_INSTALL_COMPLETE = "com.patrulha.xx.INSTALL_COMPLETE"
+
+        // Nomes dos aliases no AndroidManifest
+        const val ALIAS_CLASSIC  = "com.patrulha.xx.MainActivityClassic"
+        const val ALIAS_LIGHT    = "com.patrulha.xx.MainActivityLight"
+        const val ALIAS_ORIGINAL = "com.patrulha.xx.MainActivityOriginal"
+
+        val ALL_ALIASES = listOf(ALIAS_CLASSIC, ALIAS_LIGHT, ALIAS_ORIGINAL)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,7 +43,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // Canal: FLAG_SECURE
+        // ── Canal: FLAG_SECURE ──
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.patrulhaxx/secure")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -47,7 +57,7 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-        // Canal: partilha de ficheiros
+        // ── Canal: partilha de ficheiros ──
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.patrulhaxx/share")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -80,7 +90,7 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-        // Canal: device ID + gateway IP
+        // ── Canal: device ID + gateway IP ──
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.patrulhaxx/device_id")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -104,7 +114,7 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-        // Canal: auto-update via PackageInstaller Session API
+        // ── Canal: auto-update via PackageInstaller Session API ──
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.patrulhaxx/update")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -128,11 +138,74 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        // ── Canal: troca de ícone da launcher ──
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.patrulhaxx/app_icon")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    // Retorna o alias atualmente ativo: "classic", "light" ou "original"
+                    "getActiveIcon" -> {
+                        val active = getActiveAlias()
+                        result.success(active)
+                    }
+                    // iconName: "classic" | "light" | "original"
+                    "setIcon" -> {
+                        val iconName = call.argument<String>("icon") ?: "classic"
+                        val targetAlias = when (iconName) {
+                            "light"    -> ALIAS_LIGHT
+                            "original" -> ALIAS_ORIGINAL
+                            else       -> ALIAS_CLASSIC
+                        }
+                        try {
+                            switchToAlias(targetAlias)
+                            result.success(null)
+                        } catch (e: Exception) {
+                            result.error("ICON_ERROR", e.message, null)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 
+    // ── Determina qual alias está atualmente ENABLED ──
+    private fun getActiveAlias(): String {
+        val pm = packageManager
+        for (alias in ALL_ALIASES) {
+            val state = pm.getComponentEnabledSetting(
+                ComponentName(this, alias)
+            )
+            if (state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
+                return when (alias) {
+                    ALIAS_LIGHT    -> "light"
+                    ALIAS_ORIGINAL -> "original"
+                    else           -> "classic"
+                }
+            }
+        }
+        // Classic é o default (enabled no manifest, sem state explícito)
+        return "classic"
+    }
+
+    // ── Ativa o alias pretendido e desativa os restantes ──
+    private fun switchToAlias(targetAlias: String) {
+        val pm = packageManager
+        for (alias in ALL_ALIASES) {
+            val newState = if (alias == targetAlias)
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            else
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            pm.setComponentEnabledSetting(
+                ComponentName(this, alias),
+                newState,
+                PackageManager.DONT_KILL_APP
+            )
+        }
+    }
+
+    // ── PackageInstaller Session ──
     private fun installApkSession(apkFile: File, result: MethodChannel.Result) {
         val packageInstaller = packageManager.packageInstaller
-
         val params = PackageInstaller.SessionParams(
             PackageInstaller.SessionParams.MODE_FULL_INSTALL
         ).apply {
@@ -141,10 +214,8 @@ class MainActivity : FlutterActivity() {
                 setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
             }
         }
-
         val sessionId = packageInstaller.createSession(params)
         val session = packageInstaller.openSession(sessionId)
-
         try {
             FileInputStream(apkFile).use { inputStream ->
                 session.openWrite("package", 0, apkFile.length()).use { outputStream ->
@@ -152,7 +223,6 @@ class MainActivity : FlutterActivity() {
                     session.fsync(outputStream)
                 }
             }
-
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(ctx: Context, intent: Intent) {
                     ctx.unregisterReceiver(this)
@@ -161,13 +231,10 @@ class MainActivity : FlutterActivity() {
                         PackageInstaller.STATUS_FAILURE
                     )
                     val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
-
                     when (status) {
                         PackageInstaller.STATUS_SUCCESS ->
                             result.success("success")
-
                         PackageInstaller.STATUS_PENDING_USER_ACTION -> {
-                            // Android < 12: precisa de confirmação manual
                             val confirmIntent = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
                             if (confirmIntent != null) {
                                 confirmIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -177,7 +244,6 @@ class MainActivity : FlutterActivity() {
                                 result.error("INSTALL_ERROR", "Intent de confirmação nulo", null)
                             }
                         }
-
                         else ->
                             result.error(
                                 "INSTALL_FAILED",
@@ -187,7 +253,6 @@ class MainActivity : FlutterActivity() {
                     }
                 }
             }
-
             val intentFilter = IntentFilter(ACTION_INSTALL_COMPLETE)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 registerReceiver(receiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
@@ -195,22 +260,17 @@ class MainActivity : FlutterActivity() {
                 @Suppress("UnspecifiedRegisterReceiverFlag")
                 registerReceiver(receiver, intentFilter)
             }
-
-            // FIX: FLAG_IMMUTABLE só existe em API 23+
             val pendingFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             } else {
                 PendingIntent.FLAG_UPDATE_CURRENT
             }
-
             val pendingIntent = PendingIntent.getBroadcast(
-                this,
-                sessionId,
+                this, sessionId,
                 Intent(ACTION_INSTALL_COMPLETE),
                 pendingFlags
             )
             session.commit(pendingIntent.intentSender)
-
         } catch (e: Exception) {
             session.abandon()
             throw e
