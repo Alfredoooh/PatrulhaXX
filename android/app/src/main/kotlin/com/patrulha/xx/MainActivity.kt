@@ -169,13 +169,18 @@ class MainActivity : FlutterActivity() {
     }
 
     // ── Determina qual alias está atualmente ENABLED ──
+    // IMPORTANTE: COMPONENT_ENABLED_STATE_DEFAULT conta como enabled para o Classic
+    // (que está enabled="true" no manifest). Tem de ser verificado assim para evitar
+    // que dois aliases fiquem ativos em simultâneo.
     private fun getActiveAlias(): String {
         val pm = packageManager
         for (alias in ALL_ALIASES) {
             val state = pm.getComponentEnabledSetting(
                 ComponentName(this, alias)
             )
-            if (state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
+            val isEnabled = state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED ||
+                (alias == ALIAS_CLASSIC && state == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT)
+            if (isEnabled) {
                 return when (alias) {
                     ALIAS_LIGHT    -> "light"
                     ALIAS_ORIGINAL -> "original"
@@ -183,24 +188,28 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
-        // Classic é o default (enabled no manifest, sem state explícito)
         return "classic"
     }
 
     // ── Ativa o alias pretendido e desativa os restantes ──
+    // FIX: desativa TODOS primeiro (incluindo Classic explicitamente) antes
+    // de ativar o alvo, para garantir que nunca há dois aliases enabled.
     private fun switchToAlias(targetAlias: String) {
         val pm = packageManager
+        // 1ª passagem: desativa todos sem exceção
         for (alias in ALL_ALIASES) {
-            val newState = if (alias == targetAlias)
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-            else
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
             pm.setComponentEnabledSetting(
                 ComponentName(this, alias),
-                newState,
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                 PackageManager.DONT_KILL_APP
             )
         }
+        // 2ª passagem: ativa apenas o alvo
+        pm.setComponentEnabledSetting(
+            ComponentName(this, targetAlias),
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+            PackageManager.DONT_KILL_APP
+        )
     }
 
     // ── PackageInstaller Session ──
