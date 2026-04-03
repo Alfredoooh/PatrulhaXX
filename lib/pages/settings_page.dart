@@ -30,8 +30,6 @@ const _lucideEye = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height=
 const _lucideRefreshCw = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>''';
 const _lucideScrollText = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/></svg>''';
 const _lucideTimer = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>''';
-
-// SVG inline para o ícone de "app icon" nas settings
 const _lucideAppIcon = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="12" height="12" x="2" y="2" rx="2"/><path d="M14 2c1.1 0 2 .9 2 2v4c0 1.1-.9 2-2 2"/><path d="M20 2c1.1 0 2 .9 2 2v4c0 1.1-.9 2-2 2"/><path d="M10 18H5c-1.7 0-3-1.3-3-3v-1"/><polyline points="7 21 10 18 7 15"/><rect width="12" height="12" x="10" y="10" rx="2"/></svg>''';
 
 const _secureChannel = MethodChannel('com.patrulhaxx/secure');
@@ -125,7 +123,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // ── Modal de ícone — showCupertinoModalPopup empurra a tela atrás ─────────
+  // ── Modal de ícone — showCupertinoModalPopup (empurra a tela atrás) ───────
   void _pickIcon() {
     showCupertinoModalPopup<void>(
       context: context,
@@ -433,7 +431,7 @@ class _SettingsPageState extends State<SettingsPage> {
               _divider(),
               // ── Ícone do app ─────────────────────────────────────────
               _TapRow(
-                svgAsset: _svgDark,
+                // FIX: usa lucideAppIcon dedicado, não _svgDark
                 lucideSvg: _lucideAppIcon,
                 label: 'Ícone do app',
                 sub: _iconLabel,
@@ -470,7 +468,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 _divider(),
                 _TapRow(
-                  svgAsset: _svgLock,
+                  // FIX: usa lucideTimer, não svgLock
                   lucideSvg: _lucideTimer,
                   label: 'Bloquear após',
                   sub: _ts.lockDelayLabel,
@@ -485,7 +483,7 @@ class _SettingsPageState extends State<SettingsPage> {
             _label('Privacidade'),
             _section([
               _SwitchRow(
-                svgAsset: _svgLock,
+                // FIX: usa lucideEye, não svgLock
                 lucideSvg: _lucideEye,
                 label: 'Privacidade nos recentes',
                 sub: _ts.privacyRecent
@@ -534,7 +532,7 @@ class _SettingsPageState extends State<SettingsPage> {
             _label('Manutenção'),
             _section([
               _TapRow(
-                svgAsset: _svgReload,
+                // FIX: usa lucideRefreshCw diretamente
                 lucideSvg: _lucideRefreshCw,
                 label: 'Recarregar ícones',
                 sub: 'Baixa novamente os favicons',
@@ -592,7 +590,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 8),
             _section([
               _TapRow(
-                svgAsset: _svgReload,
+                // FIX: usa lucideScrollText diretamente
                 lucideSvg: _lucideScrollText,
                 label: 'Licenças de software',
                 sub: 'Dependências open source',
@@ -657,7 +655,7 @@ class _SettingsPageState extends State<SettingsPage> {
 }
 
 // =============================================================================
-// _IconPickerSheet — CupertinoModalPopup: empurra a tela atrás ao subir
+// _IconPickerSheet — CupertinoModalPopup nativo (empurra tela atrás ao abrir)
 // =============================================================================
 class _IconPickerSheet extends StatefulWidget {
   final AppIconVariant current;
@@ -677,13 +675,11 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
     _selected = widget.current;
   }
 
-  // Dados de cada opção de ícone
   static const _icons = [
     (
       variant: AppIconVariant.classic,
       label: 'Classic',
       sub: 'Fundo vermelho • predefinido',
-      // Imagem do ícone Classic (fundo vermelho + texto branco)
       asset: 'assets/icons/ic_classic.png',
     ),
     (
@@ -705,6 +701,7 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
     final t = AppTheme.current;
     final bottom = MediaQuery.of(context).padding.bottom;
 
+    // CupertinoPopupSurface com Material para garantir o push-up nativo
     return CupertinoPopupSurface(
       isSurfacePainted: false,
       child: Container(
@@ -730,7 +727,7 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
               ),
               const SizedBox(height: 16),
 
-              // Título
+              // Título + Fechar
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
@@ -745,8 +742,10 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
                       ),
                     ),
                     const Spacer(),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      minSize: 0,
+                      onPressed: () => Navigator.pop(context),
                       child: Text(
                         'Fechar',
                         style: TextStyle(
@@ -758,21 +757,20 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
 
-              // Aviso "o app vai fechar e reabrir"
+              // Aviso
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
                 child: Text(
                   'O app irá fechar e reabrir ao alterar o ícone. É o comportamento normal do Android.',
                   style: TextStyle(color: t.textSecondary, fontSize: 12),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
               // Grelha de ícones
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: _icons.map((data) {
@@ -802,7 +800,6 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
                         ),
                         child: Column(
                           children: [
-                            // Preview do ícone
                             ClipRRect(
                               borderRadius: BorderRadius.circular(18),
                               child: Image.asset(
@@ -859,7 +856,7 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
 }
 
 // =============================================================================
-// Curvas e helpers (mantidos exatamente como no original)
+// Curvas e helpers
 // =============================================================================
 const _kIOSEnter = Interval(0.0, 1.0, curve: Curves.linearToEaseOut);
 const _kIOSExit  = Interval(0.0, 1.0, curve: Curves.easeIn);
@@ -1087,7 +1084,7 @@ class _ThemeOption extends StatelessWidget {
 }
 
 // =============================================================================
-// _SvgIcon (sem alterações)
+// _SvgIcon — suporta svgAsset nullable (para rows que só têm lucideSvg)
 // =============================================================================
 class _SvgIcon extends StatelessWidget {
   final String? assetPath;
@@ -1119,10 +1116,10 @@ class _SvgIcon extends StatelessWidget {
 }
 
 // =============================================================================
-// _TapRow (sem alterações)
+// _TapRow — svgAsset agora nullable (aceita só lucideSvg)
 // =============================================================================
 class _TapRow extends StatelessWidget {
-  final String svgAsset;
+  final String? svgAsset;
   final String? lucideSvg;
   final String label, sub;
   final VoidCallback onTap;
@@ -1130,7 +1127,7 @@ class _TapRow extends StatelessWidget {
   final bool destructive;
 
   const _TapRow({
-    required this.svgAsset, this.lucideSvg,
+    this.svgAsset, this.lucideSvg,
     required this.label, required this.sub,
     required this.onTap, required this.textColor, required this.subColor,
     this.destructive = false,
@@ -1164,10 +1161,10 @@ class _TapRow extends StatelessWidget {
 }
 
 // =============================================================================
-// _SwitchRow (sem alterações)
+// _SwitchRow — svgAsset agora nullable (aceita só lucideSvg)
 // =============================================================================
 class _SwitchRow extends StatelessWidget {
-  final String svgAsset;
+  final String? svgAsset;
   final String? lucideSvg;
   final String label, sub;
   final bool value;
@@ -1175,7 +1172,7 @@ class _SwitchRow extends StatelessWidget {
   final ValueChanged<bool> onChanged;
 
   const _SwitchRow({
-    required this.svgAsset, this.lucideSvg,
+    this.svgAsset, this.lucideSvg,
     required this.label, required this.sub,
     required this.value, required this.textColor, required this.subColor,
     required this.onChanged,
