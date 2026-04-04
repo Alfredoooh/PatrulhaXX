@@ -22,11 +22,9 @@ const _svgPin        = 'assets/icons/svg/settings/settings_pin.svg';
 const _svgVolume     = 'assets/icons/svg/settings/settings_volume.svg';
 const _svgLock       = 'assets/icons/svg/settings/settings_lock.svg';
 const _svgTrash      = 'assets/icons/svg/settings/settings_trash.svg';
-const _svgReload     = 'assets/icons/svg/settings/settings_reload.svg';
 const _svgBack       = 'assets/icons/svg/settings/settings_back.svg';
 const _svgChevron    = 'assets/icons/svg/settings/settings_chevron.svg';
 
-const _lucideShield = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>''';
 const _lucideEye = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>''';
 const _lucideRefreshCw = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>''';
 const _lucideScrollText = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/></svg>''';
@@ -34,9 +32,6 @@ const _lucideTimer = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" heigh
 
 const _secureChannel = MethodChannel('com.patrulhaxx/secure');
 
-// =============================================================================
-// Dados dos ícones
-// =============================================================================
 const _kIcons = [
   (
     variant: AppIconVariant.classic,
@@ -58,15 +53,6 @@ const _kIcons = [
   ),
 ];
 
-// =============================================================================
-// Curvas
-// =============================================================================
-const _kIOSEnter = Interval(0.0, 1.0, curve: Curves.linearToEaseOut);
-const _kIOSExit  = Interval(0.0, 1.0, curve: Curves.easeIn);
-
-// =============================================================================
-// SettingsPage
-// =============================================================================
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -83,14 +69,14 @@ class _SettingsPageState extends State<SettingsPage>
   late final AnimationController _sheetController;
   bool _sheetBusy = false;
 
-  AppTheme get _t   => AppTheme.current;
-  Color get _bg     => _t.bg;
-  Color get _card   => _t.card;
-  Color get _text   => _t.text;
-  Color get _sub    => _t.textSecondary;
-  Color get _div    => _t.divider;
-
   ThemeMode _cachedThemeMode = ThemeMode.dark;
+
+  AppTheme get _t => AppTheme.current;
+  Color get _bg => _t.bg;
+  Color get _card => _t.card;
+  Color get _text => _t.text;
+  Color get _sub => _t.textSecondary;
+  Color get _div => _t.divider;
 
   ThemeMode get _resolvedThemeMode => _cachedThemeMode;
 
@@ -204,11 +190,9 @@ class _SettingsPageState extends State<SettingsPage>
     }
   }
 
-  // ── Modal de tema ─────────────────────────────────────────────────────────
   void _pickTheme() {
     _openIosSheet(
       builder: (ctx) => _ThemeModal(
-        ts: _ts,
         initialMode: _cachedThemeMode,
         onChanged: (mode) {
           switch (mode) {
@@ -228,7 +212,6 @@ class _SettingsPageState extends State<SettingsPage>
     );
   }
 
-  // ── Modal de ícone ────────────────────────────────────────────────────────
   void _pickIcon() {
     _openIosSheet(
       builder: (ctx) => _IconPickerSheet(
@@ -237,7 +220,7 @@ class _SettingsPageState extends State<SettingsPage>
           try {
             await AppIconService.setIcon(variant);
             if (mounted) setState(() => _activeIcon = variant);
-          } catch (e) {
+          } catch (_) {
             if (mounted) _snack('Erro ao trocar ícone');
           }
         },
@@ -246,7 +229,6 @@ class _SettingsPageState extends State<SettingsPage>
     );
   }
 
-  // ── Pin sheet ─────────────────────────────────────────────────────────────
   void _pinSheet({required LockMode mode, required VoidCallback onDone}) {
     _openIosSheet(
       builder: (ctx) {
@@ -280,7 +262,7 @@ class _SettingsPageState extends State<SettingsPage>
   }
 
   void _pickLockDelay() {
-    final opts   = [0, 5, 10, 30, 60, 120, 300, 600, 1800, 3600, 7200, 14400];
+    final opts = [0, 5, 10, 30, 60, 120, 300, 600, 1800, 3600, 7200, 14400];
     final labels = [
       'Imediato',
       '5 seg',
@@ -306,12 +288,14 @@ class _SettingsPageState extends State<SettingsPage>
         looping: false,
         onSelectedItemChanged: (i) => idx = i,
         children: labels
-            .map((l) => Center(
-                  child: Text(
-                    l,
-                    style: TextStyle(color: _text, fontSize: 16),
-                  ),
-                ))
+            .map(
+              (l) => Center(
+                child: Text(
+                  l,
+                  style: TextStyle(color: _text, fontSize: 16),
+                ),
+              ),
+            )
             .toList(),
       ),
       () {
@@ -378,7 +362,6 @@ class _SettingsPageState extends State<SettingsPage>
     );
   }
 
-  // ── Picker genérico com sheet real ────────────────────────────────────────
   void _cupertinoPickerSheet(String title, Widget child, VoidCallback onOk) {
     _openIosSheet(
       builder: (ctx) {
@@ -439,7 +422,6 @@ class _SettingsPageState extends State<SettingsPage>
     );
   }
 
-  // ── Fundo de ecrã ────────────────────────────────────────────────────────
   void _pickWallpaper() {
     _openIosSheet(
       builder: (ctx) {
@@ -558,8 +540,9 @@ class _SettingsPageState extends State<SettingsPage>
                               child: Image.asset(
                                 wp,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    Container(color: t.thumbBg),
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: t.thumbBg,
+                                ),
                               ),
                             ),
                           ),
@@ -578,7 +561,6 @@ class _SettingsPageState extends State<SettingsPage>
     );
   }
 
-  // ── Confirmar clear ──────────────────────────────────────────────────────
   void _confirmClear() {
     _openIosSheet(
       builder: (ctx) {
@@ -655,7 +637,6 @@ class _SettingsPageState extends State<SettingsPage>
     );
   }
 
-  // ── UI helpers ────────────────────────────────────────────────────────────
   Widget _label(String t) => Padding(
         padding: const EdgeInsets.only(left: 16, top: 6, bottom: 6),
         child: Text(
@@ -688,312 +669,318 @@ class _SettingsPageState extends State<SettingsPage>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([_ts, _sheetController]),
+      animation: _ts,
       builder: (_, __) {
-        final t = _sheetController.value;
-
-        final overlayStyle = t > 0.01
-            ? const SystemUiOverlayStyle(
-                statusBarColor: Colors.transparent,
-                statusBarIconBrightness: Brightness.light,
-                statusBarBrightness: Brightness.dark,
-              )
-            : const SystemUiOverlayStyle(
-                statusBarColor: Colors.transparent,
-                statusBarIconBrightness: Brightness.dark,
-                statusBarBrightness: Brightness.light,
-              );
-
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: overlayStyle,
-          child: Container(
-            color: Colors.black,
-            child: Transform.translate(
-              offset: Offset(0, 14 * t),
-              child: Transform.scale(
-                scale: 1 - (0.055 * t),
-                alignment: Alignment.center,
-                child: Scaffold(
-                  backgroundColor: _bg,
-                  appBar: AppBar(
-                    backgroundColor: _bg,
-                    elevation: 0,
-                    surfaceTintColor: Colors.transparent,
-                    leading: IconButton(
-                      icon: SvgPicture.asset(
-                        _svgBack,
-                        width: 22,
-                        height: 22,
-                        colorFilter: ColorFilter.mode(_text, BlendMode.srcIn),
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    title: Text(
-                      'Definições',
-                      style: TextStyle(
-                        color: _text,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+        final screen = RepaintBoundary(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Scaffold(
+              backgroundColor: _bg,
+              appBar: AppBar(
+                backgroundColor: _bg,
+                elevation: 0,
+                surfaceTintColor: Colors.transparent,
+                leading: IconButton(
+                  icon: SvgPicture.asset(
+                    _svgBack,
+                    width: 22,
+                    height: 22,
+                    colorFilter: ColorFilter.mode(_text, BlendMode.srcIn),
                   ),
-                  body: ListView(
-                    padding: const EdgeInsets.only(top: 8, bottom: 32),
-                    children: [
-                      // ── Aparência ──────────────────────────────────────────────
-                      _label('Aparência'),
-                      _section([
-                        _TapRow(
-                          svgAsset: _themeSvg,
-                          label: 'Tema',
-                          sub: _themeLabel,
-                          textColor: _text,
-                          subColor: _sub,
-                          onTap: _pickTheme,
-                        ),
-                        _divider(),
-                        _TapRow(
-                          svgAsset: _svgWallpaper,
-                          label: 'Fundo de ecrã',
-                          sub: _ts.useWallpaper
-                              ? _ts.bg.split('/').last
-                              : (_ts.isDark ? 'Fundo escuro' : 'Fundo claro'),
-                          textColor: _text,
-                          subColor: _sub,
-                          onTap: _pickWallpaper,
-                        ),
-                        _divider(),
-                        _TapRowWithIconPreview(
-                          iconAsset: _activeIconAsset,
-                          label: 'Ícone do app',
-                          sub: _iconLabel,
-                          textColor: _text,
-                          subColor: _sub,
-                          onTap: _pickIcon,
-                        ),
-                      ]),
-                      const SizedBox(height: 16),
-
-                      // ── Segurança ──────────────────────────────────────────────
-                      _label('Segurança'),
-                      _section([
-                        _SwitchRow(
-                          svgAsset: _svgLock,
-                          label: 'Bloquear app',
-                          sub: _lock ? 'PIN obrigatório' : 'Sem bloqueio',
-                          value: _lock,
-                          textColor: _text,
-                          subColor: _sub,
-                          onChanged: (v) {
-                            _pinSheet(
-                              mode: LockMode.unlock,
-                              onDone: () async {
-                                await LockService.instance.setEnabled(v);
-                                if (mounted) setState(() => _lock = v);
-                              },
-                            );
-                          },
-                        ),
-                        if (_lock) ...[
-                          _divider(),
-                          _TapRow(
-                            svgAsset: _svgPin,
-                            label: 'Alterar PIN',
-                            sub: 'Muda o código de acesso',
-                            textColor: _text,
-                            subColor: _sub,
-                            onTap: () => _pinSheet(
-                              mode: LockMode.setNew,
-                              onDone: () => _snack('PIN alterado'),
-                            ),
-                          ),
-                          _divider(),
-                          _TapRow(
-                            lucideSvg: _lucideTimer,
-                            label: 'Bloquear após',
-                            sub: _ts.lockDelayLabel,
-                            textColor: _text,
-                            subColor: _sub,
-                            onTap: _pickLockDelay,
-                          ),
-                        ],
-                      ]),
-                      const SizedBox(height: 16),
-
-                      // ── Privacidade ────────────────────────────────────────────
-                      _label('Privacidade'),
-                      _section([
-                        _SwitchRow(
-                          lucideSvg: _lucideEye,
-                          label: 'Privacidade nos recentes',
-                          sub: _ts.privacyRecent
-                              ? 'App aparece em preto'
-                              : 'Conteúdo visível',
-                          value: _ts.privacyRecent,
-                          textColor: _text,
-                          subColor: _sub,
-                          onChanged: (v) {
-                            _ts.setPrivacyRecent(v);
-                            _applySecure(v);
-                            setState(() {});
-                          },
-                        ),
-                        _divider(),
-                        _SwitchRow(
-                          svgAsset: _svgScreenshot,
-                          label: 'Bloquear capturas',
-                          sub: _ts.noScreenshot
-                              ? 'Screenshots bloqueados'
-                              : 'Screenshots permitidos',
-                          value: _ts.noScreenshot,
-                          textColor: _text,
-                          subColor: _sub,
-                          onChanged: (v) {
-                            _ts.setNoScreenshot(v);
-                            _applySecure(v);
-                            setState(() {});
-                          },
-                        ),
-                      ]),
-                      const SizedBox(height: 16),
-
-                      // ── Navegação ──────────────────────────────────────────────
-                      _label('Navegação'),
-                      _section([
-                        _TapRow(
-                          svgAsset: _svgEngine,
-                          label: 'Motor de pesquisa',
-                          sub: ThemeService.engines[_ts.engine] ?? 'Google',
-                          textColor: _text,
-                          subColor: _sub,
-                          onTap: _pickEngine,
-                        ),
-                        _divider(),
-                        _TapRow(
-                          svgAsset: _svgVolume,
-                          label: 'Volume máximo',
-                          sub: '${_ts.maxVolume}%',
-                          textColor: _text,
-                          subColor: _sub,
-                          onTap: _pickVolume,
-                        ),
-                      ]),
-                      const SizedBox(height: 16),
-
-                      // ── Manutenção ─────────────────────────────────────────────
-                      _label('Manutenção'),
-                      _section([
-                        _TapRow(
-                          lucideSvg: _lucideRefreshCw,
-                          label: 'Recarregar ícones',
-                          sub: 'Baixa novamente os favicons',
-                          textColor: _text,
-                          subColor: _sub,
-                          onTap: () async {
-                            await FaviconService.instance.clearAll();
-                            await FaviconService.instance.preloadAll();
-                            if (context.mounted) _snack('Ícones recarregados');
-                          },
-                        ),
-                        _divider(),
-                        _TapRow(
-                          svgAsset: _svgTrash,
-                          label: 'Limpar downloads',
-                          sub: 'Apaga todos os ficheiros',
-                          textColor: _text,
-                          subColor: _sub,
-                          destructive: true,
-                          onTap: _confirmClear,
-                        ),
-                      ]),
-                      const SizedBox(height: 16),
-
-                      // ── Sobre ──────────────────────────────────────────────────
-                      _label('Sobre'),
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: _card,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.asset(
-                                  'assets/logo.png',
-                                  width: 44,
-                                  height: 44,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.ytRedDark,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.shield_rounded,
-                                      color: Colors.white,
-                                      size: 24,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'nuxxx',
-                                    style: TextStyle(
-                                      color: _text,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Versão 1.0.0 · Navegação privada',
-                                    style: TextStyle(
-                                      color: _sub,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _section([
-                        _TapRow(
-                          lucideSvg: _lucideScrollText,
-                          label: 'Licenças de software',
-                          sub: 'Dependências open source',
-                          textColor: _text,
-                          subColor: _sub,
-                          onTap: () => openOssLicenses(),
-                        ),
-                      ]),
-                      const SizedBox(height: 16),
-                    ],
+                  onPressed: () => Navigator.pop(context),
+                ),
+                title: Text(
+                  'Definições',
+                  style: TextStyle(
+                    color: _text,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
+              body: ListView(
+                padding: const EdgeInsets.only(top: 8, bottom: 32),
+                children: [
+                  _label('Aparência'),
+                  _section([
+                    _TapRow(
+                      svgAsset: _themeSvg,
+                      label: 'Tema',
+                      sub: _themeLabel,
+                      textColor: _text,
+                      subColor: _sub,
+                      onTap: _pickTheme,
+                    ),
+                    _divider(),
+                    _TapRow(
+                      svgAsset: _svgWallpaper,
+                      label: 'Fundo de ecrã',
+                      sub: _ts.useWallpaper
+                          ? _ts.bg.split('/').last
+                          : (_ts.isDark ? 'Fundo escuro' : 'Fundo claro'),
+                      textColor: _text,
+                      subColor: _sub,
+                      onTap: _pickWallpaper,
+                    ),
+                    _divider(),
+                    _TapRowWithIconPreview(
+                      iconAsset: _activeIconAsset,
+                      label: 'Ícone do app',
+                      sub: _iconLabel,
+                      textColor: _text,
+                      subColor: _sub,
+                      onTap: _pickIcon,
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+
+                  _label('Segurança'),
+                  _section([
+                    _SwitchRow(
+                      svgAsset: _svgLock,
+                      label: 'Bloquear app',
+                      sub: _lock ? 'PIN obrigatório' : 'Sem bloqueio',
+                      value: _lock,
+                      textColor: _text,
+                      subColor: _sub,
+                      onChanged: (v) {
+                        _pinSheet(
+                          mode: LockMode.unlock,
+                          onDone: () async {
+                            await LockService.instance.setEnabled(v);
+                            if (mounted) setState(() => _lock = v);
+                          },
+                        );
+                      },
+                    ),
+                    if (_lock) ...[
+                      _divider(),
+                      _TapRow(
+                        svgAsset: _svgPin,
+                        label: 'Alterar PIN',
+                        sub: 'Muda o código de acesso',
+                        textColor: _text,
+                        subColor: _sub,
+                        onTap: () => _pinSheet(
+                          mode: LockMode.setNew,
+                          onDone: () => _snack('PIN alterado'),
+                        ),
+                      ),
+                      _divider(),
+                      _TapRow(
+                        lucideSvg: _lucideTimer,
+                        label: 'Bloquear após',
+                        sub: _ts.lockDelayLabel,
+                        textColor: _text,
+                        subColor: _sub,
+                        onTap: _pickLockDelay,
+                      ),
+                    ],
+                  ]),
+                  const SizedBox(height: 16),
+
+                  _label('Privacidade'),
+                  _section([
+                    _SwitchRow(
+                      lucideSvg: _lucideEye,
+                      label: 'Privacidade nos recentes',
+                      sub: _ts.privacyRecent
+                          ? 'App aparece em preto'
+                          : 'Conteúdo visível',
+                      value: _ts.privacyRecent,
+                      textColor: _text,
+                      subColor: _sub,
+                      onChanged: (v) {
+                        _ts.setPrivacyRecent(v);
+                        _applySecure(v);
+                        setState(() {});
+                      },
+                    ),
+                    _divider(),
+                    _SwitchRow(
+                      svgAsset: _svgScreenshot,
+                      label: 'Bloquear capturas',
+                      sub: _ts.noScreenshot
+                          ? 'Screenshots bloqueados'
+                          : 'Screenshots permitidos',
+                      value: _ts.noScreenshot,
+                      textColor: _text,
+                      subColor: _sub,
+                      onChanged: (v) {
+                        _ts.setNoScreenshot(v);
+                        _applySecure(v);
+                        setState(() {});
+                      },
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+
+                  _label('Navegação'),
+                  _section([
+                    _TapRow(
+                      svgAsset: _svgEngine,
+                      label: 'Motor de pesquisa',
+                      sub: ThemeService.engines[_ts.engine] ?? 'Google',
+                      textColor: _text,
+                      subColor: _sub,
+                      onTap: _pickEngine,
+                    ),
+                    _divider(),
+                    _TapRow(
+                      svgAsset: _svgVolume,
+                      label: 'Volume máximo',
+                      sub: '${_ts.maxVolume}%',
+                      textColor: _text,
+                      subColor: _sub,
+                      onTap: _pickVolume,
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+
+                  _label('Manutenção'),
+                  _section([
+                    _TapRow(
+                      lucideSvg: _lucideRefreshCw,
+                      label: 'Recarregar ícones',
+                      sub: 'Baixa novamente os favicons',
+                      textColor: _text,
+                      subColor: _sub,
+                      onTap: () async {
+                        await FaviconService.instance.clearAll();
+                        await FaviconService.instance.preloadAll();
+                        if (context.mounted) _snack('Ícones recarregados');
+                      },
+                    ),
+                    _divider(),
+                    _TapRow(
+                      svgAsset: _svgTrash,
+                      label: 'Limpar downloads',
+                      sub: 'Apaga todos os ficheiros',
+                      textColor: _text,
+                      subColor: _sub,
+                      destructive: true,
+                      onTap: _confirmClear,
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+
+                  _label('Sobre'),
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: _card,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(
+                              'assets/logo.png',
+                              width: 44,
+                              height: 44,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.ytRedDark,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.shield_rounded,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'nuxxx',
+                                style: TextStyle(
+                                  color: _text,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Versão 1.0.0 · Navegação privada',
+                                style: TextStyle(
+                                  color: _sub,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _section([
+                    _TapRow(
+                      lucideSvg: _lucideScrollText,
+                      label: 'Licenças de software',
+                      sub: 'Dependências open source',
+                      textColor: _text,
+                      subColor: _sub,
+                      onTap: () => openOssLicenses(),
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
           ),
+        );
+
+        return AnimatedBuilder(
+          animation: _sheetController,
+          child: screen,
+          builder: (_, child) {
+            final t = _sheetController.value;
+
+            final overlayStyle = t > 0.01
+                ? const SystemUiOverlayStyle(
+                    statusBarColor: Colors.transparent,
+                    statusBarIconBrightness: Brightness.light,
+                    statusBarBrightness: Brightness.dark,
+                  )
+                : const SystemUiOverlayStyle(
+                    statusBarColor: Colors.transparent,
+                    statusBarIconBrightness: Brightness.dark,
+                    statusBarBrightness: Brightness.light,
+                  );
+
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: overlayStyle,
+              child: Stack(
+                children: [
+                  const ColoredBox(color: Colors.black),
+                  Transform.translate(
+                    offset: Offset(0, 14 * t),
+                    child: Transform.scale(
+                      scale: 1 - (0.055 * t),
+                      alignment: Alignment.center,
+                      child: child!,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
   }
 }
 
-// =============================================================================
-// Shell do modal real
-// =============================================================================
 class _IosSheetShell extends StatelessWidget {
   final Widget child;
   final double maxHeightFactor;
@@ -1006,6 +993,7 @@ class _IosSheetShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final t = AppTheme.current;
 
     return Align(
       alignment: Alignment.bottomCenter,
@@ -1016,7 +1004,7 @@ class _IosSheetShell extends StatelessWidget {
           maxHeight: media.size.height * maxHeightFactor,
         ),
         child: Material(
-          color: const Color(0xFFF5F5F7),
+          color: t.sheet,
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(16),
             topRight: Radius.circular(16),
@@ -1032,9 +1020,6 @@ class _IosSheetShell extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// _IconPickerSheet
-// =============================================================================
 class _IconPickerSheet extends StatefulWidget {
   final AppIconVariant current;
   final ValueChanged<AppIconVariant> onChanged;
@@ -1077,7 +1062,6 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
           ),
         ),
         const SizedBox(height: 16),
-
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
@@ -1107,7 +1091,6 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
             ],
           ),
         ),
-
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
           child: Text(
@@ -1116,7 +1099,6 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
           ),
         ),
         const SizedBox(height: 16),
-
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -1194,23 +1176,17 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
             }).toList(),
           ),
         ),
-
         SizedBox(height: 24 + bottom),
       ],
     );
   }
 }
 
-// =============================================================================
-// _ThemeModal
-// =============================================================================
 class _ThemeModal extends StatefulWidget {
-  final ThemeService ts;
   final ThemeMode initialMode;
   final ValueChanged<ThemeMode> onChanged;
 
   const _ThemeModal({
-    required this.ts,
     required this.initialMode,
     required this.onChanged,
   });
@@ -1312,9 +1288,6 @@ class _ThemeModalState extends State<_ThemeModal> {
   }
 }
 
-// =============================================================================
-// _ThemeOption
-// =============================================================================
 class _ThemeOption extends StatelessWidget {
   final String svgAsset, label, sub;
   final bool selected;
@@ -1399,9 +1372,6 @@ class _ThemeOption extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// _TapRowWithIconPreview
-// =============================================================================
 class _TapRowWithIconPreview extends StatelessWidget {
   final String iconAsset;
   final String label, sub;
@@ -1481,9 +1451,6 @@ class _TapRowWithIconPreview extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// _TapRow
-// =============================================================================
 class _TapRow extends StatelessWidget {
   final String? svgAsset;
   final String? lucideSvg;
@@ -1553,9 +1520,6 @@ class _TapRow extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// _SwitchRow
-// =============================================================================
 class _SwitchRow extends StatelessWidget {
   final String? svgAsset;
   final String? lucideSvg;
@@ -1613,9 +1577,6 @@ class _SwitchRow extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// _MiniSwitch
-// =============================================================================
 class _MiniSwitch extends StatefulWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -1631,10 +1592,10 @@ class _MiniSwitch extends StatefulWidget {
 
 class _MiniSwitchState extends State<_MiniSwitch>
     with SingleTickerProviderStateMixin {
-  static const double _w     = 44;
-  static const double _h     = 25;
+  static const double _w = 44;
+  static const double _h = 25;
   static const double _thumb = 19;
-  static const double _pad   = 3;
+  static const double _pad = 3;
 
   late final AnimationController _ctrl;
   late final Animation<double> _position;
@@ -1734,9 +1695,6 @@ class _MiniSwitchState extends State<_MiniSwitch>
   }
 }
 
-// =============================================================================
-// _SvgIcon
-// =============================================================================
 class _SvgIcon extends StatelessWidget {
   final String? assetPath;
   final String? lucideSvg;
