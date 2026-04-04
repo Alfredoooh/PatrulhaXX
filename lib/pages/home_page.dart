@@ -80,17 +80,30 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
-  // 0=Início  1=Explorar  2=Pesquisa  3=Biblioteca
+
+  // ── Drawer manual (Stack + AnimatedPositioned) ────────────────────────────
+  static const double _kDrawerWidth = 260;
+  static const double _kAppShift    = 110;
+  static const Duration _kAnimDur   = Duration(milliseconds: 420);
+  static const Cubic    _kAnimCurve = Cubic(0.22, 1.0, 0.36, 1.0);
+
+  bool _drawerOpen = false;
+
+  // Gesture drag
+  double _dragX = 0;
+  bool   _dragging = false;
+
+  void _openDrawer()  => setState(() => _drawerOpen = true);
+  void _closeDrawer() => setState(() => _drawerOpen = false);
+  void _toggleDrawer() => setState(() => _drawerOpen = !_drawerOpen);
+
+  // ── Resto do estado ───────────────────────────────────────────────────────
   int _tab = 0;
-  bool _miniPlayerActive = false;
   late final AnimationController _fadeIn;
   late final AnimationController _tabAnim;
-  late final AnimationController _drawerAnim;
 
   Color _wallpaperColor = Colors.black;
 
-  // 62 × 0.85 ≈ 53
   static const _kNavH = 53.0;
 
   @override
@@ -103,8 +116,6 @@ class _HomePageState extends State<HomePage>
     _tabAnim = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 340));
     _tabAnim.value = 1.0;
-    _drawerAnim = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 300));
     final saved = ThemeService.instance.wallpaperColor;
     if (saved != null) _wallpaperColor = saved;
   }
@@ -121,7 +132,6 @@ class _HomePageState extends State<HomePage>
     WidgetsBinding.instance.removeObserver(this);
     _fadeIn.dispose();
     _tabAnim.dispose();
-    _drawerAnim.dispose();
     super.dispose();
   }
 
@@ -146,99 +156,169 @@ class _HomePageState extends State<HomePage>
     _tabAnim.forward(from: 0.0);
   }
 
+  // ── Cálculo do progresso de abertura considerando drag ────────────────────
+  double get _openProgress {
+    if (_dragging) {
+      final base = _drawerOpen ? 1.0 : 0.0;
+      return (base + _dragX / _kDrawerWidth).clamp(0.0, 1.0);
+    }
+    return _drawerOpen ? 1.0 : 0.0;
+  }
+
+  // ── Handlers de gesto ─────────────────────────────────────────────────────
+  void _onHorizontalDragStart(DragStartDetails d) {
+    // Abre: arrastar da borda esquerda. Fecha: qualquer ponto quando aberto.
+    if (!_drawerOpen && d.globalPosition.dx > 24) return;
+    _dragging = true;
+    _dragX = 0;
+  }
+
+  void _onHorizontalDragUpdate(DragUpdateDetails d) {
+    if (!_dragging) return;
+    setState(() {
+      _dragX = (_dragX + d.delta.dx).clamp(
+        _drawerOpen ? -_kDrawerWidth : 0,
+        _drawerOpen ? 0 : _kDrawerWidth,
+      );
+    });
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails d) {
+    if (!_dragging) return;
+    _dragging = false;
+    final velocity = d.primaryVelocity ?? 0;
+    final progress = _openProgress;
+    if (velocity > 300 || (velocity >= 0 && progress > 0.4)) {
+      _openDrawer();
+    } else {
+      _closeDrawer();
+    }
+    setState(() => _dragX = 0);
+  }
+
   @override
   Widget build(BuildContext context) {
     final safeBottom = MediaQuery.of(context).padding.bottom;
+    final progress   = _openProgress;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: AppTheme.current.statusBar,
-      ),
-      child: Scaffold(
-        key: _scaffoldKey,
-        extendBody: false,
-        backgroundColor: AppTheme.current.bg,
-        drawerScrimColor: Colors.black.withOpacity(0.35),
-        onDrawerChanged: (isOpen) {
-          if (isOpen) {
-            _drawerAnim.forward();
-          } else {
-            _drawerAnim.reverse();
-          }
-        },
-        drawer: _NavDrawer(
-          onDownloads: () {
-            _scaffoldKey.currentState?.closeDrawer();
-            _openDownloads();
-          },
-          onSettings: () {
-            _scaffoldKey.currentState?.closeDrawer();
-            _openSettings();
-          },
+    // Posições interpoladas
+    final contentLeft  = progress * _kAppShift;
+    final drawerLeft   = -_kDrawerWidth + progress * _kDrawerWidth;
+    final overlayOpacity = progress * 0.18;
+
+    return PopScope(
+      // Botão voltar Android fecha o drawer em vez de sair do app
+      canPop: !_drawerOpen,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _drawerOpen) _closeDrawer();
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: AppTheme.current.statusBar,
         ),
-        // ── O body inteiro (incluindo bottom nav) é envolvido no Transform
-        // para que o efeito de push/scale seja aplicado à página toda ao mesmo
-        // tempo que o drawer desliza — sem qualquer atraso entre camadas.
-        body: AnimatedBuilder(
-          animation: _drawerAnim,
-          builder: (_, child) {
-            final t = CurvedAnimation(
-                    parent: _drawerAnim, curve: Curves.easeOutCubic)
-                .value;
-            final scale = 1.0 - (t * 0.06);
-            final translateX = t * 24.0;
-            return Transform(
-              transform: Matrix4.identity()
-                ..translate(translateX)
-                ..scale(scale, scale),
-              alignment: Alignment.centerRight,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(t * 14),
-                child: child,
-              ),
-            );
-          },
-          child: Column(children: [
-            Expanded(
-              child: AnimatedBuilder(
-                animation: ThemeService.instance,
-                builder: (_, __) => AnimatedBuilder(
-                  animation: _tabAnim,
-                  builder: (_, child) =>
-                      FadeTransition(opacity: _tabAnim, child: child),
-                  child: IndexedStack(
-                    index: _tab,
-                    children: [
-                      // 0 — Início
-                      _HomeTab(
-                        fadeIn: _fadeIn,
-                        onOpen: _openSite,
-                        onDownloads: _openDownloads,
-                        onSettings: _openSettings,
-                        onMenu: () =>
-                            _scaffoldKey.currentState?.openDrawer(),
-                        onColorExtracted: _onColorExtracted,
+        child: Scaffold(
+          backgroundColor: AppTheme.current.bg,
+          // Sem drawer nativo — gerido pelo Stack abaixo
+          body: GestureDetector(
+            onHorizontalDragStart:  _onHorizontalDragStart,
+            onHorizontalDragUpdate: _onHorizontalDragUpdate,
+            onHorizontalDragEnd:    _onHorizontalDragEnd,
+            child: Stack(
+              children: [
+                // ── Conteúdo principal ─────────────────────────────────────
+                AnimatedPositioned(
+                  duration: _dragging ? Duration.zero : _kAnimDur,
+                  curve: _kAnimCurve,
+                  top: 0,
+                  bottom: 0,
+                  left: contentLeft,
+                  right: -contentLeft,
+                  child: ListenableBuilder(
+                    listenable: ThemeService.instance,
+                    builder: (_, __) => AnimatedBuilder(
+                      animation: _tabAnim,
+                      builder: (_, child) =>
+                          FadeTransition(opacity: _tabAnim, child: child),
+                      child: IndexedStack(
+                        index: _tab,
+                        children: [
+                          // 0 — Início
+                          _HomeTab(
+                            fadeIn: _fadeIn,
+                            onOpen: _openSite,
+                            onDownloads: _openDownloads,
+                            onSettings: _openSettings,
+                            onMenu: _toggleDrawer,
+                            onColorExtracted: _onColorExtracted,
+                          ),
+                          // 1 — Explorar
+                          ExplorePage(onVideoTap: (_) {}),
+                          // 2 — Pesquisa
+                          const _SearchTab(),
+                          // 3 — Biblioteca
+                          const _BibliotecaTab(),
+                        ],
                       ),
-                      // 1 — Explorar
-                      ExplorePage(onVideoTap: (_) {}),
-                      // 2 — Pesquisa
-                      const _SearchTab(),
-                      // 3 — Biblioteca
-                      const _BibliotecaTab(),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
 
-            _BottomNav(
-              tab: _tab,
-              onTab: _switchTab,
-              navH: _kNavH,
-              safeBottom: safeBottom,
+                // ── Bottom nav (também desloca) ────────────────────────────
+                AnimatedPositioned(
+                  duration: _dragging ? Duration.zero : _kAnimDur,
+                  curve: _kAnimCurve,
+                  bottom: 0,
+                  left: contentLeft,
+                  right: -contentLeft,
+                  child: _BottomNav(
+                    tab: _tab,
+                    onTab: _switchTab,
+                    navH: _kNavH,
+                    safeBottom: safeBottom,
+                  ),
+                ),
+
+                // ── Overlay escuro ─────────────────────────────────────────
+                if (progress > 0)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      ignoring: !_drawerOpen,
+                      child: GestureDetector(
+                        onTap: _closeDrawer,
+                        child: AnimatedContainer(
+                          duration: _dragging ? Duration.zero : _kAnimDur,
+                          curve: _kAnimCurve,
+                          color: Color.fromRGBO(0, 0, 0, overlayOpacity),
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // ── Drawer ─────────────────────────────────────────────────
+                AnimatedPositioned(
+                  duration: _dragging ? Duration.zero : _kAnimDur,
+                  curve: _kAnimCurve,
+                  top: 0,
+                  bottom: 0,
+                  left: drawerLeft,
+                  width: _kDrawerWidth,
+                  child: _NavDrawer(
+                    onDownloads: () {
+                      _closeDrawer();
+                      _openDownloads();
+                    },
+                    onSettings: () {
+                      _closeDrawer();
+                      _openSettings();
+                    },
+                  ),
+                ),
+              ],
             ),
-          ]),
+          ),
         ),
       ),
     );
@@ -466,7 +546,7 @@ class _WallpaperColorExtractorState
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _NavDrawer — drawer original preservado na íntegra
+// _NavDrawer — estilo original preservado
 // ─────────────────────────────────────────────────────────────────────────────
 class _NavDrawer extends StatelessWidget {
   final VoidCallback onDownloads;
@@ -477,58 +557,64 @@ class _NavDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    return Drawer(
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.zero),
-      backgroundColor: t.drawerBg,
-      elevation: 0,
-      child: SafeArea(
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                child: Row(children: [
-                  Image.asset('assets/logo.png', width: 28, height: 28),
-                  const SizedBox(width: 10),
-                  Text('nuxxx',
-                      style: TextStyle(
-                        color: t.text,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.3,
-                      )),
+    return ListenableBuilder(
+      listenable: ThemeService.instance,
+      builder: (_, __) {
+        final t = AppTheme.current;
+        return Container(
+          decoration: BoxDecoration(
+            color: t.drawerBg,
+            boxShadow: const [
+              BoxShadow(
+                color: Color.fromRGBO(0, 0, 0, 0.12),
+                blurRadius: 14,
+                offset: Offset(2, 0),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: Row(children: [
+                      Image.asset('assets/logo.png', width: 28, height: 28),
+                      const SizedBox(width: 10),
+                      Text('nuxxx',
+                          style: TextStyle(
+                            color: t.text,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.3,
+                          )),
+                    ]),
+                  ),
+                  Divider(color: t.divider, height: 1, thickness: 1),
+                  const SizedBox(height: 4),
+                  _DrawerItemSvg(
+                    assetPath: 'assets/icons/svg/drawer_download.svg',
+                    label: 'Downloads',
+                    onTap: onDownloads,
+                  ),
+                  _DrawerItemSvg(
+                    assetPath: 'assets/icons/svg/drawer_settings.svg',
+                    label: 'Definições',
+                    onTap: onSettings,
+                  ),
+                  const Spacer(),
+                  Divider(color: t.divider, height: 1, thickness: 1),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+                    child: Text('nuxxx',
+                        style: TextStyle(
+                            color: t.textTertiary, fontSize: 11)),
+                  ),
                 ]),
-              ),
-              Divider(color: t.divider, height: 1, thickness: 1),
-              const SizedBox(height: 4),
-              _DrawerItemSvg(
-                assetPath: 'assets/icons/svg/drawer_download.svg',
-                label: 'Downloads',
-                onTap: () {
-                  Navigator.pop(context);
-                  onDownloads();
-                },
-              ),
-              _DrawerItemSvg(
-                assetPath: 'assets/icons/svg/drawer_settings.svg',
-                label: 'Definições',
-                onTap: () {
-                  Navigator.pop(context);
-                  onSettings();
-                },
-              ),
-              const Spacer(),
-              Divider(color: t.divider, height: 1, thickness: 1),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-                child: Text('nuxxx',
-                    style: TextStyle(
-                        color: t.textTertiary, fontSize: 11)),
-              ),
-            ]),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -687,8 +773,6 @@ class _HomeTabState extends State<_HomeTab> {
 
 
 // ─── AppBar da _HomeTab ───────────────────────────────────────────────────────
-// Sem botões downloads/settings ao scroll. Botão "+" no topo direito (SVG).
-// ─────────────────────────────────────────────────────────────────────────────
 class _HomeAppBar extends StatelessWidget {
   final double collapseProgress;
   final VoidCallback onMenu, onDownloads, onSettings;
@@ -730,7 +814,7 @@ class _HomeAppBar extends StatelessWidget {
             // Search compacto
             Expanded(child: _SearchTriggerCompact()),
             const SizedBox(width: 4),
-            // Botão "+" — SVG puro, sem container adicional
+            // Botão "+"
             GestureDetector(
               onTap: () {
                 // acção a definir
@@ -750,7 +834,7 @@ class _HomeAppBar extends StatelessWidget {
             ),
           ]),
 
-          // Área colapsável com downloads + settings (original)
+          // Área colapsável com downloads + settings
           ClipRect(
             child: Align(
               alignment: Alignment.topCenter,
@@ -844,7 +928,7 @@ class _SearchTab extends StatelessWidget {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _BibliotecaTab — novo tab na posição final
+// _BibliotecaTab
 // ─────────────────────────────────────────────────────────────────────────────
 class _BibliotecaTab extends StatelessWidget {
   const _BibliotecaTab();
