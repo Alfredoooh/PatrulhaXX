@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drawer por cima</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #fff;
+    }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 260px;
+      height: 100%;
+      background: #f4f4f4;
+      transform: translateX(-100%);
+      transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform;
+      z-index: 10;
+      padding: 20px;
+      box-shadow: 2px 0 14px rgba(0, 0, 0, 0.12);
+    }
+
+    .drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #111;
+    }
+
+    .drawer ul {
+      list-style: none;
+    }
+
+    .drawer li {
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      color: #222;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.18);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 420ms cubic-bezier(0.22, 1, 0.36, 1);
+      z-index: 5;
+    }
+
+    .overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #fff;
+      transform: translateX(0);
+      transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform;
+      z-index: 1;
+    }
+
+    .app.shifted {
+      transform: translateX(110px);
+    }
+
+    .topbar {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      background: #fff;
+    }
+
+    .menu-btn {
+      width: 44px;
+      height: 44px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .menu-btn:active {
+      background: rgba(0, 0, 0, 0.06);
+    }
+
+    .icon {
+      width: 24px;
+      height: 18px;
+      position: relative;
+    }
+
+    .icon span {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 2.5px;
+      background: #111;
+      border-radius: 999px;
+    }
+
+    .icon span:nth-child(1) { top: 0; }
+    .icon span:nth-child(2) { top: 7.5px; }
+    .icon span:nth-child(3) { top: 15px; }
+
+    .content {
+      padding: 24px 16px;
+      color: #111;
+    }
+  </style>
+</head>
+<body>
+  <div class="drawer" id="drawer">
+    <h2>Menu</h2>
+    <ul>
+      <li>Início</li>
+      <li>Perfil</li>
+      <li>Configurações</li>
+      <li>Sair</li>
+    </ul>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+
+  <div class="app" id="app">
+    <div class="topbar">
+      <button class="menu-btn" id="menuBtn" aria-label="Abrir menu">
+        <div class="icon">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </button>
+    </div>
+
+    <div class="content"></div>
+  </div>
+
+  <script>
+    const app = document.getElementById("app");
+    const drawer = document.getElementById("drawer");
+    const overlay = document.getElementById("overlay");
+    const menuBtn = document.getElementById("menuBtn");
+
+    function toggleDrawer() {
+      const isOpen = drawer.classList.contains("open");
+      drawer.classList.toggle("open", !isOpen);
+      app.classList.toggle("shifted", !isOpen);
+      overlay.classList.toggle("show", !isOpen);
+    }
+
+    menuBtn.addEventListener("click", toggleDrawer);
+    overlay.addEventListener("click", toggleDrawer);
+  </script>
+</body>
+</html>
