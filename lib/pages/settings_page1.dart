@@ -225,8 +225,7 @@ class _SettingsPageState extends State<SettingsPage>
           }
         },
       ),
-      // Altura reduzida — conteúdo fixo, não precisa de mais
-      maxHeightFactor: 0.46,
+      maxHeightFactor: 0.55,
     );
   }
 
@@ -423,19 +422,15 @@ class _SettingsPageState extends State<SettingsPage>
     );
   }
 
-  // ── Modal de wallpaper ────────────────────────────────────────────────────
-  // Altura adapta-se: menor quando switch off, maior quando on para acomodar
-  // as imagens. Imagens carregadas com cacheWidth para evitar jank.
   void _pickWallpaper() {
     _openIosSheet(
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx2, setLocal) {
             final t = AppTheme.current;
-            final useWp = _ts.useWallpaper;
 
             return Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: MainAxisSize.max,
               children: [
                 const SizedBox(height: 10),
                 Center(
@@ -458,7 +453,6 @@ class _SettingsPageState extends State<SettingsPage>
                   ),
                 ),
                 const SizedBox(height: 8),
-                // Linha do switch
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Row(
@@ -487,7 +481,7 @@ class _SettingsPageState extends State<SettingsPage>
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              useWp
+                              _ts.useWallpaper
                                   ? 'Imagem ativa'
                                   : (_ts.isDark
                                       ? 'Fundo escuro sólido'
@@ -501,7 +495,7 @@ class _SettingsPageState extends State<SettingsPage>
                         ),
                       ),
                       _MiniSwitch(
-                        value: useWp,
+                        value: _ts.useWallpaper,
                         onChanged: (v) async {
                           await _ts.setUseWallpaper(v);
                           setLocal(() {});
@@ -511,16 +505,13 @@ class _SettingsPageState extends State<SettingsPage>
                     ],
                   ),
                 ),
-                // Grade de wallpapers — só aparece quando switch on
-                if (useWp) ...[
-                  const SizedBox(height: 14),
+                if (_ts.useWallpaper) ...[
+                  const SizedBox(height: 12),
                   SizedBox(
-                    height: 168,
+                    height: 160,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      // Desativa physics pesadas; BouncingScrollPhysics é leve
-                      physics: const BouncingScrollPhysics(),
                       itemCount: ThemeService.wallpapers.length,
                       itemBuilder: (_, i) {
                         final wp = ThemeService.wallpapers[i];
@@ -535,14 +526,12 @@ class _SettingsPageState extends State<SettingsPage>
                           },
                           child: Container(
                             width: 90,
-                            height: 168,
+                            height: 160,
                             margin: const EdgeInsets.only(right: 10),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: sel
-                                    ? AppTheme.ytRed
-                                    : Colors.transparent,
+                                color: sel ? AppTheme.ytRed : Colors.transparent,
                                 width: 2,
                               ),
                             ),
@@ -551,18 +540,6 @@ class _SettingsPageState extends State<SettingsPage>
                               child: Image.asset(
                                 wp,
                                 fit: BoxFit.cover,
-                                // Decodifica a imagem num tamanho reduzido →
-                                // evita alocar memória desnecessária e
-                                // desbloqueia o rasterizador mais depressa.
-                                cacheWidth: 180,
-                                filterQuality: FilterQuality.low,
-                                frameBuilder: (ctx, child, frame, wasSynced) {
-                                  if (wasSynced || frame != null) return child;
-                                  return const SizedBox(
-                                    width: 90,
-                                    height: 168,
-                                  );
-                                },
                                 errorBuilder: (_, __, ___) => Container(
                                   color: t.thumbBg,
                                 ),
@@ -580,9 +557,7 @@ class _SettingsPageState extends State<SettingsPage>
           },
         );
       },
-      // Altura base quando switch off; sobe com animação quando ligado
-      // mas o conteúdo usa mainAxisSize.min por isso não corta nada.
-      maxHeightFactor: _ts.useWallpaper ? 0.60 : 0.40,
+      maxHeightFactor: 0.62,
     );
   }
 
@@ -1006,9 +981,6 @@ class _SettingsPageState extends State<SettingsPage>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _IosSheetShell
-// ─────────────────────────────────────────────────────────────────────────────
 class _IosSheetShell extends StatelessWidget {
   final Widget child;
   final double maxHeightFactor;
@@ -1048,9 +1020,6 @@ class _IosSheetShell extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _IconPickerSheet
-// ─────────────────────────────────────────────────────────────────────────────
 class _IconPickerSheet extends StatefulWidget {
   final AppIconVariant current;
   final ValueChanged<AppIconVariant> onChanged;
@@ -1079,7 +1048,7 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
     final bottom = MediaQuery.of(context).padding.bottom;
 
     return Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: MainAxisSize.max,
       children: [
         const SizedBox(height: 10),
         Center(
@@ -1092,7 +1061,7 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
             ),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
@@ -1123,13 +1092,13 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 4),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
           child: Text(
             'O app irá fechar e reabrir ao alterar o ícone. É o comportamento normal do Android.',
             style: TextStyle(color: t.textSecondary, fontSize: 12),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -1154,8 +1123,7 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                      color:
-                          isSelected ? AppTheme.ytRed : Colors.transparent,
+                      color: isSelected ? AppTheme.ytRed : Colors.transparent,
                       width: 2,
                     ),
                   ),
@@ -1168,9 +1136,6 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
                           width: 64,
                           height: 64,
                           fit: BoxFit.cover,
-                          // Cache reduzido para ícones pequenos
-                          cacheWidth: 128,
-                          filterQuality: FilterQuality.medium,
                           errorBuilder: (_, __, ___) => Container(
                             width: 64,
                             height: 64,
@@ -1211,15 +1176,12 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
             }).toList(),
           ),
         ),
-        SizedBox(height: 20 + bottom),
+        SizedBox(height: 24 + bottom),
       ],
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _ThemeModal
-// ─────────────────────────────────────────────────────────────────────────────
 class _ThemeModal extends StatefulWidget {
   final ThemeMode initialMode;
   final ValueChanged<ThemeMode> onChanged;
@@ -1254,7 +1216,7 @@ class _ThemeModalState extends State<_ThemeModal> {
     final bottom = MediaQuery.of(context).padding.bottom;
 
     return Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: MainAxisSize.max,
       children: [
         const SizedBox(height: 10),
         Center(
@@ -1326,9 +1288,6 @@ class _ThemeModalState extends State<_ThemeModal> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _ThemeOption
-// ─────────────────────────────────────────────────────────────────────────────
 class _ThemeOption extends StatelessWidget {
   final String svgAsset, label, sub;
   final bool selected;
@@ -1413,9 +1372,6 @@ class _ThemeOption extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _TapRowWithIconPreview
-// ─────────────────────────────────────────────────────────────────────────────
 class _TapRowWithIconPreview extends StatelessWidget {
   final String iconAsset;
   final String label, sub;
@@ -1447,7 +1403,6 @@ class _TapRowWithIconPreview extends StatelessWidget {
                 width: 20,
                 height: 20,
                 fit: BoxFit.cover,
-                cacheWidth: 40,
                 errorBuilder: (_, __, ___) => Container(
                   width: 20,
                   height: 20,
@@ -1496,9 +1451,6 @@ class _TapRowWithIconPreview extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _TapRow
-// ─────────────────────────────────────────────────────────────────────────────
 class _TapRow extends StatelessWidget {
   final String? svgAsset;
   final String? lucideSvg;
@@ -1568,9 +1520,6 @@ class _TapRow extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _SwitchRow
-// ─────────────────────────────────────────────────────────────────────────────
 class _SwitchRow extends StatelessWidget {
   final String? svgAsset;
   final String? lucideSvg;
@@ -1628,9 +1577,6 @@ class _SwitchRow extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _MiniSwitch
-// ─────────────────────────────────────────────────────────────────────────────
 class _MiniSwitch extends StatefulWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -1749,9 +1695,6 @@ class _MiniSwitchState extends State<_MiniSwitch>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _SvgIcon
-// ─────────────────────────────────────────────────────────────────────────────
 class _SvgIcon extends StatelessWidget {
   final String? assetPath;
   final String? lucideSvg;
