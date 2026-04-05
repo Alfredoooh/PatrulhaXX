@@ -1,80 +1,62 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
 import '../theme/app_theme.dart';
 
 class CreatePostPage extends StatefulWidget {
   const CreatePostPage({super.key});
-
   @override
   State<CreatePostPage> createState() => _CreatePostPageState();
 }
 
 class _CreatePostPageState extends State<CreatePostPage> {
-  File? _mediaFile;
-  bool  _isVideo = false;
-  bool  _showDesc = false;
+  final _textCtrl  = TextEditingController();
+  final _textFocus = FocusNode();
+  final _picker    = ImagePicker();
 
-  final _descController = TextEditingController();
-  final _descFocus      = FocusNode();
+  final List<_MediaItem> _media = [];
 
-  // rich text formatting state
-  bool _bold      = false;
-  bool _italic    = false;
-  bool _underline = false;
-  bool _strike    = false;
-
-  final _picker = ImagePicker();
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _textFocus.requestFocus());
+  }
 
   @override
   void dispose() {
-    _descController.dispose();
-    _descFocus.dispose();
+    _textCtrl.dispose();
+    _textFocus.dispose();
+    for (final m in _media) m.videoCtrl?.dispose();
     super.dispose();
   }
 
   Future<void> _pickMedia() async {
-    // bottom sheet para escolher imagem ou vídeo
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _PickerSheet(),
-    );
-    if (choice == null) return;
-
-    XFile? picked;
-    if (choice == 'image') {
-      picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
-    } else {
-      picked = await _picker.pickVideo(source: ImageSource.gallery);
-    }
+    final picked = await _picker.pickMedia();
     if (picked == null) return;
-    setState(() {
-      _mediaFile = File(picked!.path);
-      _isVideo   = choice == 'video';
-    });
-  }
+    final file    = File(picked.path);
+    final isVideo = picked.mimeType?.startsWith('video') == true ||
+        picked.path.endsWith('.mp4') ||
+        picked.path.endsWith('.mov') ||
+        picked.path.endsWith('.avi');
 
-  void _toggleDesc() {
-    setState(() => _showDesc = !_showDesc);
-    if (_showDesc) {
-      Future.delayed(const Duration(milliseconds: 80), () {
-        if (mounted) _descFocus.requestFocus();
-      });
+    VideoPlayerController? ctrl;
+    if (isVideo) {
+      ctrl = VideoPlayerController.file(file);
+      await ctrl.initialize();
+      ctrl.setLooping(true);
     }
-  }
 
-  void _post() {
-    // TODO: implementar lógica de publicação
-    Navigator.pop(context);
+    setState(() => _media.add(_MediaItem(file: file, isVideo: isVideo, videoCtrl: ctrl)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final t          = AppTheme.current;
     final safeTop    = MediaQuery.of(context).padding.top;
     final safeBottom = MediaQuery.of(context).padding.bottom;
+    final t          = AppTheme.current;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -86,215 +68,163 @@ class _CreatePostPageState extends State<CreatePostPage> {
         resizeToAvoidBottomInset: true,
         body: Column(
           children: [
+
             // ── top bar ───────────────────────────────────────────────────
-            SizedBox(
-              height: safeTop + 52,
-              child: Padding(
-                padding: EdgeInsets.only(top: safeTop, left: 8, right: 8),
-                child: Row(
-                  children: [
-                    _IconBtn(
-                      icon: Icons.close,
-                      color: t.icon,
-                      onTap: () => Navigator.pop(context),
-                    ),
-                    const Spacer(),
-                    _IconBtn(
-                      icon: Icons.access_time_rounded,
-                      color: t.icon,
-                      onTap: () {},
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // ── media area ────────────────────────────────────────────────
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, safeTop + 8, 16, 8),
+              child: Row(
                 children: [
-                  // fundo preto
-                  Container(color: Colors.black),
-
-                  // placeholder upload
-                  if (_mediaFile == null)
-                    Center(
-                      child: GestureDetector(
-                        onTap: _pickMedia,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.upload_rounded,
-                                size: 48, color: Colors.grey.shade600),
-                            const SizedBox(height: 10),
-                            Text('Carregar ficheiro',
-                                style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500)),
-                          ],
-                        ),
-                      ),
+                  // X
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    behavior: HitTestBehavior.opaque,
+                    child: const Icon(Icons.close, size: 22),
+                  ),
+                  const Spacer(),
+                  // Rascunho
+                  Text('Rascunho',
+                      style: TextStyle(
+                        color: t.blue ?? const Color(0xFF1D9BF0),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      )),
+                  const SizedBox(width: 12),
+                  // Publicar
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: t.blue ?? const Color(0xFF1D9BF0),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                      textStyle: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700),
                     ),
-
-                  // preview media — edge-to-edge
-                  if (_mediaFile != null && !_isVideo)
-                    Positioned.fill(
-                      child: Image.file(
-                        _mediaFile!,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-
-                  if (_mediaFile != null && _isVideo)
-                    Positioned.fill(
-                      child: _VideoPreview(file: _mediaFile!),
-                    ),
-
-                  // FABs — direita, centro vertical
-                  if (_mediaFile != null)
-                    Positioned(
-                      right: 12,
-                      top: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            _FabRow(
-                              label: 'Editar',
-                              child: const Icon(Icons.edit_rounded,
-                                  size: 20, color: Colors.white),
-                              onTap: () {},
-                            ),
-                            const SizedBox(height: 10),
-                            _FabRow(
-                              label: 'Descrição',
-                              child: const Text('Aa',
-                                  style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
-                                      letterSpacing: -1)),
-                              onTap: _toggleDesc,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    child: const Text('Publicar'),
+                  ),
                 ],
               ),
             ),
 
-            // ── description editor ────────────────────────────────────────
-            if (_showDesc)
-              Container(
-                decoration: BoxDecoration(
-                  color: t.bg,
-                  border: Border(
-                    top: BorderSide(color: t.divider, width: 0.6),
-                  ),
-                ),
+            // ── área de escrita ───────────────────────────────────────────
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // formatting toolbar
-                    Container(
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: t.bg,
-                        border: Border(
-                          bottom: BorderSide(color: t.divider, width: 0.6),
+
+                    // avatar + campo de texto
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // avatar placeholder
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: t.thumbBg,
+                          child: Icon(Icons.person_outline,
+                              size: 20, color: t.iconSub),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          const SizedBox(width: 8),
-                          _FmtBtn(
-                            label: 'B',
-                            bold: true,
-                            active: _bold,
-                            onTap: () => setState(() => _bold = !_bold),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _textCtrl,
+                            focusNode: _textFocus,
+                            maxLines: null,
+                            style: TextStyle(
+                                fontSize: 18, color: t.text),
+                            decoration: InputDecoration(
+                              hintText: 'O que está acontecendo?',
+                              hintStyle: TextStyle(
+                                  fontSize: 18,
+                                  color: t.textTertiary),
+                              border: InputBorder.none,
+                            ),
                           ),
-                          _FmtBtn(
-                            label: 'I',
-                            italic: true,
-                            active: _italic,
-                            onTap: () => setState(() => _italic = !_italic),
-                          ),
-                          _FmtBtn(
-                            label: 'U',
-                            underline: true,
-                            active: _underline,
-                            onTap: () => setState(() => _underline = !_underline),
-                          ),
-                          _FmtBtn(
-                            label: 'S',
-                            lineThrough: true,
-                            active: _strike,
-                            onTap: () => setState(() => _strike = !_strike),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    // text field
-                    TextField(
-                      controller: _descController,
-                      focusNode: _descFocus,
-                      maxLines: 4,
-                      minLines: 2,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: t.text,
-                        fontWeight: _bold ? FontWeight.bold : FontWeight.normal,
-                        fontStyle: _italic ? FontStyle.italic : FontStyle.normal,
-                        decoration: _underline && _strike
-                            ? TextDecoration.combine([
-                                TextDecoration.underline,
-                                TextDecoration.lineThrough
-                              ])
-                            : _underline
-                                ? TextDecoration.underline
-                                : _strike
-                                    ? TextDecoration.lineThrough
-                                    : TextDecoration.none,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Escreve uma descrição...',
-                        hintStyle: TextStyle(
-                            color: t.textTertiary, fontSize: 14),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
-                        border: InputBorder.none,
-                      ),
+
+                    // grid de media seleccionada
+                    if (_media.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _MediaGrid(media: _media),
+                    ],
+
+                    const SizedBox(height: 16),
+
+                    // "Qualquer pessoa pode responder"
+                    Row(
+                      children: [
+                        Icon(Icons.public,
+                            size: 16,
+                            color: t.blue ?? const Color(0xFF1D9BF0)),
+                        const SizedBox(width: 6),
+                        Text('Qualquer pessoa pode responder',
+                            style: TextStyle(
+                              color: t.blue ?? const Color(0xFF1D9BF0),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            )),
+                      ],
                     ),
                   ],
                 ),
               ),
+            ),
 
-            // ── post button ───────────────────────────────────────────────
-            Padding(
-              padding: EdgeInsets.fromLTRB(16, 10, 16, 16 + safeBottom),
-              child: SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton.icon(
-                  onPressed: _post,
-                  icon: const Icon(Icons.send_rounded, size: 18),
-                  label: const Text('Postar',
-                      style: TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w800)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: t.text,
-                    foregroundColor: t.bg,
-                    elevation: 0,
-                    shape: const StadiumBorder(),
+            // ── galeria rápida ────────────────────────────────────────────
+            _QuickGallery(onPick: _pickMedia),
+
+            // ── barra de acções em baixo ──────────────────────────────────
+            Container(
+              decoration: BoxDecoration(
+                color: t.bg,
+                border: Border(top: BorderSide(color: t.divider, width: 0.6)),
+              ),
+              padding: EdgeInsets.fromLTRB(8, 8, 8, 8 + safeBottom),
+              child: Row(
+                children: [
+                  _ActionBtn(icon: Icons.image_outlined,
+                      color: t.blue ?? const Color(0xFF1D9BF0),
+                      onTap: _pickMedia),
+                  _ActionBtn(icon: Icons.gif_box_outlined,
+                      color: t.blue ?? const Color(0xFF1D9BF0),
+                      onTap: () {}),
+                  _ActionBtn(icon: Icons.bar_chart_outlined,
+                      color: t.blue ?? const Color(0xFF1D9BF0),
+                      onTap: () {}),
+                  _ActionBtn(icon: Icons.location_on_outlined,
+                      color: t.blue ?? const Color(0xFF1D9BF0),
+                      onTap: () {}),
+                  const Spacer(),
+                  // círculo progresso (placeholder)
+                  SizedBox(
+                    width: 28, height: 28,
+                    child: CircularProgressIndicator(
+                      value: (_textCtrl.text.length / 280).clamp(0.0, 1.0),
+                      strokeWidth: 2.5,
+                      backgroundColor: t.divider,
+                      color: t.blue ?? const Color(0xFF1D9BF0),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  // botão +
+                  Container(
+                    width: 32, height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: t.blue ?? const Color(0xFF1D9BF0),
+                    ),
+                    child: const Icon(Icons.add,
+                        size: 18, color: Colors.white),
+                  ),
+                ],
               ),
             ),
+
           ],
         ),
       ),
@@ -303,40 +233,97 @@ class _CreatePostPageState extends State<CreatePostPage> {
 }
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _PickerSheet
-// ─────────────────────────────────────────────────────────────────────────────
-class _PickerSheet extends StatelessWidget {
+// ── item de media ─────────────────────────────────────────────────────────────
+class _MediaItem {
+  final File file;
+  final bool isVideo;
+  final VideoPlayerController? videoCtrl;
+  _MediaItem({required this.file, required this.isVideo, this.videoCtrl});
+}
+
+
+// ── grid de media seleccionada ────────────────────────────────────────────────
+class _MediaGrid extends StatelessWidget {
+  final List<_MediaItem> media;
+  const _MediaGrid({required this.media});
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: media.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
+        childAspectRatio: 1,
+      ),
+      itemBuilder: (_, i) {
+        final m = media[i];
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: m.isVideo
+              ? (m.videoCtrl != null
+                  ? FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width:  m.videoCtrl!.value.size.width,
+                        height: m.videoCtrl!.value.size.height,
+                        child: VideoPlayer(m.videoCtrl!),
+                      ),
+                    )
+                  : Container(color: Colors.black))
+              : Image.file(m.file, fit: BoxFit.cover),
+        );
+      },
+    );
+  }
+}
+
+
+// ── galeria rápida (thumbnails da galeria) ────────────────────────────────────
+class _QuickGallery extends StatelessWidget {
+  final VoidCallback onPick;
+  const _QuickGallery({required this.onPick});
+
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-    return Container(
-      decoration: BoxDecoration(
-        color: t.bg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    return SizedBox(
+      height: 90,
+      child: Row(
         children: [
-          Container(
-            width: 36, height: 4,
-            decoration: BoxDecoration(
-              color: t.divider,
-              borderRadius: BorderRadius.circular(2),
+          // botão câmara
+          GestureDetector(
+            onTap: onPick,
+            child: Container(
+              width: 80,
+              margin: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                border: Border.all(color: t.divider),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.camera_alt_outlined,
+                  size: 28,
+                  color: t.blue ?? const Color(0xFF1D9BF0)),
             ),
           ),
-          const SizedBox(height: 20),
-          _SheetOption(
-            icon: Icons.image_rounded,
-            label: 'Imagem',
-            onTap: () => Navigator.pop(context, 'image'),
-          ),
-          const SizedBox(height: 8),
-          _SheetOption(
-            icon: Icons.videocam_rounded,
-            label: 'Vídeo',
-            onTap: () => Navigator.pop(context, 'video'),
+          // espaço para thumbnails reais (requer photo_manager)
+          Expanded(
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              itemCount: 6,
+              itemBuilder: (_, i) => Container(
+                width: 78,
+                margin: const EdgeInsets.only(right: 4),
+                decoration: BoxDecoration(
+                  color: t.thumbBg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -344,153 +331,22 @@ class _PickerSheet extends StatelessWidget {
   }
 }
 
-class _SheetOption extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _SheetOption({required this.icon, required this.label, required this.onTap});
 
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    return ListTile(
-      onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      tileColor: t.thumbBg,
-      leading: Icon(icon, color: t.icon),
-      title: Text(label,
-          style: TextStyle(
-              color: t.text, fontSize: 14, fontWeight: FontWeight.w500)),
-    );
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _VideoPreview  (controller simples sem package extra)
-// ─────────────────────────────────────────────────────────────────────────────
-class _VideoPreview extends StatelessWidget {
-  final File file;
-  const _VideoPreview({required this.file});
-
-  @override
-  Widget build(BuildContext context) {
-    // Mostra o thumbnail do ficheiro; player completo requer video_player package
-    return Container(
-      color: Colors.black,
-      child: Center(
-        child: Icon(Icons.play_circle_fill_rounded,
-            size: 64, color: Colors.white.withOpacity(0.8)),
-      ),
-    );
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Widgets auxiliares
-// ─────────────────────────────────────────────────────────────────────────────
-class _IconBtn extends StatelessWidget {
+// ── botão de acção (barra de baixo) ──────────────────────────────────────────
+class _ActionBtn extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  const _IconBtn({required this.icon, required this.color, required this.onTap});
+  const _ActionBtn(
+      {required this.icon, required this.color, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 40, height: 44,
-        child: Center(child: Icon(icon, color: color, size: 22)),
-      ),
-    );
-  }
-}
-
-class _FabRow extends StatelessWidget {
-  final String label;
-  final Widget child;
-  final VoidCallback onTap;
-  const _FabRow({required this.label, required this.child, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  shadows: [Shadow(blurRadius: 6, color: Colors.black54)])),
-          const SizedBox(width: 8),
-          Container(
-            width: 46, height: 46,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.black.withOpacity(0.35),
-              border: Border.all(
-                  color: Colors.white.withOpacity(0.5), width: 1.5),
-            ),
-            child: Center(child: child),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FmtBtn extends StatelessWidget {
-  final String label;
-  final bool active;
-  final bool bold, italic, underline, lineThrough;
-  final VoidCallback onTap;
-
-  const _FmtBtn({
-    required this.label,
-    required this.active,
-    required this.onTap,
-    this.bold = false,
-    this.italic = false,
-    this.underline = false,
-    this.lineThrough = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 34, height: 34,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        decoration: BoxDecoration(
-          color: active ? const Color(0xFFE0E7FF) : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: active ? const Color(0xFF4338CA) : t.text,
-              fontWeight: bold ? FontWeight.w900 : FontWeight.w500,
-              fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-              decoration: underline
-                  ? TextDecoration.underline
-                  : lineThrough
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-              decorationColor: active ? const Color(0xFF4338CA) : t.text,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    behavior: HitTestBehavior.opaque,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: Icon(icon, color: color, size: 22),
+    ),
+  );
 }
