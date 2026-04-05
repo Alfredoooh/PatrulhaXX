@@ -15,6 +15,7 @@ import '../services/theme_service.dart';
 import 'explore_page.dart';
 import '../theme/app_theme.dart';
 import '../models/feed_photo_model.dart';
+import 'create_post_page.dart';
 
 const kPrimaryColor = Color(0xFFFF9000);
 
@@ -79,7 +80,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
 
-  // ── Drawer manual ─────────────────────────────────────────────────────────
   static const double _kDrawerWidth = 260;
   static const double _kAppShift    = 110;
   static const Duration _kAnimDur   = Duration(milliseconds: 420);
@@ -93,7 +93,6 @@ class _HomePageState extends State<HomePage>
   void _closeDrawer()  => setState(() => _drawerOpen = false);
   void _toggleDrawer() => setState(() => _drawerOpen = !_drawerOpen);
 
-  // ── Tabs ──────────────────────────────────────────────────────────────────
   int _tab = 0;
   late final AnimationController _fadeIn;
   late final AnimationController _tabAnim;
@@ -152,7 +151,6 @@ class _HomePageState extends State<HomePage>
     _tabAnim.forward(from: 0.0);
   }
 
-  // ── Progresso drag ────────────────────────────────────────────────────────
   double get _openProgress {
     if (_dragging) {
       final base = _drawerOpen ? 1.0 : 0.0;
@@ -216,7 +214,6 @@ class _HomePageState extends State<HomePage>
             onHorizontalDragEnd:    _onHorizontalDragEnd,
             child: Stack(
               children: [
-                // ── Conteúdo principal ─────────────────────────────────────
                 AnimatedPositioned(
                   duration: _dragging ? Duration.zero : _kAnimDur,
                   curve: _kAnimCurve,
@@ -233,18 +230,14 @@ class _HomePageState extends State<HomePage>
                             child: IndexedStack(
                               index: _tab,
                               children: [
-                                // 0 — Início
                                 _HomeTab(
                                   fadeIn: _fadeIn,
                                   onOpen: _openSite,
                                   onMenu: _toggleDrawer,
                                   onColorExtracted: _onColorExtracted,
                                 ),
-                                // 1 — Explorar
                                 ExplorePage(onVideoTap: (_) {}),
-                                // 2 — Pesquisa
                                 const SearchTabPage(),
-                                // 3 — Biblioteca
                                 const BibliotecaPage(),
                               ],
                             ),
@@ -261,7 +254,6 @@ class _HomePageState extends State<HomePage>
                   ),
                 ),
 
-                // ── Overlay escuro ─────────────────────────────────────────
                 if (progress > 0)
                   Positioned.fill(
                     child: IgnorePointer(
@@ -275,7 +267,6 @@ class _HomePageState extends State<HomePage>
                     ),
                   ),
 
-                // ── Drawer ─────────────────────────────────────────────────
                 AnimatedPositioned(
                   duration: _dragging ? Duration.zero : _kAnimDur,
                   curve: _kAnimCurve,
@@ -298,7 +289,7 @@ class _HomePageState extends State<HomePage>
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _BottomNav — fundo sólido + linha divisória fina, sem gradiente
+// _BottomNav
 // ─────────────────────────────────────────────────────────────────────────────
 class _BottomNav extends StatelessWidget {
   final int tab;
@@ -671,7 +662,7 @@ class _HomeTab extends StatelessWidget {
 }
 
 
-// ─── AppBar da home — só hamburger + "+" ─────────────────────────────────────
+// ─── AppBar da home ───────────────────────────────────────────────────────────
 class _HomeAppBar extends StatelessWidget {
   final VoidCallback onMenu;
   const _HomeAppBar({required this.onMenu});
@@ -699,8 +690,12 @@ class _HomeAppBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
+          // ── botão "+" abre CreatePostPage ─────────────────────────────
           GestureDetector(
-            onTap: () {},
+            onTap: () => Navigator.push(
+              context,
+              iosRoute(const CreatePostPage()),
+            ),
             behavior: HitTestBehavior.opaque,
             child: SizedBox(
               width: 38, height: 44,

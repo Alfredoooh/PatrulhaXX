@@ -32,6 +32,7 @@ dependencies:
   chewie: ^1.8.1                     # MIT
   cached_network_image: ^3.3.1       # MIT
   palette_generator: 0.3.3+3         # BSD 3-Clause
+  image_picker: any
 
   # ── Rede & Dados ─────────────────────────────────────────────────────────
   http: ^1.2.2                       # BSD 3-Clause

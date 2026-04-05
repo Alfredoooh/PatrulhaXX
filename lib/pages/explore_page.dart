@@ -1,31 +1,36 @@
 import 'dart:math';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import '../theme/app_theme.dart';
 import '../models/feed_video_model.dart';
-import 'search_page.dart';
-import 'home_page.dart' show iosRoute;
+import '../theme/app_theme.dart';
+import 'exibicao_page.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chips de filtro
 // ─────────────────────────────────────────────────────────────────────────────
 enum _ChipFilter {
-  todos, recentes, maisVistos, maisAntigos,
-  amador, milf, asiatica, latina, loira,
+  todos,
+  recentes,
+  maisVistos,
+  maisAntigos,
+  amador,
+  milf,
+  asiatica,
+  latina,
+  loira,
 }
 
 const _kChipLabels = <_ChipFilter, String>{
-  _ChipFilter.todos:       'Todos',
-  _ChipFilter.recentes:    'Recentes',
-  _ChipFilter.maisVistos:  'Mais vistos',
+  _ChipFilter.todos: 'Todos',
+  _ChipFilter.recentes: 'Recentes',
+  _ChipFilter.maisVistos: 'Mais vistos',
   _ChipFilter.maisAntigos: 'Mais antigos',
-  _ChipFilter.amador:      'Amador',
-  _ChipFilter.milf:        'MILF',
-  _ChipFilter.asiatica:    'Asiática',
-  _ChipFilter.latina:      'Latina',
-  _ChipFilter.loira:       'Loira',
+  _ChipFilter.amador: 'Amador',
+  _ChipFilter.milf: 'MILF',
+  _ChipFilter.asiatica: 'Asiática',
+  _ChipFilter.latina: 'Latina',
+  _ChipFilter.loira: 'Loira',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -33,6 +38,7 @@ const _kChipLabels = <_ChipFilter, String>{
 // ─────────────────────────────────────────────────────────────────────────────
 class ExplorePage extends StatefulWidget {
   final void Function(FeedVideo) onVideoTap;
+
   const ExplorePage({super.key, required this.onVideoTap});
 
   @override
@@ -45,39 +51,36 @@ class _ExplorePageState extends State<ExplorePage>
   bool get wantKeepAlive => true;
 
   final List<FeedVideo> _videos = [];
+  final ScrollController _scroll = ScrollController();
+
   bool _loading = true;
   bool _error = false;
   bool _fetching = false;
   bool _refreshing = false;
   int _page = 1;
   _ChipFilter _chip = _ChipFilter.todos;
-  final ScrollController _scroll = ScrollController();
-  late final PageController _pageController;
-  bool _pageAnimating = false;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(
-      initialPage: _ChipFilter.values.indexOf(_chip),
-    );
+    _scroll.addListener(_onScroll);
     _fetch();
   }
 
   @override
   void dispose() {
+    _scroll.removeListener(_onScroll);
     _scroll.dispose();
-    _pageController.dispose();
     super.dispose();
   }
 
   void _onScroll() {
+    if (!_scroll.hasClients) return;
     if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 700) {
       _fetchMore();
     }
   }
 
-  // ── Filtro dinâmico por chip ──────────────────────────────────────────────
   List<FeedVideo> _filteredFor(_ChipFilter chip) {
     switch (chip) {
       case _ChipFilter.todos:
@@ -119,15 +122,23 @@ class _ExplorePageState extends State<ExplorePage>
     return 0;
   }
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
   Future<void> _fetch() async {
     if (!mounted) return;
-    setState(() { _loading = true; _error = false; _page = 1; });
+    setState(() {
+      _loading = true;
+      _error = false;
+      _page = 1;
+    });
+
     try {
       final videos = await FeedFetcher.fetchAll(_page);
       if (!mounted) return;
+
       if (videos.isEmpty) {
-        setState(() { _loading = false; _error = true; });
+        setState(() {
+          _loading = false;
+          _error = true;
+        });
       } else {
         _videos
           ..clear()
@@ -136,19 +147,26 @@ class _ExplorePageState extends State<ExplorePage>
         setState(() => _loading = false);
       }
     } catch (_) {
-      if (mounted) setState(() { _loading = false; _error = true; });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = true;
+        });
+      }
     }
   }
 
   Future<void> _refresh() async {
     if (_refreshing) return;
     setState(() => _refreshing = true);
+
     try {
-      // Página aleatória para garantir vídeos diferentes
       final rng = Random(DateTime.now().millisecondsSinceEpoch);
       final randomPage = rng.nextInt(20) + 1;
       final videos = await FeedFetcher.fetchAll(randomPage);
+
       if (!mounted) return;
+
       if (videos.isNotEmpty) {
         _videos
           ..clear()
@@ -156,15 +174,21 @@ class _ExplorePageState extends State<ExplorePage>
         _page = randomPage + 1;
       }
     } catch (_) {}
+
     if (mounted) setState(() => _refreshing = false);
   }
 
   Future<void> _fetchMore() async {
     if (_fetching || _loading || _refreshing) return;
+
     setState(() => _fetching = true);
     try {
       final videos = await FeedFetcher.fetchAll(_page);
-      if (!mounted) { _fetching = false; return; }
+      if (!mounted) {
+        _fetching = false;
+        return;
+      }
+
       if (videos.isNotEmpty) {
         setState(() {
           _videos.addAll(videos);
@@ -172,10 +196,59 @@ class _ExplorePageState extends State<ExplorePage>
         });
       }
     } catch (_) {}
+
     if (mounted) setState(() => _fetching = false);
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
+  void _openVideo(FeedVideo video) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 420),
+        reverseTransitionDuration: const Duration(milliseconds: 280),
+        pageBuilder: (_, __, ___) {
+          return ExibicaoPage(
+            embedUrl: video.embedUrl,
+            currentVideo: video,
+            onVideoTap: widget.onVideoTap,
+            isActive: true,
+          );
+        },
+        transitionsBuilder: (_, animation, secondaryAnimation, child) {
+          final enter = Tween<Offset>(
+            begin: const Offset(0, 1.0),
+            end: Offset.zero,
+          ).animate(
+            CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            ),
+          );
+
+          final exit = Tween<Offset>(
+            begin: Offset.zero,
+            end: const Offset(0, -0.03),
+          ).animate(
+            CurvedAnimation(
+              parent: secondaryAnimation,
+              curve: Curves.easeOutCubic,
+            ),
+          );
+
+          return SlideTransition(
+            position: exit,
+            child: SlideTransition(
+              position: enter,
+              child: FadeTransition(
+                opacity: animation,
+                child: child,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -190,67 +263,47 @@ class _ExplorePageState extends State<ExplorePage>
       ),
       child: Container(
         color: t.bg,
-        child: Stack(children: [
-          // ── Conteúdo scrollável ────────────────────────────────────────
-          Column(children: [
-            SizedBox(height: topPad + 96),
-            Expanded(
-              child: _DotsRefreshWrapper(
-                isDark: isDark,
-                refreshing: _refreshing,
-                onRefresh: _refresh,
-                child: _loading
-                    ? _buildSkeletons()
-                    : _error
-                        ? _buildError()
-                        : PageView.builder(
-                            controller: _pageController,
-                            physics: const BouncingScrollPhysics(),
-                            itemCount: _ChipFilter.values.length,
-                            onPageChanged: (i) {
-                              if (!_pageAnimating) {
-                                setState(() => _chip = _ChipFilter.values[i]);
-                              }
-                            },
-                            itemBuilder: (_, i) => _buildGrid(
-                              _ChipFilter.values[i],
-                            ),
-                          ),
-              ),
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                SizedBox(height: topPad + 96),
+                Expanded(
+                  child: _DotsRefreshWrapper(
+                    isDark: isDark,
+                    refreshing: _refreshing,
+                    onRefresh: _refresh,
+                    child: _loading
+                        ? _buildSkeletons()
+                        : _error
+                            ? _buildError()
+                            : _buildList(),
+                  ),
+                ),
+              ],
             ),
-          ]),
-
-          // ── Loader de fetch-more no centro inferior ────────────────────
-          if (_fetching && !_loading && !_refreshing)
+            if (_fetching && !_loading && !_refreshing)
+              Positioned(
+                bottom: 20,
+                left: 0,
+                right: 0,
+                child: Center(child: _DotsLoader(isDark: isDark)),
+              ),
             Positioned(
-              bottom: 20,
+              top: 0,
               left: 0,
               right: 0,
-              child: Center(child: _DotsLoader(isDark: isDark)),
+              child: _ExploreAppBar(
+                topPad: topPad,
+                selectedChip: _chip,
+                isDark: isDark,
+                onChipChanged: (c) {
+                  setState(() => _chip = c);
+                },
+              ),
             ),
-
-          // ── AppBar sobreposto ──────────────────────────────────────────
-          Positioned(
-            top: 0, left: 0, right: 0,
-            child: _ExploreAppBar(
-              topPad: topPad,
-              selectedChip: _chip,
-              isDark: isDark,
-              onChipChanged: (c) {
-                setState(() => _chip = c);
-                final idx = _ChipFilter.values.indexOf(c);
-                _pageAnimating = true;
-                _pageController.animateToPage(
-                  idx,
-                  duration: const Duration(milliseconds: 320),
-                  curve: Curves.easeOutCubic,
-                ).then((_) => _pageAnimating = false);
-              },
-              onSearchTap: () => Navigator.push(
-                  context, iosRoute(const SearchPage())),
-            ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
@@ -258,92 +311,86 @@ class _ExplorePageState extends State<ExplorePage>
   Widget _buildError() {
     final t = AppTheme.current;
     return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.wifi_off_rounded, color: t.iconSub, size: 40),
-        const SizedBox(height: 12),
-        Text('Sem ligação à internet',
-            style: TextStyle(color: t.textSecondary, fontSize: 13)),
-        const SizedBox(height: 16),
-        GestureDetector(
-          onTap: _fetch,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppTheme.ytRed,
-              borderRadius: BorderRadius.circular(100),
-            ),
-            child: const Text('Tentar novamente',
-                style: TextStyle(
-                    color: Colors.white, fontSize: 13,
-                    fontWeight: FontWeight.w600)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.wifi_off_rounded, color: t.iconSub, size: 40),
+          const SizedBox(height: 12),
+          Text(
+            'Sem ligação à internet',
+            style: TextStyle(color: t.textSecondary, fontSize: 13),
           ),
-        ),
-      ]),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: _fetch,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppTheme.ytRed,
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: const Text(
+                'Tentar novamente',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildSkeletons() {
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 3,
-        crossAxisSpacing: 3,
-        childAspectRatio: 16 / 11, // proporcional ao tamanho real dos cards
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
-      itemCount: 12,
-      itemBuilder: (_, i) => const _GridSkeleton(),
-    );
-  }
-
-  Widget _buildGrid([_ChipFilter? chipOverride]) {
-    final list = _filteredFor(chipOverride ?? _chip);
-    if (list.isEmpty) {
-      final t = AppTheme.current;
-      return Center(
-        child: Text('Sem resultados',
-            style: TextStyle(color: t.textSecondary, fontSize: 13)),
-      );
-    }
-
-    return NotificationListener<ScrollNotification>(
-      onNotification: (n) {
-        if (n is ScrollUpdateNotification &&
-            n.metrics.pixels >= n.metrics.maxScrollExtent - 700) {
-          _fetchMore();
-        }
-        return false;
-      },
-      child: GridView.builder(
-      // Sem controller — scroll gerido por NotificationListener + PageView
+    return ListView.separated(
+      controller: _scroll,
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
       ),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 3,
-        crossAxisSpacing: 3,
-        childAspectRatio: 16 / 11,
+      padding: const EdgeInsets.fromLTRB(0, 6, 0, 32),
+      itemCount: 8,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (_, __) => const _VideoCardSkeleton(),
+    );
+  }
+
+  Widget _buildList() {
+    final list = _filteredFor(_chip);
+
+    if (list.isEmpty) {
+      final t = AppTheme.current;
+      return Center(
+        child: Text(
+          'Sem resultados',
+          style: TextStyle(color: t.textSecondary, fontSize: 13),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      controller: _scroll,
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
       ),
-      padding: const EdgeInsets.fromLTRB(3, 6, 3, 32),
+      padding: const EdgeInsets.fromLTRB(0, 6, 0, 32),
       itemCount: list.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
         return _VideoCard(
           key: ValueKey(list[i].embedUrl),
           video: list[i],
-          onTap: () => widget.onVideoTap(list[i]),
+          onTap: () => _openVideo(list[i]),
         );
       },
-    ),
     );
   }
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Wrapper pull-to-refresh com três pontos
-// Efeito elástico no topo: ao puxar para baixo no limite, mostra o loader
 // ─────────────────────────────────────────────────────────────────────────────
 class _DotsRefreshWrapper extends StatefulWidget {
   final Widget child;
@@ -373,7 +420,6 @@ class _DotsRefreshWrapperState extends State<_DotsRefreshWrapper> {
       onNotification: (n) {
         if (widget.refreshing) return false;
 
-        // Overscroll no topo (puxar para baixo quando já está no início)
         if (n is OverscrollNotification && n.overscroll < 0) {
           setState(() {
             _pull = (_pull + (-n.overscroll) * 0.5).clamp(0, _trigger * 1.4);
@@ -384,7 +430,12 @@ class _DotsRefreshWrapperState extends State<_DotsRefreshWrapper> {
           if (_pull >= _trigger && !_triggered && !widget.refreshing) {
             _triggered = true;
             widget.onRefresh().then((_) {
-              if (mounted) setState(() { _pull = 0; _triggered = false; });
+              if (mounted) {
+                setState(() {
+                  _pull = 0;
+                  _triggered = false;
+                });
+              }
             });
           } else if (!_triggered) {
             if (n is ScrollEndNotification) {
@@ -396,9 +447,10 @@ class _DotsRefreshWrapperState extends State<_DotsRefreshWrapper> {
       },
       child: Stack(
         children: [
-          // Zona vazia elástica no topo — loader de três pontos visível aqui
           Positioned(
-            top: 0, left: 0, right: 0,
+            top: 0,
+            left: 0,
+            right: 0,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
@@ -412,14 +464,11 @@ class _DotsRefreshWrapperState extends State<_DotsRefreshWrapper> {
               ),
             ),
           ),
-          // Conteúdo com padding animado que acompanha o pull
           AnimatedPadding(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
             padding: EdgeInsets.only(
-              top: widget.refreshing
-                  ? 44
-                  : (_pull * 0.4).clamp(0.0, 36.0),
+              top: widget.refreshing ? 44 : (_pull * 0.4).clamp(0.0, 36.0),
             ),
             child: widget.child,
           ),
@@ -428,7 +477,6 @@ class _DotsRefreshWrapperState extends State<_DotsRefreshWrapper> {
     );
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Loader três pontos com bounce sequencial
@@ -455,7 +503,10 @@ class _DotsLoaderState extends State<_DotsLoader>
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -493,7 +544,6 @@ class _DotsLoaderState extends State<_DotsLoader>
   }
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // AppBar do Explorar
 // ─────────────────────────────────────────────────────────────────────────────
@@ -501,14 +551,12 @@ class _ExploreAppBar extends StatelessWidget {
   final double topPad;
   final _ChipFilter selectedChip;
   final void Function(_ChipFilter) onChipChanged;
-  final VoidCallback onSearchTap;
   final bool isDark;
 
   const _ExploreAppBar({
     required this.topPad,
     required this.selectedChip,
     required this.onChipChanged,
-    required this.onSearchTap,
     required this.isDark,
   });
 
@@ -524,197 +572,269 @@ class _ExploreAppBar extends StatelessWidget {
           bottom: BorderSide(color: t.divider, width: 0.5),
         ),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(height: topPad),
-
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 8, 6),
-          child: Row(children: [
-            Text('Explorar',
-              style: TextStyle(
-                color: t.text, fontSize: 22,
-                fontWeight: FontWeight.w800, letterSpacing: -0.5,
-              )),
-            const Spacer(),
-            GestureDetector(
-              onTap: onSearchTap,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                // Ícone SVG de search em vez de Material icon
-                child: SvgPicture.asset(
-                  'assets/icons/svg/search.svg',
-                  width: 22, height: 22,
-                  colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: topPad),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 8, 6),
+            child: Row(
+              children: [
+                Text(
+                  'Explorar',
+                  style: TextStyle(
+                    color: t.text,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
                 ),
-              ),
+              ],
             ),
-          ]),
-        ),
+          ),
+          SizedBox(
+            height: 36,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              itemCount: _ChipFilter.values.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 2),
+              itemBuilder: (ctx, i) {
+                final chip = _ChipFilter.values[i];
+                final selected = selectedChip == chip;
+                final label = _kChipLabels[chip]!;
 
-        // Chips com indicador rounded e animação suave
-        SizedBox(
-          height: 36,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            itemCount: _ChipFilter.values.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 2),
-            itemBuilder: (ctx, i) {
-              final chip = _ChipFilter.values[i];
-              final selected = selectedChip == chip;
-              final label = _kChipLabels[chip]!;
-
-              return GestureDetector(
-                onTap: () => onChipChanged(chip),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOutCubic,
-                        style: TextStyle(
-                          color: selected ? t.text : t.textSecondary,
-                          fontSize: 13,
-                          fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                        ),
-                        child: Text(label),
-                      ),
-                      Positioned(
-                        bottom: -6,
-                        left: 0,
-                        right: 0,
-                        child: AnimatedContainer(
+                return GestureDetector(
+                  onTap: () => onChipChanged(chip),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        AnimatedDefaultTextStyle(
                           duration: const Duration(milliseconds: 220),
                           curve: Curves.easeOutCubic,
-                          height: 2.5,
-                          decoration: BoxDecoration(
-                            color: selected ? indicatorColor : Colors.transparent,
-                            borderRadius: BorderRadius.circular(100),
+                          style: TextStyle(
+                            color: selected ? t.text : t.textSecondary,
+                            fontSize: 13,
+                            fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                          ),
+                          child: Text(label),
+                        ),
+                        Positioned(
+                          bottom: -6,
+                          left: 0,
+                          right: 0,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            height: 2.5,
+                            decoration: BoxDecoration(
+                              color: selected ? indicatorColor : Colors.transparent,
+                              borderRadius: BorderRadius.circular(100),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-
-        const SizedBox(height: 4),
-      ]),
-    );
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Card de vídeo — sem favicon, com cached_network_image
-// ─────────────────────────────────────────────────────────────────────────────
-class _VideoCard extends StatelessWidget {
-  final FeedVideo video;
-  final VoidCallback onTap;
-
-  const _VideoCard({super.key, required this.video, required this.onTap});
-
-  static const _ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
-      'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
-
-  Map<String, String> get _headers => {
-    'User-Agent': _ua,
-    'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-    'Referer': _referer,
-  };
-
-  String get _referer {
-    switch (video.source) {
-      case VideoSource.eporner:   return 'https://www.eporner.com/';
-      case VideoSource.pornhub:   return 'https://www.pornhub.com/';
-      case VideoSource.redtube:   return 'https://www.redtube.com/';
-      case VideoSource.youporn:   return 'https://www.youporn.com/';
-      case VideoSource.xvideos:   return 'https://www.xvideos.com/';
-      case VideoSource.xhamster:  return 'https://xhamster.com/';
-      case VideoSource.spankbang: return 'https://spankbang.com/';
-      case VideoSource.bravotube: return 'https://www.bravotube.net/';
-      case VideoSource.drtuber:   return 'https://www.drtuber.com/';
-      case VideoSource.txxx:      return 'https://www.txxx.com/';
-      case VideoSource.gotporn:   return 'https://www.gotporn.com/';
-      case VideoSource.porndig:   return 'https://www.porndig.com/';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(5),
-        child: Stack(fit: StackFit.expand, children: [
-          // Thumbnail com cache persistente
-          Positioned.fill(child: _ThumbImg(url: video.thumb, headers: _headers)),
-
-          // Overlay gradient com source label e duração
-          Positioned(
-            bottom: 0, left: 0, right: 0,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [Color(0xBB000000), Colors.transparent],
-                ),
-              ),
-              padding: const EdgeInsets.fromLTRB(5, 14, 5, 5),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Text(
-                      video.sourceLabel,
-                      style: const TextStyle(
-                        color: Color(0xAAFFFFFF), fontSize: 9,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      ],
                     ),
                   ),
-                  if (video.duration.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.black87,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Text(video.duration,
-                        style: const TextStyle(
-                          color: Colors.white, fontSize: 9.5,
-                          fontWeight: FontWeight.w600,
-                        )),
-                    ),
-                ],
-              ),
+                );
+              },
             ),
           ),
-        ]),
+          const SizedBox(height: 4),
+        ],
       ),
     );
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Card de vídeo — um por linha, estilo YouTube
+// ─────────────────────────────────────────────────────────────────────────────
+class _VideoCard extends StatelessWidget {
+  final FeedVideo video;
+  final VoidCallback onTap;
+
+  const _VideoCard({
+    super.key,
+    required this.video,
+    required this.onTap,
+  });
+
+  static const _ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
+      'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
+
+  Map<String, String> get _headers => {
+        'User-Agent': _ua,
+        'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        'Referer': _referer,
+      };
+
+  String get _referer {
+    switch (video.source) {
+      case VideoSource.eporner:
+        return 'https://www.eporner.com/';
+      case VideoSource.pornhub:
+        return 'https://www.pornhub.com/';
+      case VideoSource.redtube:
+        return 'https://www.redtube.com/';
+      case VideoSource.youporn:
+        return 'https://www.youporn.com/';
+      case VideoSource.xvideos:
+        return 'https://www.xvideos.com/';
+      case VideoSource.xhamster:
+        return 'https://xhamster.com/';
+      case VideoSource.spankbang:
+        return 'https://spankbang.com/';
+      case VideoSource.bravotube:
+        return 'https://www.bravotube.net/';
+      case VideoSource.drtuber:
+        return 'https://www.drtuber.com/';
+      case VideoSource.txxx:
+        return 'https://www.txxx.com/';
+      case VideoSource.gotporn:
+        return 'https://www.gotporn.com/';
+      case VideoSource.porndig:
+        return 'https://www.porndig.com/';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        color: t.bg,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Positioned.fill(
+                    child: _ThumbImg(url: video.thumb, headers: _headers),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      decoration: const BoxDecoration(
+                        color: Color(0xCC000000),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        video.duration,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ChannelAvatar(video: video),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          video.title.toUpperCase(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: t.text,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            height: 1.15,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          '${video.sourceLabel} · 42 mil visualizações · há 4 dias',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: t.textSecondary,
+                            fontSize: 13,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Icon(Icons.more_vert, size: 24, color: Colors.black),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChannelAvatar extends StatelessWidget {
+  final FeedVideo video;
+  const _ChannelAvatar({required this.video});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: t.thumbBg,
+        shape: BoxShape.circle,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: _ThumbImg(
+        url: video.thumb,
+        headers: const {},
+        fit: BoxFit.cover,
+      ),
+    );
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Thumbnail com cached_network_image — imagens persistem entre navegações
+// Thumbnail com cached_network_image
 // ─────────────────────────────────────────────────────────────────────────────
 class _ThumbImg extends StatelessWidget {
   final String url;
   final Map<String, String> headers;
-  const _ThumbImg({required this.url, required this.headers});
+  final BoxFit fit;
+
+  const _ThumbImg({
+    required this.url,
+    required this.headers,
+    this.fit = BoxFit.cover,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -725,26 +845,27 @@ class _ThumbImg extends StatelessWidget {
     return CachedNetworkImage(
       imageUrl: url,
       httpHeaders: headers,
-      fit: BoxFit.cover,
+      fit: fit,
       width: double.infinity,
       height: double.infinity,
-      // Shimmer enquanto carrega
       placeholder: (_, __) => const _Shimmer(),
-      // Fallback se falhar
       errorWidget: (_, __, ___) => _fallback(t),
-      // Fade-in suave ao carregar
       fadeInDuration: const Duration(milliseconds: 280),
       fadeOutDuration: const Duration(milliseconds: 120),
     );
   }
 
   Widget _fallback(AppTheme t) => Container(
-    color: t.thumbBg,
-    child: Center(child: Icon(
-        Icons.play_circle_outline_rounded, color: t.iconSub, size: 32)),
-  );
+        color: t.thumbBg,
+        child: Center(
+          child: Icon(
+            Icons.play_circle_outline_rounded,
+            color: t.iconSub,
+            size: 32,
+          ),
+        ),
+      );
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shimmer animado
@@ -765,42 +886,46 @@ class _ShimmerState extends State<_Shimmer>
   void initState() {
     super.initState();
     _c = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200))
-      ..repeat();
-    _a = Tween<double>(begin: -2, end: 2)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+    _a = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+    );
   }
 
   @override
-  void dispose() { _c.dispose(); super.dispose(); }
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _a,
-    builder: (_, __) => Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment(_a.value - 1, 0),
-          end: Alignment(_a.value + 1, 0),
-          colors: AppTheme.current.shimmer,
+        animation: _a,
+        builder: (_, __) => Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment(_a.value - 1, 0),
+              end: Alignment(_a.value + 1, 0),
+              colors: AppTheme.current.shimmer,
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Skeleton de carregamento — tamanho igual aos cards reais
+// Skeleton de carregamento
 // ─────────────────────────────────────────────────────────────────────────────
-class _GridSkeleton extends StatefulWidget {
-  const _GridSkeleton();
+class _VideoCardSkeleton extends StatefulWidget {
+  const _VideoCardSkeleton();
 
   @override
-  State<_GridSkeleton> createState() => _GridSkeletonState();
+  State<_VideoCardSkeleton> createState() => _VideoCardSkeletonState();
 }
 
-class _GridSkeletonState extends State<_GridSkeleton>
+class _VideoCardSkeletonState extends State<_VideoCardSkeleton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c;
   late final Animation<double> _a;
@@ -809,30 +934,119 @@ class _GridSkeletonState extends State<_GridSkeleton>
   void initState() {
     super.initState();
     _c = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200))
-      ..repeat();
-    _a = Tween<double>(begin: -2, end: 2)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+    _a = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+    );
   }
 
   @override
-  void dispose() { _c.dispose(); super.dispose(); }
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppTheme.current;
+
     return AnimatedBuilder(
       animation: _a,
-      builder: (_, __) => ClipRRect(
-        borderRadius: BorderRadius.circular(5),
-        child: Container(
-          // Sem altura fixa — expande para preencher o espaço do grid
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment(_a.value - 1, 0),
-              end: Alignment(_a.value + 1, 0),
-              colors: AppTheme.current.shimmer,
+      builder: (_, __) => Container(
+        color: t.bg,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment(_a.value - 1, 0),
+                    end: Alignment(_a.value + 1, 0),
+                    colors: AppTheme.current.shimmer,
+                  ),
+                ),
+              ),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment(_a.value - 1, 0),
+                        end: Alignment(_a.value + 1, 0),
+                        colors: AppTheme.current.shimmer,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 16,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment(_a.value - 1, 0),
+                              end: Alignment(_a.value + 1, 0),
+                              colors: AppTheme.current.shimmer,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          height: 16,
+                          width: 180,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment(_a.value - 1, 0),
+                              end: Alignment(_a.value + 1, 0),
+                              colors: AppTheme.current.shimmer,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          height: 12,
+                          width: 120,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment(_a.value - 1, 0),
+                              end: Alignment(_a.value + 1, 0),
+                              colors: AppTheme.current.shimmer,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment(_a.value - 1, 0),
+                        end: Alignment(_a.value + 1, 0),
+                        colors: AppTheme.current.shimmer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
