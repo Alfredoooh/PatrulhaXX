@@ -84,7 +84,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   // Rascunho
                   Text('Rascunho',
                       style: TextStyle(
-                        color: t.blue ?? const Color(0xFF1D9BF0),
+                        color: const Color(0xFF1D9BF0),
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       )),
@@ -93,7 +93,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: t.blue ?? const Color(0xFF1D9BF0),
+                      backgroundColor: const Color(0xFF1D9BF0),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: const StadiumBorder(),
@@ -160,11 +160,11 @@ class _CreatePostPageState extends State<CreatePostPage> {
                       children: [
                         Icon(Icons.public,
                             size: 16,
-                            color: t.blue ?? const Color(0xFF1D9BF0)),
+                            color: const Color(0xFF1D9BF0)),
                         const SizedBox(width: 6),
                         Text('Qualquer pessoa pode responder',
                             style: TextStyle(
-                              color: t.blue ?? const Color(0xFF1D9BF0),
+                              color: const Color(0xFF1D9BF0),
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                             )),
@@ -188,16 +188,16 @@ class _CreatePostPageState extends State<CreatePostPage> {
               child: Row(
                 children: [
                   _ActionBtn(icon: Icons.image_outlined,
-                      color: t.blue ?? const Color(0xFF1D9BF0),
+                      color: const Color(0xFF1D9BF0),
                       onTap: _pickMedia),
                   _ActionBtn(icon: Icons.gif_box_outlined,
-                      color: t.blue ?? const Color(0xFF1D9BF0),
+                      color: const Color(0xFF1D9BF0),
                       onTap: () {}),
                   _ActionBtn(icon: Icons.bar_chart_outlined,
-                      color: t.blue ?? const Color(0xFF1D9BF0),
+                      color: const Color(0xFF1D9BF0),
                       onTap: () {}),
                   _ActionBtn(icon: Icons.location_on_outlined,
-                      color: t.blue ?? const Color(0xFF1D9BF0),
+                      color: const Color(0xFF1D9BF0),
                       onTap: () {}),
                   const Spacer(),
                   // círculo progresso (placeholder)
@@ -207,7 +207,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                       value: (_textCtrl.text.length / 280).clamp(0.0, 1.0),
                       strokeWidth: 2.5,
                       backgroundColor: t.divider,
-                      color: t.blue ?? const Color(0xFF1D9BF0),
+                      color: const Color(0xFF1D9BF0),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -216,7 +216,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                     width: 32, height: 32,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: t.blue ?? const Color(0xFF1D9BF0),
+                      color: const Color(0xFF1D9BF0),
                     ),
                     child: const Icon(Icons.add,
                         size: 18, color: Colors.white),
@@ -306,7 +306,7 @@ class _QuickGallery extends StatelessWidget {
               ),
               child: Icon(Icons.camera_alt_outlined,
                   size: 28,
-                  color: t.blue ?? const Color(0xFF1D9BF0)),
+                  color: const Color(0xFF1D9BF0)),
             ),
           ),
           // espaço para thumbnails reais (requer photo_manager)
