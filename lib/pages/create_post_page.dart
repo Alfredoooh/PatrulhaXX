@@ -87,7 +87,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   const Spacer(),
                   Text('Rascunho',
                       style: TextStyle(
-                        color: t.link,
+                        color: AppTheme.link,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       )),
@@ -95,7 +95,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: t.link,
+                      backgroundColor: AppTheme.link,
                       foregroundColor: t.textOnAccent,
                       elevation: 0,
                       shape: const StadiumBorder(),
@@ -162,12 +162,12 @@ class _CreatePostPageState extends State<CreatePostPage> {
                         SvgPicture.asset(
                           'assets/icons/svg/globe.svg',
                           width: 16, height: 16,
-                          colorFilter: ColorFilter.mode(t.link, BlendMode.srcIn),
+                          colorFilter: ColorFilter.mode(AppTheme.link, BlendMode.srcIn),
                         ),
                         const SizedBox(width: 6),
                         Text('Qualquer pessoa pode responder',
                             style: TextStyle(
-                              color: t.link,
+                              color: AppTheme.link,
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                             )),
@@ -192,22 +192,22 @@ class _CreatePostPageState extends State<CreatePostPage> {
                 children: [
                   _SvgActionBtn(
                     asset: 'assets/icons/svg/image.svg',
-                    color: t.link,
+                    color: AppTheme.link,
                     onTap: _pickMedia,
                   ),
                   _SvgActionBtn(
                     asset: 'assets/icons/svg/file-text.svg',
-                    color: t.link,
+                    color: AppTheme.link,
                     onTap: () {},
                   ),
                   _SvgActionBtn(
                     asset: 'assets/icons/svg/bar-chart.svg',
-                    color: t.link,
+                    color: AppTheme.link,
                     onTap: () {},
                   ),
                   _SvgActionBtn(
                     asset: 'assets/icons/svg/map-pin.svg',
-                    color: t.link,
+                    color: AppTheme.link,
                     onTap: () {},
                   ),
                   const Spacer(),
@@ -217,22 +217,22 @@ class _CreatePostPageState extends State<CreatePostPage> {
                       value: (_textCtrl.text.length / 280).clamp(0.0, 1.0),
                       strokeWidth: 2.5,
                       backgroundColor: t.divider,
-                      color: t.link,
+                      color: AppTheme.link,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Container(
                     width: 32, height: 32,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: t.link,
+                      color: AppTheme.link,
                     ),
                     child: Center(
                       child: SvgPicture.asset(
                         'assets/icons/svg/plus.svg',
                         width: 18, height: 18,
                         colorFilter: ColorFilter.mode(
-                            t.textOnAccent, BlendMode.srcIn),
+                            Colors.white, BlendMode.srcIn),
                       ),
                     ),
                   ),
@@ -319,7 +319,7 @@ class _QuickGallery extends StatelessWidget {
                 child: SvgPicture.asset(
                   'assets/icons/svg/camera.svg',
                   width: 28, height: 28,
-                  colorFilter: ColorFilter.mode(t.link, BlendMode.srcIn),
+                  colorFilter: ColorFilter.mode(AppTheme.link, BlendMode.srcIn),
                 ),
               ),
             ),
