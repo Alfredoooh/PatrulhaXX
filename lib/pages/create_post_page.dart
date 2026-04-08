@@ -1,11 +1,115 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:photo_manager/photo_manager.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
 import '../theme/app_theme.dart';
 
+// ─── Configuração GitHub ──────────────────────────────────────────────────────
+const _kGhOwner  = 'Alfredoooh';
+const _kGhRepo   = 'data';
+const _kGhBranch = 'main';
+// Token injetado via --dart-define=GH_TOKEN=... para não ficar em plain-text
+// flutter run --dart-define=GH_TOKEN=ghp_...
+const _kGhToken  = String.fromEnvironment('GH_TOKEN');
+
+// ─── Estrutura de publicação ──────────────────────────────────────────────────
+class PostPayload {
+  final String id;
+  final String text;
+  final List<MediaPayload> media;
+  final String createdAt;
+  final String author;
+
+  PostPayload({
+    required this.id,
+    required this.text,
+    required this.media,
+    required this.createdAt,
+    required this.author,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'author': author,
+    'text': text,
+    'media': media.map((m) => m.toJson()).toList(),
+    'createdAt': createdAt,
+    'platform': 'android',
+  };
+}
+
+class MediaPayload {
+  final String type;   // 'image' | 'video'
+  final String url;
+  final String filename;
+  final int sizeBytes;
+
+  MediaPayload({
+    required this.type,
+    required this.url,
+    required this.filename,
+    required this.sizeBytes,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'type': type,
+    'url': url,
+    'filename': filename,
+    'sizeBytes': sizeBytes,
+  };
+}
+
+// ─── Upload GitHub ─────────────────────────────────────────────────────────────
+Future<String> _uploadToGitHub(File file, String filename) async {
+  final bytes   = await file.readAsBytes();
+  final content = base64Encode(bytes);
+  final path    = 'uploads/$filename';
+  final url     = Uri.parse(
+      'https://api.github.com/repos/$_kGhOwner/$_kGhRepo/contents/$path');
+
+  // verifica se já existe (para obter sha)
+  String? sha;
+  final getRes = await http.get(url, headers: {
+    'Authorization': 'token $_kGhToken',
+    'Accept': 'application/vnd.github+json',
+  });
+  if (getRes.statusCode == 200) {
+    sha = json.decode(getRes.body)['sha'] as String?;
+  }
+
+  final body = <String, dynamic>{
+    'message': 'upload: $filename',
+    'content': content,
+    'branch': _kGhBranch,
+  };
+  if (sha != null) body['sha'] = sha;
+
+  final putRes = await http.put(url,
+    headers: {
+      'Authorization': 'token $_kGhToken',
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+    },
+    body: json.encode(body),
+  );
+
+  if (putRes.statusCode != 200 && putRes.statusCode != 201) {
+    throw Exception('GitHub upload falhou: ${putRes.statusCode}');
+  }
+
+  final raw = json.decode(putRes.body);
+  return raw['content']['download_url'] as String;
+}
+
+// ─── Página principal ─────────────────────────────────────────────────────────
 class CreatePostPage extends StatefulWidget {
   const CreatePostPage({super.key});
   @override
@@ -17,6 +121,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
   final _textFocus = FocusNode();
   final _picker    = ImagePicker();
   final List<_MediaItem> _media = [];
+  bool _uploading = false;
 
   @override
   void initState() {
@@ -33,6 +138,19 @@ class _CreatePostPageState extends State<CreatePostPage> {
     super.dispose();
   }
 
+  // ── Câmera ──────────────────────────────────────────────────────────────────
+  Future<void> _openCamera() async {
+    final status = await Permission.camera.request();
+    if (!status.isGranted) {
+      _showSnack('Permissão de câmera negada');
+      return;
+    }
+    final picked = await _picker.pickImage(source: ImageSource.camera);
+    if (picked == null) return;
+    _addFile(File(picked.path), false);
+  }
+
+  // ── Galeria (picker nativo) ──────────────────────────────────────────────────
   Future<void> _pickMedia() async {
     final picked = await _picker.pickMedia();
     if (picked == null) return;
@@ -41,7 +159,10 @@ class _CreatePostPageState extends State<CreatePostPage> {
         picked.path.endsWith('.mp4') ||
         picked.path.endsWith('.mov') ||
         picked.path.endsWith('.avi');
+    _addFile(file, isVideo);
+  }
 
+  Future<void> _addFile(File file, bool isVideo) async {
     VideoPlayerController? ctrl;
     if (isVideo) {
       ctrl = VideoPlayerController.file(file);
@@ -49,6 +170,105 @@ class _CreatePostPageState extends State<CreatePostPage> {
       ctrl.setLooping(true);
     }
     setState(() => _media.add(_MediaItem(file: file, isVideo: isVideo, videoCtrl: ctrl)));
+  }
+
+  // ── Modal galeria (todos os assets) ─────────────────────────────────────────
+  Future<void> _openGalleryModal() async {
+    // pede permissão de media
+    PermissionStatus status;
+    if (Platform.isAndroid) {
+      final sdk = await _androidSdk();
+      if (sdk >= 33) {
+        final imgs = await Permission.photos.request();
+        final vids = await Permission.videos.request();
+        status = imgs.isGranted && vids.isGranted
+            ? PermissionStatus.granted
+            : PermissionStatus.denied;
+      } else {
+        status = await Permission.storage.request();
+      }
+    } else {
+      status = await Permission.photos.request();
+    }
+
+    if (status.isDenied || status.isPermanentlyDenied) {
+      _showSnack('Permissão de armazenamento negada');
+      if (status.isPermanentlyDenied) openAppSettings();
+      return;
+    }
+
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(), // bordas retas
+      builder: (_) => _GalleryModal(onSelect: (file, isVideo) {
+        Navigator.pop(context);
+        _addFile(file, isVideo);
+      }),
+    );
+  }
+
+  Future<int> _androidSdk() async {
+    try {
+      final v = await const MethodChannel('flutter/platform')
+          .invokeMethod<int>('getAndroidSdkInt');
+      return v ?? 30;
+    } catch (_) {
+      return 30;
+    }
+  }
+
+  // ── Publicar ────────────────────────────────────────────────────────────────
+  Future<void> _publish() async {
+    if (_textCtrl.text.trim().isEmpty && _media.isEmpty) return;
+    setState(() => _uploading = true);
+
+    try {
+      final mediaPayloads = <MediaPayload>[];
+      for (final m in _media) {
+        final ext      = p.extension(m.file.path);
+        final filename = '${DateTime.now().millisecondsSinceEpoch}_${mediaPayloads.length}$ext';
+        final url      = await _uploadToGitHub(m.file, filename);
+        mediaPayloads.add(MediaPayload(
+          type:      m.isVideo ? 'video' : 'image',
+          url:       url,
+          filename:  filename,
+          sizeBytes: await m.file.length(),
+        ));
+      }
+
+      final post = PostPayload(
+        id:        'post_${DateTime.now().millisecondsSinceEpoch}',
+        text:      _textCtrl.text.trim(),
+        media:     mediaPayloads,
+        createdAt: DateTime.now().toUtc().toIso8601String(),
+        author:    _kGhOwner,
+      );
+
+      // guarda JSON do post no GitHub
+      final jsonStr  = const JsonEncoder.withIndent('  ').convert(post.toJson());
+      final jsonFile = File('${Directory.systemTemp.path}/${post.id}.json');
+      await jsonFile.writeAsString(jsonStr);
+      await _uploadToGitHub(jsonFile, 'posts/${post.id}.json');
+      await jsonFile.delete();
+
+      if (mounted) {
+        _showSnack('Publicado com sucesso!');
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) _showSnack('Erro ao publicar: $e');
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
   }
 
   @override
@@ -62,184 +282,212 @@ class _CreatePostPageState extends State<CreatePostPage> {
       child: Scaffold(
         backgroundColor: t.bg,
         resizeToAvoidBottomInset: true,
-        body: Column(
+        body: Stack(
           children: [
+            Column(
+              children: [
 
-            // ── top bar ───────────────────────────────────────────────────
-            Padding(
-              padding: EdgeInsets.fromLTRB(16, safeTop + 8, 16, 8),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    behavior: HitTestBehavior.opaque,
-                    child: SizedBox(
-                      width: 40, height: 40,
-                      child: Center(
-                        child: SvgPicture.asset(
-                          'assets/icons/svg/close.svg',
-                          width: 22, height: 22,
-                          colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text('Rascunho',
-                      style: TextStyle(
-                        color: AppTheme.link,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      )),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.link,
-                      foregroundColor: t.textOnAccent,
-                      elevation: 0,
-                      shape: const StadiumBorder(),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
-                      textStyle: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w700),
-                    ),
-                    child: const Text('Publicar'),
-                  ),
-                ],
-              ),
-            ),
-
-            // ── área de escrita ───────────────────────────────────────────
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: t.avatarBg,
-                          child: SvgPicture.asset(
-                            'assets/icons/svg/user.svg',
-                            width: 20, height: 20,
-                            colorFilter: ColorFilter.mode(
-                                t.iconSub, BlendMode.srcIn),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: _textCtrl,
-                            focusNode: _textFocus,
-                            maxLines: null,
-                            style: TextStyle(fontSize: 18, color: t.text),
-                            decoration: InputDecoration(
-                              hintText: 'O que está acontecendo?',
-                              hintStyle: TextStyle(
-                                  fontSize: 18, color: t.textTertiary),
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
+                // ── Top bar ────────────────────────────────────────────────
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16, safeTop + 8, 16, 8),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        behavior: HitTestBehavior.opaque,
+                        child: SizedBox(
+                          width: 40, height: 40,
+                          child: Center(
+                            child: SvgPicture.asset(
+                              'assets/icons/svg/close.svg',
+                              width: 22, height: 22,
+                              colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
                             ),
                           ),
                         ),
-                      ],
-                    ),
-
-                    if (_media.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _MediaGrid(media: _media),
-                    ],
-
-                    const SizedBox(height: 16),
-
-                    Row(
-                      children: [
-                        SvgPicture.asset(
-                          'assets/icons/svg/globe.svg',
-                          width: 16, height: 16,
-                          colorFilter: ColorFilter.mode(AppTheme.link, BlendMode.srcIn),
+                      ),
+                      const Spacer(),
+                      Text('Rascunho',
+                          style: TextStyle(
+                            color: AppTheme.link,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          )),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: _uploading ? null : _publish,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.ytRed,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: const StadiumBorder(),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                          textStyle: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w700),
                         ),
-                        const SizedBox(width: 6),
-                        Text('Qualquer pessoa pode responder',
-                            style: TextStyle(
-                              color: AppTheme.link,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            )),
+                        child: const Text('Publicar'),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Área de escrita ────────────────────────────────────────
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: t.avatarBg,
+                              child: SvgPicture.asset(
+                                'assets/icons/svg/user.svg',
+                                width: 20, height: 20,
+                                colorFilter: ColorFilter.mode(
+                                    t.iconSub, BlendMode.srcIn),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: _textCtrl,
+                                focusNode: _textFocus,
+                                maxLines: null,
+                                style: TextStyle(fontSize: 18, color: t.text),
+                                decoration: InputDecoration(
+                                  hintText: 'O que está acontecendo?',
+                                  hintStyle: TextStyle(
+                                      fontSize: 18, color: t.textTertiary),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        if (_media.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _MediaGrid(media: _media),
+                        ],
+
+                        const SizedBox(height: 16),
+
+                        Row(
+                          children: [
+                            SvgPicture.asset(
+                              'assets/icons/svg/globe.svg',
+                              width: 16, height: 16,
+                              colorFilter: ColorFilter.mode(
+                                  AppTheme.link, BlendMode.srcIn),
+                            ),
+                            const SizedBox(width: 6),
+                            Text('Qualquer pessoa pode responder',
+                                style: TextStyle(
+                                  color: AppTheme.link,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                )),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
+                  ),
+                ),
+
+                // ── Galeria rápida (recentes) ──────────────────────────────
+                _QuickGallery(
+                  onCameraTap: _openCamera,
+                  onThumbTap: _addFile,
+                ),
+
+                // ── Barra de acções ────────────────────────────────────────
+                Container(
+                  decoration: BoxDecoration(
+                    color: t.bg,
+                    border: Border(top: BorderSide(color: t.divider, width: 0.6)),
+                  ),
+                  padding: EdgeInsets.fromLTRB(8, 8, 8, 8 + safeBottom),
+                  child: Row(
+                    children: [
+                      _SvgActionBtn(
+                        asset: 'assets/icons/svg/image.svg',
+                        color: AppTheme.ytRed,
+                        onTap: _pickMedia,
+                      ),
+                      _SvgActionBtn(
+                        asset: 'assets/icons/svg/file-text.svg',
+                        color: AppTheme.ytRed,
+                        onTap: () {},
+                      ),
+                      _SvgActionBtn(
+                        asset: 'assets/icons/svg/bar-chart.svg',
+                        color: AppTheme.ytRed,
+                        onTap: () {},
+                      ),
+                      _SvgActionBtn(
+                        asset: 'assets/icons/svg/map-pin.svg',
+                        color: AppTheme.ytRed,
+                        onTap: () {},
+                      ),
+                      const Spacer(),
+                      SizedBox(
+                        width: 28, height: 28,
+                        child: CircularProgressIndicator(
+                          value: (_textCtrl.text.length / 280).clamp(0.0, 1.0),
+                          strokeWidth: 2.5,
+                          backgroundColor: t.divider,
+                          color: AppTheme.ytRed,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: _openGalleryModal,
+                        child: Container(
+                          width: 32, height: 32,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppTheme.ytRed,
+                          ),
+                          child: Center(
+                            child: SvgPicture.asset(
+                              'assets/icons/svg/plus.svg',
+                              width: 18, height: 18,
+                              colorFilter: const ColorFilter.mode(
+                                  Colors.white, BlendMode.srcIn),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              ],
+            ),
+
+            // ── Overlay de upload ──────────────────────────────────────────
+            if (_uploading)
+              Container(
+                color: Colors.black54,
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: AppTheme.ytRed),
+                      SizedBox(height: 16),
+                      Text('A publicar…',
+                          style: TextStyle(color: Colors.white, fontSize: 16)),
+                    ],
+                  ),
                 ),
               ),
-            ),
-
-            // ── galeria rápida ────────────────────────────────────────────
-            _QuickGallery(onPick: _pickMedia),
-
-            // ── barra de acções em baixo ──────────────────────────────────
-            Container(
-              decoration: BoxDecoration(
-                color: t.bg,
-                border: Border(top: BorderSide(color: t.divider, width: 0.6)),
-              ),
-              padding: EdgeInsets.fromLTRB(8, 8, 8, 8 + safeBottom),
-              child: Row(
-                children: [
-                  _SvgActionBtn(
-                    asset: 'assets/icons/svg/image.svg',
-                    color: AppTheme.link,
-                    onTap: _pickMedia,
-                  ),
-                  _SvgActionBtn(
-                    asset: 'assets/icons/svg/file-text.svg',
-                    color: AppTheme.link,
-                    onTap: () {},
-                  ),
-                  _SvgActionBtn(
-                    asset: 'assets/icons/svg/bar-chart.svg',
-                    color: AppTheme.link,
-                    onTap: () {},
-                  ),
-                  _SvgActionBtn(
-                    asset: 'assets/icons/svg/map-pin.svg',
-                    color: AppTheme.link,
-                    onTap: () {},
-                  ),
-                  const Spacer(),
-                  SizedBox(
-                    width: 28, height: 28,
-                    child: CircularProgressIndicator(
-                      value: (_textCtrl.text.length / 280).clamp(0.0, 1.0),
-                      strokeWidth: 2.5,
-                      backgroundColor: t.divider,
-                      color: AppTheme.link,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    width: 32, height: 32,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppTheme.link,
-                    ),
-                    child: Center(
-                      child: SvgPicture.asset(
-                        'assets/icons/svg/plus.svg',
-                        width: 18, height: 18,
-                        colorFilter: ColorFilter.mode(
-                            Colors.white, BlendMode.srcIn),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
           ],
         ),
       ),
@@ -247,7 +495,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
   }
 }
 
-
+// ─── Media item local ─────────────────────────────────────────────────────────
 class _MediaItem {
   final File file;
   final bool isVideo;
@@ -255,7 +503,7 @@ class _MediaItem {
   _MediaItem({required this.file, required this.isVideo, this.videoCtrl});
 }
 
-
+// ─── Grid de media seleccionada ───────────────────────────────────────────────
 class _MediaGrid extends StatelessWidget {
   final List<_MediaItem> media;
   const _MediaGrid({required this.media});
@@ -294,10 +542,37 @@ class _MediaGrid extends StatelessWidget {
   }
 }
 
+// ─── Galeria rápida (recentes do telemóvel) ───────────────────────────────────
+class _QuickGallery extends StatefulWidget {
+  final VoidCallback onCameraTap;
+  final Future<void> Function(File, bool) onThumbTap;
+  const _QuickGallery({required this.onCameraTap, required this.onThumbTap});
 
-class _QuickGallery extends StatelessWidget {
-  final VoidCallback onPick;
-  const _QuickGallery({required this.onPick});
+  @override
+  State<_QuickGallery> createState() => _QuickGalleryState();
+}
+
+class _QuickGalleryState extends State<_QuickGallery> {
+  final List<AssetEntity> _assets = [];
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecent();
+  }
+
+  Future<void> _loadRecent() async {
+    final result = await PhotoManager.requestPermissionExtend();
+    if (!result.isAuth) return;
+    final albums = await PhotoManager.getAssetPathList(
+      type: RequestType.common,
+      onlyAll: true,
+    );
+    if (albums.isEmpty) return;
+    final assets = await albums.first.getAssetListRange(start: 0, end: 20);
+    if (mounted) setState(() { _assets.addAll(assets); _loaded = true; });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -306,8 +581,9 @@ class _QuickGallery extends StatelessWidget {
       height: 90,
       child: Row(
         children: [
+          // ícone câmera
           GestureDetector(
-            onTap: onPick,
+            onTap: widget.onCameraTap,
             child: Container(
               width: 80,
               margin: const EdgeInsets.all(6),
@@ -319,25 +595,26 @@ class _QuickGallery extends StatelessWidget {
                 child: SvgPicture.asset(
                   'assets/icons/svg/camera.svg',
                   width: 28, height: 28,
-                  colorFilter: ColorFilter.mode(AppTheme.link, BlendMode.srcIn),
+                  colorFilter: ColorFilter.mode(AppTheme.ytRed, BlendMode.srcIn),
                 ),
               ),
             ),
           ),
+          // thumbnails recentes
           Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              itemCount: 6,
-              itemBuilder: (_, i) => Container(
-                width: 78,
-                margin: const EdgeInsets.only(right: 4),
-                decoration: BoxDecoration(
-                  color: t.thumbBg,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
+            child: !_loaded
+                ? const SizedBox()
+                : ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    itemCount: _assets.length,
+                    itemBuilder: (_, i) {
+                      return _AssetThumb(
+                        asset: _assets[i],
+                        onTap: widget.onThumbTap,
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -345,13 +622,227 @@ class _QuickGallery extends StatelessWidget {
   }
 }
 
+class _AssetThumb extends StatefulWidget {
+  final AssetEntity asset;
+  final Future<void> Function(File, bool) onTap;
+  const _AssetThumb({required this.asset, required this.onTap});
 
+  @override
+  State<_AssetThumb> createState() => _AssetThumbState();
+}
+
+class _AssetThumbState extends State<_AssetThumb> {
+  Uint8List? _thumb;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.asset
+        .thumbnailDataWithSize(const ThumbnailSize(150, 150))
+        .then((d) { if (mounted && d != null) setState(() => _thumb = d); });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return GestureDetector(
+      onTap: () async {
+        final file = await widget.asset.file;
+        if (file == null) return;
+        widget.onTap(file, widget.asset.type == AssetType.video);
+      },
+      child: Container(
+        width: 78,
+        margin: const EdgeInsets.only(right: 4),
+        decoration: BoxDecoration(
+          color: t.thumbBg,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: _thumb != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.memory(_thumb!, fit: BoxFit.cover),
+              )
+            : null,
+      ),
+    );
+  }
+}
+
+// ─── Modal galeria completa (bordas retas) ────────────────────────────────────
+class _GalleryModal extends StatefulWidget {
+  final void Function(File file, bool isVideo) onSelect;
+  const _GalleryModal({required this.onSelect});
+
+  @override
+  State<_GalleryModal> createState() => _GalleryModalState();
+}
+
+class _GalleryModalState extends State<_GalleryModal> {
+  final List<AssetEntity> _assets = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final albums = await PhotoManager.getAssetPathList(
+      type: RequestType.common,
+      onlyAll: true,
+    );
+    if (albums.isEmpty) { setState(() => _loading = false); return; }
+    final assets = await albums.first.getAssetListRange(start: 0, end: 200);
+    if (mounted) setState(() { _assets.addAll(assets); _loading = false; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t          = AppTheme.current;
+    final safeBottom = MediaQuery.of(context).padding.bottom;
+    final screenH    = MediaQuery.of(context).size.height;
+
+    return Container(
+      height: screenH * 0.85,
+      color: t.bg,   // sem BorderRadius — bordas retas
+      child: Column(
+        children: [
+          // handle
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: t.sheetHandle,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                Text('Galeria',
+                    style: TextStyle(
+                      color: t.text,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    )),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: SvgPicture.asset(
+                    'assets/icons/svg/close.svg',
+                    width: 20, height: 20,
+                    colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Expanded(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppTheme.ytRed))
+                : _assets.isEmpty
+                    ? Center(
+                        child: Text('Sem media disponível',
+                            style: TextStyle(color: t.textSecondary)))
+                    : GridView.builder(
+                        padding: EdgeInsets.fromLTRB(2, 2, 2, 2 + safeBottom),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 2,
+                          crossAxisSpacing: 2,
+                        ),
+                        itemCount: _assets.length,
+                        itemBuilder: (_, i) =>
+                            _GalleryThumb(asset: _assets[i], onSelect: widget.onSelect),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GalleryThumb extends StatefulWidget {
+  final AssetEntity asset;
+  final void Function(File, bool) onSelect;
+  const _GalleryThumb({required this.asset, required this.onSelect});
+
+  @override
+  State<_GalleryThumb> createState() => _GalleryThumbState();
+}
+
+class _GalleryThumbState extends State<_GalleryThumb> {
+  Uint8List? _thumb;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.asset
+        .thumbnailDataWithSize(const ThumbnailSize(200, 200))
+        .then((d) { if (mounted && d != null) setState(() => _thumb = d); });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return GestureDetector(
+      onTap: () async {
+        final file = await widget.asset.file;
+        if (file == null) return;
+        widget.onSelect(file, widget.asset.type == AssetType.video);
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _thumb != null
+              ? Image.memory(_thumb!, fit: BoxFit.cover)
+              : Container(color: t.thumbBg),
+          if (widget.asset.type == AssetType.video)
+            Positioned(
+              bottom: 4, right: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.videocam, color: Colors.white, size: 12),
+                    const SizedBox(width: 2),
+                    Text(
+                      _fmtDuration(widget.asset.videoDuration),
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtDuration(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+}
+
+// ─── Botão SVG de acção ───────────────────────────────────────────────────────
 class _SvgActionBtn extends StatelessWidget {
   final String asset;
   final Color color;
   final VoidCallback onTap;
-  const _SvgActionBtn(
-      {required this.asset, required this.color, required this.onTap});
+  const _SvgActionBtn({required this.asset, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
