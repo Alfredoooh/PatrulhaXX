@@ -32,17 +32,89 @@ String _nextApi() {
   return api;
 }
 
-Future<String?> _extractDirectLink(String pageUrl) async {
+String? _extractLinkFromDecodedJson(dynamic decoded) {
+  if (decoded == null) return null;
+
+  if (decoded is String) {
+    final s = decoded.trim();
+    if (s.isNotEmpty && (s.startsWith('http://') || s.startsWith('https://'))) {
+      return s;
+    }
+    return null;
+  }
+
+  if (decoded is Map) {
+    final candidates = <dynamic>[
+      decoded['link'],
+      decoded['url'],
+      decoded['directUrl'],
+      decoded['direct_url'],
+      decoded['video'],
+      decoded['result'],
+      decoded['data'],
+      decoded['data'] is Map ? (decoded['data'] as Map)['link'] : null,
+      decoded['data'] is Map ? (decoded['data'] as Map)['url'] : null,
+      decoded['data'] is Map ? (decoded['data'] as Map)['directUrl'] : null,
+      decoded['data'] is Map ? (decoded['data'] as Map)['direct_url'] : null,
+    ];
+
+    for (final candidate in candidates) {
+      final link = _extractLinkFromDecodedJson(candidate);
+      if (link != null && link.isNotEmpty) return link;
+    }
+  }
+
+  return null;
+}
+
+Future<String?> _extractDirectLink(
+  String pageUrl, {
+  void Function(String server)? onAttempt,
+  void Function(String server, String link)? onSuccess,
+}) async {
   for (int attempt = 0; attempt < _convertApis.length; attempt++) {
     final api = _nextApi();
+    onAttempt?.call(api);
+
     try {
       final uri = Uri.parse('$api/extract?url=${Uri.encodeComponent(pageUrl)}');
-      final resp = await http.get(uri).timeout(const Duration(seconds: 30));
+      final resp = await http
+          .get(
+            uri,
+            headers: const {
+              'Accept': 'application/json, text/plain, */*',
+              'User-Agent':
+                  'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
+                  '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+            },
+          )
+          .timeout(const Duration(seconds: 30));
+
+      debugPrint('[extract] $api -> ${resp.statusCode}');
+
       if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
-        if (data['link'] != null) return data['link'] as String;
+        final body = utf8.decode(resp.bodyBytes).trim();
+        dynamic decoded;
+
+        try {
+          decoded = jsonDecode(body);
+        } catch (_) {
+          decoded = body;
+        }
+
+        final link = _extractLinkFromDecodedJson(decoded);
+        if (link != null && link.isNotEmpty) {
+          onSuccess?.call(api, link);
+          return link;
+        }
+
+        debugPrint('[extract] $api respondeu sem link válido: $body');
+      } else {
+        debugPrint('[extract] $api falhou com status ${resp.statusCode}');
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[extract] erro em $api: $e');
+    }
   }
   return null;
 }
@@ -330,7 +402,6 @@ class _PlayerControlsState extends State<_PlayerControls>
                 ),
               ),
             ),
-
             Positioned(
               top: 8,
               right: 8,
@@ -347,7 +418,6 @@ class _PlayerControlsState extends State<_PlayerControls>
                 ],
               ),
             ),
-
             Center(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -423,7 +493,6 @@ class _PlayerControlsState extends State<_PlayerControls>
                 ],
               ),
             ),
-
             Positioned(
               left: 12,
               right: 12,
@@ -551,10 +620,7 @@ class _RelatedCard extends StatefulWidget {
       VideoSource.gotporn: 'https://www.gotporn.com/',
       VideoSource.porndig: 'https://www.porndig.com/',
     };
-    return {
-      'User-Agent': ua,
-      if (origins[src] != null) 'Referer': origins[src]!,
-    };
+    return {'User-Agent': ua, if (origins[src] != null) 'Referer': origins[src]!};
   }
 
   @override
@@ -577,9 +643,13 @@ class _RelatedCardState extends State<_RelatedCard>
       CurvedAnimation(parent: _ac, curve: Curves.easeOutCubic),
     );
     _fade = CurvedAnimation(parent: _ac, curve: Curves.easeOut);
-    Future.delayed(Duration(milliseconds: 40 * widget.index.clamp(0, 15)), () {
-      if (mounted) _ac.forward();
-    });
+
+    Future.delayed(
+      Duration(milliseconds: (40 * widget.index.clamp(0, 15)).toInt()),
+      () {
+        if (mounted) _ac.forward();
+      },
+    );
   }
 
   @override
@@ -802,6 +872,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 
   String? _directUrl;
   bool _extracting = false;
+  String? _extractingServer;
 
   final _controlsKey = GlobalKey<_PlayerControlsState>();
 
@@ -832,13 +903,23 @@ class _ExibicaoPageState extends State<ExibicaoPage>
       _playerLoading = true;
       _initialized = false;
       _directUrl = null;
+      _extractingServer = null;
     });
 
     String? directUrl;
     if (_isDirectVideoUrl(url)) {
       directUrl = url;
     } else {
-      directUrl = await _extractDirectLink(url);
+      directUrl = await _extractDirectLink(
+        url,
+        onAttempt: (server) {
+          if (!mounted) return;
+          setState(() => _extractingServer = server);
+        },
+        onSuccess: (server, link) {
+          debugPrint('[extract] sucesso em $server -> $link');
+        },
+      );
     }
 
     if (!mounted) return;
@@ -846,6 +927,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
       setState(() {
         _extracting = false;
         _playerLoading = false;
+        _extractingServer = null;
       });
       _snack('Não foi possível obter o vídeo.');
       return;
@@ -854,6 +936,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     setState(() {
       _directUrl = directUrl;
       _extracting = false;
+      _extractingServer = null;
     });
     await _initPlayer(directUrl);
   }
@@ -1022,7 +1105,8 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 
   void _showVideoMenu(BuildContext ctx, FeedVideo v, Offset pos) {
     final t = AppTheme.current;
-    final RenderBox overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(ctx).context.findRenderObject() as RenderBox;
     showMenu<String>(
       context: ctx,
       color: t.popup,
@@ -1158,16 +1242,18 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                                         color: Colors.white70,
                                         strokeWidth: 1.5,
                                       ),
-                                      if (_extracting) ...[
-                                        const SizedBox(height: 10),
-                                        const Text(
-                                          'A obter vídeo...',
-                                          style: TextStyle(
-                                            color: Colors.white60,
-                                            fontSize: 12,
-                                          ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        _extracting
+                                            ? (_extractingServer != null
+                                                ? 'A obter vídeo em $_extractingServer...'
+                                                : 'A obter vídeo...')
+                                            : 'A carregar vídeo...',
+                                        style: const TextStyle(
+                                          color: Colors.white60,
+                                          fontSize: 12,
                                         ),
-                                      ],
+                                      ),
                                     ],
                                   ),
                                 ),
