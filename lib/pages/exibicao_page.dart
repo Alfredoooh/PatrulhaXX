@@ -24,99 +24,43 @@ const List<String> _convertApis = [
   'https://nuxxconvert5.onrender.com',
 ];
 
-int _apiIndex = 0;
+// Todas as APIs em paralelo — a mais rápida vence
+Future<String?> _extractDirectLink(String pageUrl) async {
+  final completer = Completer<String?>();
+  int failed = 0;
 
-String _nextApi() {
-  final api = _convertApis[_apiIndex % _convertApis.length];
-  _apiIndex++;
-  return api;
-}
-
-String? _extractLinkFromDecodedJson(dynamic decoded) {
-  if (decoded == null) return null;
-
-  if (decoded is String) {
-    final s = decoded.trim();
-    if (s.isNotEmpty && (s.startsWith('http://') || s.startsWith('https://'))) {
-      return s;
-    }
-    return null;
-  }
-
-  if (decoded is Map) {
-    final candidates = <dynamic>[
-      decoded['link'],
-      decoded['url'],
-      decoded['directUrl'],
-      decoded['direct_url'],
-      decoded['video'],
-      decoded['result'],
-      decoded['data'],
-      decoded['data'] is Map ? (decoded['data'] as Map)['link'] : null,
-      decoded['data'] is Map ? (decoded['data'] as Map)['url'] : null,
-      decoded['data'] is Map ? (decoded['data'] as Map)['directUrl'] : null,
-      decoded['data'] is Map ? (decoded['data'] as Map)['direct_url'] : null,
-    ];
-
-    for (final candidate in candidates) {
-      final link = _extractLinkFromDecodedJson(candidate);
-      if (link != null && link.isNotEmpty) return link;
-    }
-  }
-
-  return null;
-}
-
-Future<String?> _extractDirectLink(
-  String pageUrl, {
-  void Function(String server)? onAttempt,
-  void Function(String server, String link)? onSuccess,
-}) async {
-  for (int attempt = 0; attempt < _convertApis.length; attempt++) {
-    final api = _nextApi();
-    onAttempt?.call(api);
-
-    try {
-      final uri = Uri.parse('$api/extract?url=${Uri.encodeComponent(pageUrl)}');
-      final resp = await http
-          .get(
-            uri,
-            headers: const {
-              'Accept': 'application/json, text/plain, */*',
-              'User-Agent':
-                  'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
-                  '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-            },
-          )
-          .timeout(const Duration(seconds: 30));
-
-      debugPrint('[extract] $api -> ${resp.statusCode}');
-
-      if (resp.statusCode == 200) {
-        final body = utf8.decode(resp.bodyBytes).trim();
-        dynamic decoded;
-
-        try {
-          decoded = jsonDecode(body);
-        } catch (_) {
-          decoded = body;
+  for (final api in _convertApis) {
+    () async {
+      try {
+        final uri = Uri.parse('$api/extract?url=${Uri.encodeComponent(pageUrl)}');
+        final resp = await http.get(uri).timeout(const Duration(seconds: 90));
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body);
+          final link = data['link'] as String?;
+          if (link != null && link.isNotEmpty && !completer.isCompleted) {
+            completer.complete(link);
+          } else {
+            failed++;
+            if (failed == _convertApis.length && !completer.isCompleted) {
+              completer.complete(null);
+            }
+          }
+        } else {
+          failed++;
+          if (failed == _convertApis.length && !completer.isCompleted) {
+            completer.complete(null);
+          }
         }
-
-        final link = _extractLinkFromDecodedJson(decoded);
-        if (link != null && link.isNotEmpty) {
-          onSuccess?.call(api, link);
-          return link;
+      } catch (_) {
+        failed++;
+        if (failed == _convertApis.length && !completer.isCompleted) {
+          completer.complete(null);
         }
-
-        debugPrint('[extract] $api respondeu sem link válido: $body');
-      } else {
-        debugPrint('[extract] $api falhou com status ${resp.statusCode}');
       }
-    } catch (e) {
-      debugPrint('[extract] erro em $api: $e');
-    }
+    }();
   }
-  return null;
+
+  return completer.future;
 }
 
 bool _isDirectVideoUrl(String url) {
@@ -191,90 +135,50 @@ const _svgVolOff =
     'L18.586,11l-1.293,1.293a1,1,0,1,0,1.414,1.414L20,12.414l1.293,1.293a1,1,0,0,0,1.414-1.414'
     'L21.414,11l1.293-1.293A1,1,0,0,0,22.707,8.293Z"/></svg>';
 
-const _svgSkip10 =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M18.537,3.463A10,10,0,0,0,3.463,18.537,10,10,0,0,0,18.537,3.463ZM13,15.5'
-    'a.5.5,0,0,1-1,0v-5.67l-1.374.916a.5.5,0,1,1-.554-.832l2-1.333A.5.5,0,0,1,13,9.1Z"/>'
-    '<path d="M21.54,7.764l1.1-1.9a1,1,0,1,0-1.732-1l-1.1,1.9A11.955,11.955,0,0,0,12,5'
-    'C5.373,5,0,10.373,0,17a1,1,0,0,0,2,0,10,10,0,1,1,18.593,5.151L19.5,20.5H17a1,1,0,0,0,0,2'
-    'h4a1,1,0,0,0,1-1V17a1,1,0,0,0-2,0v1.639A11.94,11.94,0,0,0,21.54,7.764Z"/></svg>';
-
 // ─── Shimmer ──────────────────────────────────────────────────────────────────
 class _Shimmer extends StatefulWidget {
   final double? width;
   final double? height;
   final double radius;
-
   const _Shimmer({this.width, this.height, this.radius = 6});
-
-  @override
-  State<_Shimmer> createState() => _ShimmerState();
+  @override State<_Shimmer> createState() => _ShimmerState();
 }
-
 class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin {
   late final AnimationController _c;
   late final Animation<double> _a;
-
-  @override
-  void initState() {
+  @override void initState() {
     super.initState();
-    _c = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1300),
-    )..repeat();
-    _a = Tween<double>(begin: -2, end: 2).animate(
-      CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-    );
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1300))..repeat();
+    _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
   }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _a,
-        builder: (_, __) => Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(widget.radius),
-            gradient: LinearGradient(
-              begin: Alignment(_a.value - 1, 0),
-              end: Alignment(_a.value + 1, 0),
-              colors: AppTheme.current.shimmer,
-            ),
-          ),
-        ),
-      );
+  @override void dispose() { _c.dispose(); super.dispose(); }
+  @override Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _a,
+    builder: (_, __) => Container(
+      width: widget.width, height: widget.height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(widget.radius),
+        gradient: LinearGradient(
+          begin: Alignment(_a.value - 1, 0), end: Alignment(_a.value + 1, 0),
+          colors: AppTheme.current.shimmer),
+      ),
+    ),
+  );
 }
 
-List<Widget> _skeletonCards(int n) => List.generate(
-      n,
-      (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
-        child: Row(
-          children: [
-            _Shimmer(width: 160, height: 90, radius: 6),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _Shimmer(width: double.infinity, height: 13),
-                  const SizedBox(height: 5),
-                  _Shimmer(width: 120, height: 13),
-                  const SizedBox(height: 5),
-                  _Shimmer(width: 80, height: 11),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+List<Widget> _skeletonCards(int n) => List.generate(n, (_) =>
+  Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+    child: Row(children: [
+      _Shimmer(width: 160, height: 90, radius: 6),
+      const SizedBox(width: 10),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _Shimmer(width: double.infinity, height: 13),
+        const SizedBox(height: 5),
+        _Shimmer(width: 120, height: 13),
+        const SizedBox(height: 5),
+        _Shimmer(width: 80, height: 11),
+      ])),
+    ])));
 
 // ─── Player Controls com auto-hide ───────────────────────────────────────────
 class _PlayerControls extends StatefulWidget {
@@ -307,8 +211,7 @@ class _PlayerControls extends StatefulWidget {
     required this.onDownload,
   });
 
-  @override
-  State<_PlayerControls> createState() => _PlayerControlsState();
+  @override State<_PlayerControls> createState() => _PlayerControlsState();
 }
 
 class _PlayerControlsState extends State<_PlayerControls>
@@ -316,16 +219,10 @@ class _PlayerControlsState extends State<_PlayerControls>
   late final AnimationController _ac;
   late final Animation<double> _opacity;
   Timer? _hideTimer;
-  bool _visible = true;
 
-  @override
-  void initState() {
+  @override void initState() {
     super.initState();
-    _ac = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-      value: 1.0,
-    );
+    _ac = AnimationController(vsync: this, duration: const Duration(milliseconds: 250), value: 1.0);
     _opacity = CurvedAnimation(parent: _ac, curve: Curves.easeOut);
     _scheduleHide();
   }
@@ -334,37 +231,23 @@ class _PlayerControlsState extends State<_PlayerControls>
     _hideTimer?.cancel();
     if (widget.playing) {
       _hideTimer = Timer(const Duration(seconds: 3), () {
-        if (mounted) {
-          _ac.reverse();
-          setState(() => _visible = false);
-        }
+        if (mounted) _ac.reverse();
       });
     }
   }
 
   void show() {
     _ac.forward();
-    setState(() => _visible = true);
     _scheduleHide();
   }
 
-  @override
-  void didUpdateWidget(_PlayerControls old) {
+  @override void didUpdateWidget(_PlayerControls old) {
     super.didUpdateWidget(old);
-    if (!widget.playing) {
-      _hideTimer?.cancel();
-      _ac.forward();
-      setState(() => _visible = true);
-    }
+    if (!widget.playing) { _hideTimer?.cancel(); _ac.forward(); }
     if (widget.playing && !old.playing) _scheduleHide();
   }
 
-  @override
-  void dispose() {
-    _hideTimer?.cancel();
-    _ac.dispose();
-    super.dispose();
-  }
+  @override void dispose() { _hideTimer?.cancel(); _ac.dispose(); super.dispose(); }
 
   String _fmt(Duration d) {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -372,178 +255,79 @@ class _PlayerControlsState extends State<_PlayerControls>
     return '${d.inHours > 0 ? '${d.inHours}:' : ''}$m:$s';
   }
 
-  @override
-  Widget build(BuildContext context) {
+  @override Widget build(BuildContext context) {
     final total = widget.duration.inMilliseconds.toDouble();
-    final pos = widget.position.inMilliseconds.toDouble().clamp(
-          0.0,
-          total > 0 ? total : 1.0,
-        );
+    final pos = widget.position.inMilliseconds.toDouble().clamp(0.0, total > 0 ? total : 1.0);
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: show,
       child: FadeTransition(
         opacity: _opacity,
-        child: Stack(
-          children: [
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                height: 120,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [Color(0xDD000000), Colors.transparent],
-                  ),
+        child: Stack(children: [
+          // Gradiente inferior
+          Positioned(left: 0, right: 0, bottom: 0,
+            child: Container(height: 120,
+              decoration: const BoxDecoration(gradient: LinearGradient(
+                begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                colors: [Color(0xDD000000), Colors.transparent])))),
+
+          // Botões superiores direitos
+          Positioned(top: 8, right: 8,
+            child: Row(children: [
+              _SmallBtn(svg: _svgVolOff, active: widget.muted, activeSvg: _svgVolOn, onTap: widget.onMute),
+              const SizedBox(width: 6),
+              _SmallBtn(svg: _svgDl, onTap: widget.onDownload),
+            ])),
+
+          // Centro: prev / play / next
+          Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Opacity(opacity: widget.hasPrev ? 1.0 : 0.3,
+              child: GestureDetector(
+                onTap: widget.hasPrev ? widget.onPrev : null,
+                child: Container(width: 48, height: 48,
+                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+                  child: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 28)))),
+            const SizedBox(width: 20),
+            GestureDetector(
+              onTap: widget.onPlayPause,
+              child: Container(width: 68, height: 68,
+                decoration: BoxDecoration(color: Colors.black.withOpacity(0.75), shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 20)]),
+                child: Center(child: SvgPicture.string(
+                  widget.playing ? _svgPause : _svgPlay, width: 26, height: 26,
+                  colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn))))),
+            const SizedBox(width: 20),
+            Opacity(opacity: widget.hasNext ? 1.0 : 0.3,
+              child: GestureDetector(
+                onTap: widget.hasNext ? widget.onNext : null,
+                child: Container(width: 48, height: 48,
+                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+                  child: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 28)))),
+          ])),
+
+          // Barra de progresso
+          Positioned(left: 12, right: 12, bottom: 8,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Row(children: [
+                Text(_fmt(widget.position), style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                const Spacer(),
+                Text(_fmt(widget.duration), style: const TextStyle(color: Colors.white70, fontSize: 11)),
+              ]),
+              const SizedBox(height: 2),
+              SliderTheme(
+                data: SliderThemeData(
+                  trackHeight: 2.5,
+                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                  activeTrackColor: Colors.white,
+                  inactiveTrackColor: Colors.white30,
+                  thumbColor: Colors.white,
+                  overlayColor: Colors.white24,
                 ),
-              ),
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Row(
-                children: [
-                  _SmallBtn(
-                    svg: _svgVolOff,
-                    active: widget.muted,
-                    activeSvg: _svgVolOn,
-                    onTap: widget.onMute,
-                  ),
-                  const SizedBox(width: 6),
-                  _SmallBtn(svg: _svgDl, onTap: widget.onDownload),
-                ],
-              ),
-            ),
-            Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Opacity(
-                    opacity: widget.hasPrev ? 1.0 : 0.3,
-                    child: GestureDetector(
-                      onTap: widget.hasPrev ? widget.onPrev : null,
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.skip_previous_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  GestureDetector(
-                    onTap: widget.onPlayPause,
-                    child: Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.75),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.4),
-                            blurRadius: 20,
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: SvgPicture.string(
-                          widget.playing ? _svgPause : _svgPlay,
-                          width: 26,
-                          height: 26,
-                          colorFilter: const ColorFilter.mode(
-                            Colors.white,
-                            BlendMode.srcIn,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Opacity(
-                    opacity: widget.hasNext ? 1.0 : 0.3,
-                    child: GestureDetector(
-                      onTap: widget.hasNext ? widget.onNext : null,
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.skip_next_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: 8,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        _fmt(widget.position),
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        _fmt(widget.duration),
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  SliderTheme(
-                    data: SliderThemeData(
-                      trackHeight: 2.5,
-                      thumbShape:
-                          const RoundSliderThumbShape(enabledThumbRadius: 6),
-                      overlayShape:
-                          const RoundSliderOverlayShape(overlayRadius: 14),
-                      activeTrackColor: Colors.white,
-                      inactiveTrackColor: Colors.white30,
-                      thumbColor: Colors.white,
-                      overlayColor: Colors.white24,
-                    ),
-                    child: Slider(
-                      value: pos,
-                      min: 0,
-                      max: total > 0 ? total : 1.0,
-                      onChanged: (v) => widget.onSeek(v),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+                child: Slider(value: pos, min: 0, max: total > 0 ? total : 1.0, onChanged: widget.onSeek)),
+            ])),
+        ]),
       ),
     );
   }
@@ -554,37 +338,14 @@ class _SmallBtn extends StatelessWidget {
   final String? activeSvg;
   final bool active;
   final VoidCallback onTap;
-
-  const _SmallBtn({
-    required this.svg,
-    required this.onTap,
-    this.activeSvg,
-    this.active = false,
-  });
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.7),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: SvgPicture.string(
-              (active && activeSvg != null) ? activeSvg! : svg,
-              width: 17,
-              height: 17,
-              colorFilter: const ColorFilter.mode(
-                Colors.white,
-                BlendMode.srcIn,
-              ),
-            ),
-          ),
-        ),
-      );
+  const _SmallBtn({required this.svg, required this.onTap, this.activeSvg, this.active = false});
+  @override Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(width: 36, height: 36,
+      decoration: BoxDecoration(color: Colors.black.withOpacity(0.7), shape: BoxShape.circle),
+      child: Center(child: SvgPicture.string(
+        (active && activeSvg != null) ? activeSvg! : svg, width: 17, height: 17,
+        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)))));
 }
 
 // ─── _RelatedCard ─────────────────────────────────────────────────────────────
@@ -593,18 +354,11 @@ class _RelatedCard extends StatefulWidget {
   final VoidCallback onTap;
   final void Function(Offset) onMenuTap;
   final int index;
-
-  const _RelatedCard({
-    super.key,
-    required this.video,
-    required this.onTap,
-    required this.onMenuTap,
-    this.index = 0,
-  });
+  const _RelatedCard({super.key, required this.video, required this.onTap,
+      required this.onMenuTap, this.index = 0});
 
   static Map<String, String> _headers(VideoSource src) {
-    const ua =
-        'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
+    const ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
         '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
     final origins = {
       VideoSource.eporner: 'https://www.eporner.com/',
@@ -622,137 +376,60 @@ class _RelatedCard extends StatefulWidget {
     };
     return {'User-Agent': ua, if (origins[src] != null) 'Referer': origins[src]!};
   }
-
-  @override
-  State<_RelatedCard> createState() => _RelatedCardState();
+  @override State<_RelatedCard> createState() => _RelatedCardState();
 }
 
-class _RelatedCardState extends State<_RelatedCard>
-    with SingleTickerProviderStateMixin {
+class _RelatedCardState extends State<_RelatedCard> with SingleTickerProviderStateMixin {
   late final AnimationController _ac;
   late final Animation<double> _slide, _fade;
-
-  @override
-  void initState() {
+  @override void initState() {
     super.initState();
-    _ac = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 380),
-    );
-    _slide = Tween<double>(begin: 40, end: 0).animate(
-      CurvedAnimation(parent: _ac, curve: Curves.easeOutCubic),
-    );
+    _ac = AnimationController(vsync: this, duration: const Duration(milliseconds: 380));
+    _slide = Tween<double>(begin: 40, end: 0).animate(CurvedAnimation(parent: _ac, curve: Curves.easeOutCubic));
     _fade = CurvedAnimation(parent: _ac, curve: Curves.easeOut);
-
-    Future.delayed(
-      Duration(milliseconds: (40 * widget.index.clamp(0, 15)).toInt()),
-      () {
-        if (mounted) _ac.forward();
-      },
-    );
+    Future.delayed(Duration(milliseconds: 40 * widget.index.clamp(0, 15)), () {
+      if (mounted) _ac.forward();
+    });
   }
-
-  @override
-  void dispose() {
-    _ac.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  @override void dispose() { _ac.dispose(); super.dispose(); }
+  @override Widget build(BuildContext context) {
     final t = AppTheme.current;
     return AnimatedBuilder(
       animation: _ac,
-      builder: (_, child) => FadeTransition(
-        opacity: _fade,
-        child: Transform.translate(offset: Offset(0, _slide.value), child: child),
-      ),
+      builder: (_, child) => FadeTransition(opacity: _fade,
+        child: Transform.translate(offset: Offset(0, _slide.value), child: child)),
       child: GestureDetector(
-        onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap, behavior: HitTestBehavior.opaque,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 0, 8, 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 160,
-                height: 90,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: _ThumbCompact(
-                        url: widget.video.thumb,
-                        headers: _RelatedCard._headers(widget.video.source),
-                        bg: t.thumbBg,
-                      ),
-                    ),
-                    if (widget.video.duration.isNotEmpty)
-                      Positioned(
-                        bottom: 4,
-                        right: 5,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black87,
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                          child: Text(
-                            widget.video.duration,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.video.title,
-                      style: TextStyle(
-                        color: t.text,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        height: 1.3,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${widget.video.sourceLabel}${widget.video.views.isNotEmpty ? "  ·  ${widget.video.views} vis." : ""}',
-                      style: TextStyle(color: t.textSecondary, fontSize: 11.5),
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapUp: (d) => widget.onMenuTap(d.globalPosition),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                  child: Icon(
-                    Icons.more_vert_rounded,
-                    color: t.iconTertiary,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SizedBox(width: 160, height: 90,
+              child: Stack(fit: StackFit.expand, children: [
+                ClipRRect(borderRadius: BorderRadius.circular(6),
+                  child: _ThumbCompact(url: widget.video.thumb,
+                      headers: _RelatedCard._headers(widget.video.source), bg: t.thumbBg)),
+                if (widget.video.duration.isNotEmpty)
+                  Positioned(bottom: 4, right: 5,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(3)),
+                      child: Text(widget.video.duration,
+                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)))),
+              ])),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(widget.video.title, style: TextStyle(color: t.text, fontSize: 13,
+                  fontWeight: FontWeight.w500, height: 1.3), maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 4),
+              Text('${widget.video.sourceLabel}${widget.video.views.isNotEmpty ? "  ·  ${widget.video.views} vis." : ""}',
+                  style: TextStyle(color: t.textSecondary, fontSize: 11.5)),
+            ])),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapUp: (d) => widget.onMenuTap(d.globalPosition),
+              child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Icon(Icons.more_vert_rounded, color: t.iconTertiary, size: 20))),
+          ]),
         ),
       ),
     );
@@ -760,65 +437,26 @@ class _RelatedCardState extends State<_RelatedCard>
 }
 
 class _ThumbCompact extends StatefulWidget {
-  final String url;
-  final Map<String, String> headers;
-  final Color bg;
-
-  const _ThumbCompact({
-    required this.url,
-    required this.headers,
-    required this.bg,
-  });
-
-  @override
-  State<_ThumbCompact> createState() => _ThumbCompactState();
+  final String url; final Map<String, String> headers; final Color bg;
+  const _ThumbCompact({required this.url, required this.headers, required this.bg});
+  @override State<_ThumbCompact> createState() => _ThumbCompactState();
 }
-
 class _ThumbCompactState extends State<_ThumbCompact> {
-  int _attempt = 0;
-  bool _failed = false;
-
-  @override
-  Widget build(BuildContext context) {
+  int _attempt = 0; bool _failed = false;
+  @override Widget build(BuildContext context) {
     final t = AppTheme.current;
-    if (widget.url.isEmpty || _failed) {
-      return Container(
-        color: widget.bg,
-        child: Center(
-          child: Icon(
-            Icons.play_circle_outline_rounded,
-            color: t.iconSub,
-            size: 32,
-          ),
-        ),
-      );
-    }
-
+    if (widget.url.isEmpty || _failed)
+      return Container(color: widget.bg,
+          child: Center(child: Icon(Icons.play_circle_outline_rounded, color: t.iconSub, size: 32)));
     return Image.network(
       _attempt == 0 ? widget.url : '${widget.url}?_r=$_attempt',
       key: ValueKey('${widget.url}_$_attempt'),
-      fit: BoxFit.cover,
-      headers: widget.headers,
+      fit: BoxFit.cover, headers: widget.headers,
       errorBuilder: (_, __, ___) {
-        if (_attempt < 1) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() => _attempt++);
-          });
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() => _failed = true);
-          });
-        }
-        return Container(
-          color: widget.bg,
-          child: Center(
-            child: Icon(
-              Icons.play_circle_outline_rounded,
-              color: t.iconSub,
-              size: 32,
-            ),
-          ),
-        );
+        if (_attempt < 1) WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _attempt++); });
+        else WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _failed = true); });
+        return Container(color: widget.bg,
+            child: Center(child: Icon(Icons.play_circle_outline_rounded, color: t.iconSub, size: 32)));
       },
       loadingBuilder: (_, child, p) => p == null ? child : const _Shimmer(radius: 0),
     );
@@ -844,14 +482,12 @@ class ExibicaoPage extends StatefulWidget {
     this.playlistIndex = 0,
   });
 
-  @override
-  State<ExibicaoPage> createState() => _ExibicaoPageState();
+  @override State<ExibicaoPage> createState() => _ExibicaoPageState();
 }
 
 class _ExibicaoPageState extends State<ExibicaoPage>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
-  @override
-  bool get wantKeepAlive => true;
+  @override bool get wantKeepAlive => true;
 
   final List<FeedVideo> _related = [];
   bool _loadingRelated = false;
@@ -872,72 +508,33 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 
   String? _directUrl;
   bool _extracting = false;
-  String? _extractingServer;
 
   final _controlsKey = GlobalKey<_PlayerControlsState>();
 
   bool get _isEmpty => widget.embedUrl == null || widget.currentVideo == null;
 
-  @override
-  void initState() {
+  @override void initState() {
     super.initState();
     _currentPlaylistIndex = widget.playlistIndex;
-    _descAnim = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    )..forward();
-    _playerEnterAnim = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    )..forward();
-    if (!_isEmpty) {
-      _loadRelated();
-      _extractAndPlay(widget.embedUrl!);
-    }
+    _descAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 450))..forward();
+    _playerEnterAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..forward();
+    if (!_isEmpty) { _loadRelated(); _extractAndPlay(widget.embedUrl!); }
   }
 
   Future<void> _extractAndPlay(String url) async {
     if (!mounted) return;
-    setState(() {
-      _extracting = true;
-      _playerLoading = true;
-      _initialized = false;
-      _directUrl = null;
-      _extractingServer = null;
-    });
+    setState(() { _extracting = true; _playerLoading = true; _initialized = false; _directUrl = null; });
 
-    String? directUrl;
-    if (_isDirectVideoUrl(url)) {
-      directUrl = url;
-    } else {
-      directUrl = await _extractDirectLink(
-        url,
-        onAttempt: (server) {
-          if (!mounted) return;
-          setState(() => _extractingServer = server);
-        },
-        onSuccess: (server, link) {
-          debugPrint('[extract] sucesso em $server -> $link');
-        },
-      );
-    }
+    String? directUrl = _isDirectVideoUrl(url) ? url : await _extractDirectLink(url);
 
     if (!mounted) return;
     if (directUrl == null) {
-      setState(() {
-        _extracting = false;
-        _playerLoading = false;
-        _extractingServer = null;
-      });
+      setState(() { _extracting = false; _playerLoading = false; });
       _snack('Não foi possível obter o vídeo.');
       return;
     }
 
-    setState(() {
-      _directUrl = directUrl;
-      _extracting = false;
-      _extractingServer = null;
-    });
+    setState(() { _directUrl = directUrl; _extracting = false; });
     await _initPlayer(directUrl);
   }
 
@@ -955,11 +552,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
       if (mounted) setState(() => _playerLoading = false);
       return;
     }
-
-    if (!mounted) {
-      c.dispose();
-      return;
-    }
+    if (!mounted) { c.dispose(); return; }
 
     _ctrl = c;
     _duration = c.value.duration;
@@ -970,9 +563,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     c.addListener(_onVideoUpdate);
 
     _posTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-      if (mounted && _ctrl != null) {
-        setState(() => _position = _ctrl!.value.position);
-      }
+      if (mounted && _ctrl != null) setState(() => _position = _ctrl!.value.position);
     });
 
     if (mounted) setState(() => _playerLoading = false);
@@ -987,16 +578,12 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     });
   }
 
-  @override
-  void didUpdateWidget(ExibicaoPage old) {
+  @override void didUpdateWidget(ExibicaoPage old) {
     super.didUpdateWidget(old);
     if (widget.currentVideo != old.currentVideo && !_isEmpty) {
       _descAnim.forward(from: 0.0);
       _playerEnterAnim.forward(from: 0.0);
-      setState(() {
-        _playing = true;
-        _position = Duration.zero;
-      });
+      setState(() { _playing = true; _position = Duration.zero; });
       _extractAndPlay(widget.embedUrl!);
       _loadRelated();
     }
@@ -1006,8 +593,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     }
   }
 
-  @override
-  void dispose() {
+  @override void dispose() {
     _posTimer?.cancel();
     _ctrl?.removeListener(_onVideoUpdate);
     _ctrl?.dispose();
@@ -1044,27 +630,22 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     final pl = widget.playlist ?? _related;
     final nextIdx = _currentPlaylistIndex + 1;
     if (nextIdx < pl.length) {
-      final v = pl[nextIdx];
       setState(() => _currentPlaylistIndex = nextIdx);
-      widget.onVideoTap(v);
+      widget.onVideoTap(pl[nextIdx]);
     }
   }
 
   void _goPrev() {
-    final nextIdx = _currentPlaylistIndex - 1;
-    if (nextIdx >= 0) {
+    final prevIdx = _currentPlaylistIndex - 1;
+    if (prevIdx >= 0) {
       final pl = widget.playlist ?? _related;
-      final v = pl[nextIdx];
-      setState(() => _currentPlaylistIndex = nextIdx);
-      widget.onVideoTap(v);
+      setState(() => _currentPlaylistIndex = prevIdx);
+      widget.onVideoTap(pl[prevIdx]);
     }
   }
 
   Future<void> _forceDownload() async {
-    if (_directUrl == null) {
-      _snack('A extrair link...');
-      return;
-    }
+    if (_directUrl == null) { _snack('A extrair link...'); return; }
     DownloadService.instance.startDownload(
       url: _directUrl!,
       title: widget.currentVideo?.title ?? 'video',
@@ -1077,48 +658,31 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 
   Future<void> _loadRelated() async {
     if (!mounted) return;
-    setState(() {
-      _loadingRelated = true;
-      _related.clear();
-    });
+    setState(() { _loadingRelated = true; _related.clear(); });
     final videos = await FeedFetcher.fetchAll(Random().nextInt(30) + 1);
     if (!mounted) return;
     setState(() {
-      _related
-        ..clear()
-        ..addAll(videos.where((v) => v.embedUrl != widget.embedUrl).take(20));
+      _related..clear()..addAll(videos.where((v) => v.embedUrl != widget.embedUrl).take(20));
       _loadingRelated = false;
     });
   }
 
   void _snack(String msg) {
     final t = AppTheme.current;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: TextStyle(color: t.toastText)),
-        backgroundColor: t.toastBg,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: TextStyle(color: t.toastText)),
+      backgroundColor: t.toastBg, behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 2)));
   }
 
   void _showVideoMenu(BuildContext ctx, FeedVideo v, Offset pos) {
     final t = AppTheme.current;
-    final RenderBox overlay =
-        Overlay.of(ctx).context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
     showMenu<String>(
-      context: ctx,
-      color: t.popup,
-      elevation: 6,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: t.borderSoft),
-      ),
-      position: RelativeRect.fromRect(
-        pos & const Size(1, 1),
-        Offset.zero & overlay.size,
-      ),
+      context: ctx, color: t.popup, elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: t.borderSoft)),
+      position: RelativeRect.fromRect(pos & const Size(1, 1), Offset.zero & overlay.size),
       items: [
         _popItem('save', _svgSaveLater, 'Guardar para assistir mais tarde', t),
         _popItem('playlist', _svgPlaylist, 'Adicionar na minha playlist', t),
@@ -1127,50 +691,23 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     ).then((val) {
       if (val == null || !mounted) return;
       switch (val) {
-        case 'save':
-          _snack('Guardado para assistir mais tarde');
-          break;
-        case 'playlist':
-          _snack('Adicionado à playlist');
-          break;
-        case 'next':
-          setState(() => _nextVideo = v);
-          _snack('Será exibido a seguir');
-          break;
+        case 'save': _snack('Guardado para assistir mais tarde'); break;
+        case 'playlist': _snack('Adicionado à playlist'); break;
+        case 'next': setState(() => _nextVideo = v); _snack('Será exibido a seguir'); break;
       }
     });
   }
 
-  PopupMenuItem<String> _popItem(
-    String val,
-    String svg,
-    String label,
-    AppTheme t,
-  ) =>
-      PopupMenuItem<String>(
-        value: val,
-        height: 46,
-        child: Row(
-          children: [
-            SvgPicture.string(
-              svg,
-              width: 18,
-              height: 18,
-              colorFilter: ColorFilter.mode(t.iconSub, BlendMode.srcIn),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(color: t.text, fontSize: 13.5),
-              ),
-            ),
-          ],
-        ),
-      );
+  PopupMenuItem<String> _popItem(String val, String svg, String label, AppTheme t) =>
+    PopupMenuItem<String>(value: val, height: 46,
+      child: Row(children: [
+        SvgPicture.string(svg, width: 18, height: 18,
+            colorFilter: ColorFilter.mode(t.iconSub, BlendMode.srcIn)),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label, style: TextStyle(color: t.text, fontSize: 13.5))),
+      ]));
 
-  @override
-  Widget build(BuildContext context) {
+  @override Widget build(BuildContext context) {
     super.build(context);
     final t = AppTheme.current;
     final screenW = MediaQuery.of(context).size.width;
@@ -1183,189 +720,107 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness:
-            t.isDark ? Brightness.light : Brightness.dark,
-      ),
+        statusBarIconBrightness: t.isDark ? Brightness.light : Brightness.dark),
       child: Scaffold(
         backgroundColor: t.bg,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              AnimatedBuilder(
-                animation: _playerEnterAnim,
-                builder: (_, child) => FadeTransition(
-                  opacity: _playerEnterAnim,
-                  child: Transform.translate(
-                    offset: Offset(0, (1 - _playerEnterAnim.value) * -20),
-                    child: child,
-                  ),
-                ),
-                child: SizedBox(
-                  width: screenW,
-                  height: playerH,
-                  child: ColoredBox(
-                    color: Colors.black,
-                    child: Stack(
-                      children: [
-                        if (_initialized && _ctrl != null)
-                          Positioned.fill(
-                            child: FittedBox(
-                              fit: BoxFit.contain,
-                              child: SizedBox(
-                                width: _ctrl!.value.size.width,
-                                height: _ctrl!.value.size.height,
-                                child: VideoPlayer(_ctrl!),
-                              ),
-                            ),
-                          ),
-                        if (_playerLoading || _extracting)
-                          Positioned.fill(
-                            child: Stack(
-                              children: [
-                                if (video?.thumb != null && video!.thumb.isNotEmpty)
-                                  Image.network(
-                                    video.thumb,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                    headers: const {'User-Agent': 'Mozilla/5.0'},
-                                    errorBuilder: (_, __, ___) =>
-                                        const ColoredBox(color: Colors.black),
-                                  ),
-                                Container(color: Colors.black54),
-                                Center(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const CircularProgressIndicator(
-                                        color: Colors.white70,
-                                        strokeWidth: 1.5,
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        _extracting
-                                            ? (_extractingServer != null
-                                                ? 'A obter vídeo em $_extractingServer...'
-                                                : 'A obter vídeo...')
-                                            : 'A carregar vídeo...',
-                                        style: const TextStyle(
-                                          color: Colors.white60,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: screenW * 0.35,
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.translucent,
-                            onDoubleTap: () {
-                              _skipSeconds(-10);
-                              _controlsKey.currentState?.show();
-                            },
-                            onTap: () => _controlsKey.currentState?.show(),
-                          ),
-                        ),
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: screenW * 0.35,
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.translucent,
-                            onDoubleTap: () {
-                              _skipSeconds(10);
-                              _controlsKey.currentState?.show();
-                            },
-                            onTap: () => _controlsKey.currentState?.show(),
-                          ),
-                        ),
-                        if (!_isEmpty)
-                          Positioned.fill(
-                            child: _PlayerControls(
-                              key: _controlsKey,
-                              playing: _playing,
-                              muted: _muted,
-                              position: _position,
-                              duration: _duration,
-                              hasPrev: hasPrev,
-                              hasNext: hasNext,
-                              onPlayPause: _togglePlay,
-                              onMute: _toggleMute,
-                              onNext: _goNext,
-                              onPrev: _goPrev,
-                              onSeek: _seek,
-                              onDownload: _forceDownload,
-                            ),
-                          ),
-                        if (_isEmpty)
-                          const Positioned.fill(
-                            child: ColoredBox(color: Colors.black),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              if (!_isEmpty && video != null)
-                AnimatedBuilder(
-                  animation: _descAnim,
-                  builder: (_, child) => FadeTransition(
-                    opacity: _descAnim,
-                    child: Transform.translate(
-                      offset: Offset(0, (1 - _descAnim.value) * 16),
-                      child: child,
-                    ),
-                  ),
-                  child: _VideoDescription(
-                    video: video,
-                    nextVideo: _nextVideo,
-                    onNextVideoTap: () {
-                      if (_nextVideo != null) {
-                        widget.onVideoTap(_nextVideo!);
-                        setState(() => _nextVideo = null);
-                      }
-                    },
-                    onNextVideoClose: () => setState(() => _nextVideo = null),
-                  ),
-                ),
-              Expanded(
-                child: _SuggestionsSection(
-                  loading: _loadingRelated,
-                  related: _related,
-                  onVideoTap: (v) {
-                    final idx = _related.indexOf(v);
-                    setState(() => _currentPlaylistIndex = idx >= 0 ? idx : 0);
-                    if (_nextVideo?.embedUrl == v.embedUrl) {
-                      setState(() => _nextVideo = null);
-                    }
-                    Navigator.of(context).push(
-                      CupertinoPageRoute(
-                        builder: (_) => ExibicaoPage(
-                          embedUrl: v.embedUrl,
-                          currentVideo: v,
-                          onVideoTap: widget.onVideoTap,
-                          isActive: true,
-                          playlist: _related,
-                          playlistIndex: idx >= 0 ? idx : 0,
-                        ),
-                      ),
-                    );
-                  },
-                  onMenuTap: (v, pos) => _showVideoMenu(context, v, pos),
-                ),
-              ),
-            ],
+        body: SafeArea(bottom: false, child: Column(children: [
+
+          // ── Player ──────────────────────────────────────────────────────────
+          AnimatedBuilder(
+            animation: _playerEnterAnim,
+            builder: (_, child) => FadeTransition(opacity: _playerEnterAnim,
+              child: Transform.translate(
+                offset: Offset(0, (1 - _playerEnterAnim.value) * -20), child: child)),
+            child: SizedBox(width: screenW, height: playerH,
+              child: ColoredBox(color: Colors.black,
+                child: Stack(children: [
+
+                  // Vídeo
+                  if (_initialized && _ctrl != null)
+                    Positioned.fill(child: FittedBox(fit: BoxFit.contain,
+                      child: SizedBox(
+                        width: _ctrl!.value.size.width,
+                        height: _ctrl!.value.size.height,
+                        child: VideoPlayer(_ctrl!)))),
+
+                  // Thumbnail + loading
+                  if (_playerLoading || _extracting)
+                    Positioned.fill(child: Stack(children: [
+                      if (video?.thumb != null && video!.thumb.isNotEmpty)
+                        Image.network(video.thumb, fit: BoxFit.cover,
+                          width: double.infinity, height: double.infinity,
+                          headers: const {'User-Agent': 'Mozilla/5.0'},
+                          errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black)),
+                      Container(color: Colors.black54),
+                      Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        const CircularProgressIndicator(color: Colors.white70, strokeWidth: 1.5),
+                        if (_extracting) ...[
+                          const SizedBox(height: 10),
+                          const Text('A obter vídeo...', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                        ],
+                      ])),
+                    ])),
+
+                  // Double tap esquerdo — recuar 10s
+                  Positioned(left: 0, top: 0, bottom: 0, width: screenW * 0.35,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onDoubleTap: () { _skipSeconds(-10); _controlsKey.currentState?.show(); },
+                      onTap: () => _controlsKey.currentState?.show())),
+
+                  // Double tap direito — avançar 10s
+                  Positioned(right: 0, top: 0, bottom: 0, width: screenW * 0.35,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onDoubleTap: () { _skipSeconds(10); _controlsKey.currentState?.show(); },
+                      onTap: () => _controlsKey.currentState?.show())),
+
+                  // Controles
+                  if (!_isEmpty)
+                    Positioned.fill(child: _PlayerControls(
+                      key: _controlsKey,
+                      playing: _playing, muted: _muted,
+                      position: _position, duration: _duration,
+                      hasPrev: hasPrev, hasNext: hasNext,
+                      onPlayPause: _togglePlay, onMute: _toggleMute,
+                      onNext: _goNext, onPrev: _goPrev,
+                      onSeek: _seek, onDownload: _forceDownload)),
+
+                  if (_isEmpty)
+                    const Positioned.fill(child: ColoredBox(color: Colors.black)),
+                ]))),
           ),
-        ),
+
+          // ── Descrição ──────────────────────────────────────────────────────
+          if (!_isEmpty && video != null)
+            AnimatedBuilder(
+              animation: _descAnim,
+              builder: (_, child) => FadeTransition(opacity: _descAnim,
+                child: Transform.translate(
+                  offset: Offset(0, (1 - _descAnim.value) * 16), child: child)),
+              child: _VideoDescription(
+                video: video, nextVideo: _nextVideo,
+                onNextVideoTap: () {
+                  if (_nextVideo != null) { widget.onVideoTap(_nextVideo!); setState(() => _nextVideo = null); }
+                },
+                onNextVideoClose: () => setState(() => _nextVideo = null)),
+            ),
+
+          // ── Sugestões ──────────────────────────────────────────────────────
+          Expanded(child: _SuggestionsSection(
+            loading: _loadingRelated,
+            related: _related,
+            onVideoTap: (v) {
+              final idx = _related.indexOf(v);
+              setState(() => _currentPlaylistIndex = idx >= 0 ? idx : 0);
+              if (_nextVideo?.embedUrl == v.embedUrl) setState(() => _nextVideo = null);
+              Navigator.of(context).push(CupertinoPageRoute(builder: (_) => ExibicaoPage(
+                embedUrl: v.embedUrl, currentVideo: v,
+                onVideoTap: widget.onVideoTap, isActive: true,
+                playlist: _related, playlistIndex: idx >= 0 ? idx : 0)));
+            },
+            onMenuTap: (v, pos) => _showVideoMenu(context, v, pos))),
+        ])),
       ),
     );
   }
@@ -1378,140 +833,61 @@ class _VideoDescription extends StatelessWidget {
   final VoidCallback onNextVideoTap;
   final VoidCallback onNextVideoClose;
 
-  const _VideoDescription({
-    required this.video,
-    required this.nextVideo,
-    required this.onNextVideoTap,
-    required this.onNextVideoClose,
-  });
+  const _VideoDescription({required this.video, required this.nextVideo,
+      required this.onNextVideoTap, required this.onNextVideoClose});
 
-  @override
-  Widget build(BuildContext context) {
+  @override Widget build(BuildContext context) {
     final t = AppTheme.current;
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [t.bg, t.bg.withOpacity(0.96), t.bg.withOpacity(0.0)],
-          stops: const [0.0, 0.75, 1.0],
-        ),
-      ),
+      decoration: BoxDecoration(gradient: LinearGradient(
+        begin: Alignment.topCenter, end: Alignment.bottomCenter,
+        colors: [t.bg, t.bg.withOpacity(0.96), t.bg.withOpacity(0.0)],
+        stops: const [0.0, 0.75, 1.0])),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            video.title,
-            style: TextStyle(
-              color: t.text,
-              fontSize: 14.5,
-              fontWeight: FontWeight.w600,
-              height: 1.3,
-            ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(video.title, style: TextStyle(color: t.text, fontSize: 14.5,
+            fontWeight: FontWeight.w600, height: 1.3)),
+        const SizedBox(height: 6),
+        Row(children: [
+          Text(video.sourceLabel, style: TextStyle(color: t.textSecondary,
+              fontSize: 11.5, fontWeight: FontWeight.w500)),
+          if (video.views.isNotEmpty)
+            Text('  ·  ${video.views} vis.', style: TextStyle(color: t.textHint, fontSize: 11.5)),
+        ]),
+        const SizedBox(height: 10),
+        Divider(color: t.divider, thickness: 1, height: 1),
+        const SizedBox(height: 8),
+        if (nextVideo != null) ...[
+          GestureDetector(
+            onTap: onNextVideoTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: t.isDark ? const Color(0xFF2A1A1A) : const Color(0xFFFFF0F0),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: t.isDark ? const Color(0xFF5A2020) : const Color(0xFFFFCCCC))),
+              child: Row(children: [
+                SvgPicture.string(_svgPlaylist, width: 15, height: 15,
+                    colorFilter: ColorFilter.mode(AppTheme.ytRed, BlendMode.srcIn)),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Seguinte:', style: TextStyle(color: AppTheme.ytRed,
+                      fontSize: 11, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(nextVideo!.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: t.text, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                  Text(nextVideo!.sourceLabel,
+                      style: TextStyle(color: t.textSecondary, fontSize: 11)),
+                ])),
+                GestureDetector(
+                  onTap: onNextVideoClose,
+                  child: Padding(padding: const EdgeInsets.only(left: 8),
+                      child: Icon(Icons.close_rounded, color: t.iconTertiary, size: 18))),
+              ])),
           ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Text(
-                video.sourceLabel,
-                style: TextStyle(
-                  color: t.textSecondary,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (video.views.isNotEmpty)
-                Text(
-                  '  ·  ${video.views} vis.',
-                  style: TextStyle(color: t.textHint, fontSize: 11.5),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Divider(color: t.divider, thickness: 1, height: 1),
           const SizedBox(height: 8),
-          if (nextVideo != null) ...[
-            GestureDetector(
-              onTap: onNextVideoTap,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: t.isDark
-                      ? const Color(0xFF2A1A1A)
-                      : const Color(0xFFFFF0F0),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: t.isDark
-                        ? const Color(0xFF5A2020)
-                        : const Color(0xFFFFCCCC),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    SvgPicture.string(
-                      _svgPlaylist,
-                      width: 15,
-                      height: 15,
-                      colorFilter: ColorFilter.mode(
-                        AppTheme.ytRed,
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Seguinte:',
-                            style: TextStyle(
-                              color: AppTheme.ytRed,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            nextVideo!.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: t.text,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            nextVideo!.sourceLabel,
-                            style: TextStyle(
-                              color: t.textSecondary,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: onNextVideoClose,
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: Icon(
-                          Icons.close_rounded,
-                          color: t.iconTertiary,
-                          size: 18,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
         ],
-      ),
+      ]),
     );
   }
 }
@@ -1522,68 +898,34 @@ class _SuggestionsSection extends StatefulWidget {
   final List<FeedVideo> related;
   final void Function(FeedVideo) onVideoTap;
   final void Function(FeedVideo, Offset) onMenuTap;
-
-  const _SuggestionsSection({
-    required this.loading,
-    required this.related,
-    required this.onVideoTap,
-    required this.onMenuTap,
-  });
-
-  @override
-  State<_SuggestionsSection> createState() => _SuggestionsSectionState();
+  const _SuggestionsSection({required this.loading, required this.related,
+      required this.onVideoTap, required this.onMenuTap});
+  @override State<_SuggestionsSection> createState() => _SuggestionsSectionState();
 }
-
 class _SuggestionsSectionState extends State<_SuggestionsSection> {
   final ScrollController _scroll = ScrollController();
-
-  @override
-  void dispose() {
-    _scroll.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  @override void dispose() { _scroll.dispose(); super.dispose(); }
+  @override Widget build(BuildContext context) {
     final t = AppTheme.current;
     return CustomScrollView(
-      controller: _scroll,
-      physics: const BouncingScrollPhysics(),
+      controller: _scroll, physics: const BouncingScrollPhysics(),
       slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-            child: Text(
-              'Relacionados',
-              style: TextStyle(
-                color: t.text,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
+        SliverToBoxAdapter(child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+          child: Text('Relacionados', style: TextStyle(color: t.text,
+              fontSize: 13.5, fontWeight: FontWeight.w600)))),
         if (widget.loading)
           SliverList(delegate: SliverChildListDelegate(_skeletonCards(5)))
         else
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (_, i) {
-                if (i >= widget.related.length) {
-                  return const SizedBox(height: 32);
-                }
-                final v = widget.related[i];
-                return _RelatedCard(
-                  key: ValueKey(v.embedUrl),
-                  video: v,
-                  index: i,
+          SliverList(delegate: SliverChildBuilderDelegate(
+            (_, i) {
+              if (i >= widget.related.length) return const SizedBox(height: 32);
+              final v = widget.related[i];
+              return _RelatedCard(key: ValueKey(v.embedUrl), video: v, index: i,
                   onTap: () => widget.onVideoTap(v),
-                  onMenuTap: (pos) => widget.onMenuTap(v, pos),
-                );
-              },
-              childCount: widget.related.length + 1,
-            ),
-          ),
+                  onMenuTap: (pos) => widget.onMenuTap(v, pos));
+            },
+            childCount: widget.related.length + 1)),
       ],
     );
   }
