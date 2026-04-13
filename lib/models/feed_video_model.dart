@@ -22,10 +22,12 @@ class FeedVideo {
   final String duration;
   final String views;
   final VideoSource source;
+  final DateTime? publishedAt; // ← campo adicionado
 
   const FeedVideo({
     required this.title, required this.thumb, required this.embedUrl,
     required this.duration, required this.views, required this.source,
+    this.publishedAt,
   });
 
   String get sourceLabel {
@@ -64,6 +66,8 @@ class FeedVideo {
 
   Color get sourceColor => const Color(0xFF222222);
 
+  // ── Parsers de API ──────────────────────────────────────────────────────────
+
   static FeedVideo? fromEporner(Map<String, dynamic> j) {
     final id = j['id'] as String? ?? '';
     if (id.isEmpty) return null;
@@ -82,6 +86,7 @@ class FeedVideo {
       duration: j['duration'] as String? ?? '',
       views: _fmtViews(j['views']),
       source: VideoSource.eporner,
+      publishedAt: _parseDate(j['added'] ?? j['published'] ?? j['date']),
     );
   }
 
@@ -102,6 +107,7 @@ class FeedVideo {
       duration: j['duration'] as String? ?? '',
       views: _fmtViews(j['views']),
       source: VideoSource.pornhub,
+      publishedAt: _parseDate(j['publish_date'] ?? j['date_approved'] ?? j['added']),
     );
   }
 
@@ -117,6 +123,7 @@ class FeedVideo {
       duration: j['duration'] as String? ?? '',
       views: _fmtViews(j['views']),
       source: VideoSource.redtube,
+      publishedAt: _parseDate(j['publish_date'] ?? j['date']),
     );
   }
 
@@ -132,6 +139,7 @@ class FeedVideo {
       duration: j['duration'] as String? ?? '',
       views: _fmtViews(j['views']),
       source: VideoSource.youporn,
+      publishedAt: _parseDate(j['publish_date'] ?? j['date']),
     );
   }
 
@@ -148,6 +156,7 @@ class FeedVideo {
       duration: j['duration'] as String? ?? '',
       views:    _fmtViews(j['views'] ?? j['nb_views']),
       source:   VideoSource.xvideos,
+      publishedAt: _parseDate(j['added'] ?? j['date']),
     );
   }
 
@@ -164,6 +173,7 @@ class FeedVideo {
       duration: j['duration']?.toString() ?? '',
       views:    _fmtViews(j['views']),
       source:   VideoSource.xhamster,
+      publishedAt: _parseDate(j['created'] ?? j['added'] ?? j['date']),
     );
   }
 
@@ -179,6 +189,7 @@ class FeedVideo {
       duration: j['duration']?.toString() ?? '',
       views:    _fmtViews(j['views']),
       source:   VideoSource.spankbang,
+      publishedAt: _parseDate(j['date'] ?? j['added']),
     );
   }
 
@@ -187,6 +198,7 @@ class FeedVideo {
     required String thumb,
     required String embedUrl,
     required VideoSource source,
+    DateTime? publishedAt,
   }) => FeedVideo(
     title: cleanTitle(title),
     thumb: thumb,
@@ -194,7 +206,22 @@ class FeedVideo {
     duration: '',
     views: '',
     source: source,
+    publishedAt: publishedAt,
   );
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  static DateTime? _parseDate(dynamic raw) {
+    if (raw == null) return null;
+    final s = raw.toString().trim();
+    if (s.isEmpty) return null;
+    // Unix timestamp
+    final epoch = int.tryParse(s);
+    if (epoch != null) return DateTime.fromMillisecondsSinceEpoch(epoch * 1000);
+    // ISO / RFC strings
+    try { return DateTime.parse(s); } catch (_) {}
+    return null;
+  }
 
   static String cleanTitle(String raw) {
     try {
@@ -328,6 +355,7 @@ class FeedFetcher {
           final link  = FeedFetcher._xml(item, 'link');
           final title = FeedFetcher._xml(item, 'title');
           final thumb = FeedFetcher._rssThumb(item);
+          final pubDate = FeedFetcher._xml(item, 'pubDate');
           if (link.isEmpty) continue;
           final match = RegExp(r'/video(\d+)').firstMatch(link);
           if (match == null) continue;
@@ -336,6 +364,7 @@ class FeedFetcher {
             thumb: thumb,
             embedUrl: 'https://www.xvideos.com/embedframe/${match.group(1)}',
             source: VideoSource.xvideos,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
         }
         if (items.isNotEmpty) break;
@@ -360,6 +389,7 @@ class FeedFetcher {
           final link  = FeedFetcher._xml(item, 'link');
           final title = FeedFetcher._xml(item, 'title');
           final thumb = FeedFetcher._rssThumb(item);
+          final pubDate = FeedFetcher._xml(item, 'pubDate');
           if (link.isEmpty) continue;
           final match = RegExp(r'/video-(\w+)/').firstMatch(link);
           if (match == null) continue;
@@ -368,6 +398,7 @@ class FeedFetcher {
             thumb: thumb,
             embedUrl: 'https://www.xnxx.com/embedframe/${match.group(1)}',
             source: VideoSource.xhamster,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
         }
         if (items.isNotEmpty) break;
@@ -389,6 +420,7 @@ class FeedFetcher {
           final link  = FeedFetcher._xml(item, 'link');
           final title = FeedFetcher._xml(item, 'title');
           final thumb = FeedFetcher._rssThumb(item);
+          final pubDate = FeedFetcher._xml(item, 'pubDate');
           if (link.isEmpty) continue;
           final match = RegExp(r'^/([A-Za-z0-9]+)/').firstMatch(Uri.parse(link).path);
           if (match == null) continue;
@@ -397,6 +429,7 @@ class FeedFetcher {
             thumb: thumb,
             embedUrl: 'https://spankbang.com/${match.group(1)}/embed/',
             source: VideoSource.spankbang,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
         }
         if (items.isNotEmpty) break;
@@ -418,6 +451,7 @@ class FeedFetcher {
           final link  = FeedFetcher._xml(item, 'link');
           final title = FeedFetcher._xml(item, 'title');
           final thumb = FeedFetcher._rssThumb(item);
+          final pubDate = FeedFetcher._xml(item, 'pubDate');
           if (link.isEmpty) continue;
           final match = RegExp(r'-(\d+)\.html').firstMatch(link);
           if (match == null) continue;
@@ -425,6 +459,7 @@ class FeedFetcher {
             title: title, thumb: thumb,
             embedUrl: 'https://www.bravotube.net/embed/${match.group(1)}/',
             source: VideoSource.bravotube,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
         }
         if (items.isNotEmpty) break;
@@ -446,6 +481,7 @@ class FeedFetcher {
           final link  = FeedFetcher._xml(item, 'link');
           final title = FeedFetcher._xml(item, 'title');
           final thumb = FeedFetcher._rssThumb(item);
+          final pubDate = FeedFetcher._xml(item, 'pubDate');
           if (link.isEmpty) continue;
           final match = RegExp(r'/video/(\d+)').firstMatch(link);
           if (match == null) continue;
@@ -453,6 +489,7 @@ class FeedFetcher {
             title: title, thumb: thumb,
             embedUrl: 'https://www.drtuber.com/embed/${match.group(1)}',
             source: VideoSource.drtuber,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
         }
         if (items.isNotEmpty) break;
@@ -474,6 +511,7 @@ class FeedFetcher {
           final link  = FeedFetcher._xml(item, 'link');
           final title = FeedFetcher._xml(item, 'title');
           final thumb = FeedFetcher._rssThumb(item);
+          final pubDate = FeedFetcher._xml(item, 'pubDate');
           if (link.isEmpty) continue;
           final match = RegExp(r'-(\d+)/?$').firstMatch(Uri.parse(link).path);
           if (match == null) continue;
@@ -481,6 +519,7 @@ class FeedFetcher {
             title: title, thumb: thumb,
             embedUrl: 'https://www.txxx.com/embed/${match.group(1)}/',
             source: VideoSource.txxx,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
         }
         if (items.isNotEmpty) break;
@@ -502,6 +541,7 @@ class FeedFetcher {
           final link  = FeedFetcher._xml(item, 'link');
           final title = FeedFetcher._xml(item, 'title');
           final thumb = FeedFetcher._rssThumb(item);
+          final pubDate = FeedFetcher._xml(item, 'pubDate');
           if (link.isEmpty) continue;
           final match = RegExp(r'/video-(\d+)').firstMatch(link);
           if (match == null) continue;
@@ -509,6 +549,7 @@ class FeedFetcher {
             title: title, thumb: thumb,
             embedUrl: 'https://www.gotporn.com/video/embed/${match.group(1)}',
             source: VideoSource.gotporn,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
         }
         if (items.isNotEmpty) break;
@@ -530,6 +571,7 @@ class FeedFetcher {
           final link  = FeedFetcher._xml(item, 'link');
           final title = FeedFetcher._xml(item, 'title');
           final thumb = FeedFetcher._rssThumb(item);
+          final pubDate = FeedFetcher._xml(item, 'pubDate');
           if (link.isEmpty) continue;
           final match = RegExp(r'-(\d+)\.html').firstMatch(link);
           if (match == null) continue;
@@ -537,6 +579,7 @@ class FeedFetcher {
             title: title, thumb: thumb,
             embedUrl: 'https://www.porndig.com/embed/${match.group(1)}',
             source: VideoSource.porndig,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
         }
         if (items.isNotEmpty) break;
@@ -544,6 +587,8 @@ class FeedFetcher {
     }
     return items;
   }
+
+  // ── XML helpers ─────────────────────────────────────────────────────────────
 
   static String _xml(dynamic el, String tag) {
     try { return el.findElements(tag).first.innerText.trim(); } catch (_) { return ''; }
@@ -591,6 +636,34 @@ class FeedFetcher {
     } catch (_) {}
     return '';
   }
+
+  /// Tenta fazer parse de datas no formato RSS (RFC 2822) e ISO 8601.
+  static DateTime? _tryParseRssDate(String raw) {
+    try { return DateTime.parse(raw); } catch (_) {}
+    // RFC 2822: "Mon, 07 Apr 2025 12:00:00 +0000"
+    try {
+      final months = {
+        'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+        'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
+      };
+      final rx = RegExp(
+          r'\w+,\s+(\d{1,2})\s+(\w{3})\s+(\d{4})\s+(\d{2}):(\d{2}):(\d{2})');
+      final m = rx.firstMatch(raw);
+      if (m != null) {
+        return DateTime.utc(
+          int.parse(m.group(3)!),
+          months[m.group(2)] ?? 1,
+          int.parse(m.group(1)!),
+          int.parse(m.group(4)!),
+          int.parse(m.group(5)!),
+          int.parse(m.group(6)!),
+        );
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // ── fetchAll ─────────────────────────────────────────────────────────────────
 
   static Future<List<FeedVideo>> fetchAll(int page) async {
     final rng = Random(DateTime.now().millisecondsSinceEpoch ^ page.hashCode);
