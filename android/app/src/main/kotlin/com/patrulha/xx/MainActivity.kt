@@ -2,12 +2,10 @@ package com.patrulha.xx
 
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageInstaller
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -26,13 +24,6 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val ACTION_INSTALL_COMPLETE = "com.patrulha.xx.INSTALL_COMPLETE"
-
-        // Nomes dos aliases no AndroidManifest
-        const val ALIAS_CLASSIC  = "com.patrulha.xx.MainActivityClassic"
-        const val ALIAS_LIGHT    = "com.patrulha.xx.MainActivityLight"
-        const val ALIAS_ORIGINAL = "com.patrulha.xx.MainActivityOriginal"
-
-        val ALL_ALIASES = listOf(ALIAS_CLASSIC, ALIAS_LIGHT, ALIAS_ORIGINAL)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -138,78 +129,6 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
-
-        // ── Canal: troca de ícone da launcher ──
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.patrulhaxx/app_icon")
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    // Retorna o alias atualmente ativo: "classic", "light" ou "original"
-                    "getActiveIcon" -> {
-                        val active = getActiveAlias()
-                        result.success(active)
-                    }
-                    // iconName: "classic" | "light" | "original"
-                    "setIcon" -> {
-                        val iconName = call.argument<String>("icon") ?: "classic"
-                        val targetAlias = when (iconName) {
-                            "light"    -> ALIAS_LIGHT
-                            "original" -> ALIAS_ORIGINAL
-                            else       -> ALIAS_CLASSIC
-                        }
-                        try {
-                            switchToAlias(targetAlias)
-                            result.success(null)
-                        } catch (e: Exception) {
-                            result.error("ICON_ERROR", e.message, null)
-                        }
-                    }
-                    else -> result.notImplemented()
-                }
-            }
-    }
-
-    // ── Determina qual alias está atualmente ENABLED ──
-    // IMPORTANTE: COMPONENT_ENABLED_STATE_DEFAULT conta como enabled para o Classic
-    // (que está enabled="true" no manifest). Tem de ser verificado assim para evitar
-    // que dois aliases fiquem ativos em simultâneo.
-    private fun getActiveAlias(): String {
-        val pm = packageManager
-        for (alias in ALL_ALIASES) {
-            val state = pm.getComponentEnabledSetting(
-                ComponentName(this, alias)
-            )
-            val isEnabled = state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED ||
-                (alias == ALIAS_CLASSIC && state == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT)
-            if (isEnabled) {
-                return when (alias) {
-                    ALIAS_LIGHT    -> "light"
-                    ALIAS_ORIGINAL -> "original"
-                    else           -> "classic"
-                }
-            }
-        }
-        return "classic"
-    }
-
-    // ── Ativa o alias pretendido e desativa os restantes ──
-    // FIX: desativa TODOS primeiro (incluindo Classic explicitamente) antes
-    // de ativar o alvo, para garantir que nunca há dois aliases enabled.
-    private fun switchToAlias(targetAlias: String) {
-        val pm = packageManager
-        // 1ª passagem: desativa todos sem exceção
-        for (alias in ALL_ALIASES) {
-            pm.setComponentEnabledSetting(
-                ComponentName(this, alias),
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                PackageManager.DONT_KILL_APP
-            )
-        }
-        // 2ª passagem: ativa apenas o alvo
-        pm.setComponentEnabledSetting(
-            ComponentName(this, targetAlias),
-            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-            PackageManager.DONT_KILL_APP
-        )
     }
 
     // ── PackageInstaller Session ──
