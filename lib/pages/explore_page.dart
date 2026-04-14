@@ -419,22 +419,15 @@ class _VideoCard extends StatelessWidget {
   }
 
   // Formata data real
-  String _formatDate(String raw) {
-    if (raw.isEmpty) return '';
-    // Tenta parse de data ISO
-    try {
-      final dt = DateTime.parse(raw);
-      final diff = DateTime.now().difference(dt);
-      if (diff.inDays == 0) return 'hoje';
-      if (diff.inDays == 1) return 'ontem';
-      if (diff.inDays < 7) return 'há ${diff.inDays} dias';
-      if (diff.inDays < 30) return 'há ${(diff.inDays / 7).floor()} sem.';
-      if (diff.inDays < 365) return 'há ${(diff.inDays / 30).floor()} meses';
-      return 'há ${(diff.inDays / 365).floor()} anos';
-    } catch (_) {
-      // Se não é ISO, devolve como está
-      return raw;
-    }
+  String _formatDate(DateTime? dt) {
+    if (dt == null) return '';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inDays == 0) return 'hoje';
+    if (diff.inDays == 1) return 'ontem';
+    if (diff.inDays < 7) return 'há ${diff.inDays} dias';
+    if (diff.inDays < 30) return 'há ${(diff.inDays / 7).floor()} sem.';
+    if (diff.inDays < 365) return 'há ${(diff.inDays / 30).floor()} meses';
+    return 'há ${(diff.inDays / 365).floor()} anos';
   }
 
   @override Widget build(BuildContext context) {
