@@ -36,20 +36,15 @@ class _ExplorePageState extends State<ExplorePage>
   @override bool get wantKeepAlive => true;
 
   final List<FeedVideo> _videos = [];
-  // Novos vídeos carregados em baixo, aguardando inserção
-  final List<FeedVideo> _pendingBottom = [];
   final ScrollController _scroll = ScrollController();
 
   bool _loading = true;
   bool _error = false;
-  bool _fetching = false;   // carregando mais em baixo
-  bool _refreshing = false; // pull-to-refresh
+  bool _fetching = false;
+  bool _refreshing = false;
   bool _showScrollTop = false;
   int _page = 1;
   _ChipFilter _chip = _ChipFilter.todos;
-
-  // Altura estimada do AppBar (topPad + título + chips + divider)
-  static const double _appBarH = 96.0;
 
   @override void initState() {
     super.initState();
@@ -67,20 +62,15 @@ class _ExplorePageState extends State<ExplorePage>
     if (!_scroll.hasClients) return;
     final px = _scroll.position.pixels;
     final max = _scroll.position.maxScrollExtent;
-
-    // Botão de voltar ao topo
     final showTop = px > 600;
     if (showTop != _showScrollTop) setState(() => _showScrollTop = showTop);
-
-    // Carregar mais em baixo
     if (px >= max - 700) _fetchMore();
   }
 
-  // ── Filtros ────────────────────────────────────────────────────────────────
   List<FeedVideo> _filteredFor(_ChipFilter chip) {
     switch (chip) {
-      case _ChipFilter.todos:      return _videos;
-      case _ChipFilter.recentes:   return List.from(_videos);
+      case _ChipFilter.todos:       return _videos;
+      case _ChipFilter.recentes:    return List.from(_videos);
       case _ChipFilter.maisAntigos: return _videos.reversed.toList();
       case _ChipFilter.maisVistos:
         final c = List<FeedVideo>.from(_videos);
@@ -106,7 +96,6 @@ class _ExplorePageState extends State<ExplorePage>
     } catch (_) { return 0; }
   }
 
-  // ── Fetch inicial ──────────────────────────────────────────────────────────
   Future<void> _fetch() async {
     if (!mounted) return;
     setState(() { _loading = true; _error = false; _page = 1; });
@@ -125,7 +114,6 @@ class _ExplorePageState extends State<ExplorePage>
     }
   }
 
-  // ── Pull-to-refresh: mantém posição, mostra loader no topo ────────────────
   Future<void> _refresh() async {
     if (_refreshing) return;
     setState(() => _refreshing = true);
@@ -135,11 +123,8 @@ class _ExplorePageState extends State<ExplorePage>
       final videos = await FeedFetcher.fetchAll(randomPage);
       if (!mounted) return;
       if (videos.isNotEmpty) {
-        // Insere no topo sem mexer na posição de scroll
-        final oldCount = _videos.length;
         _videos.insertAll(0, videos);
         _page = randomPage + 1;
-        // Corrige posição para que o utilizador não salte
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scroll.hasClients) {
             final itemH = MediaQuery.of(context).size.width * 9 / 16 + 90.0;
@@ -151,7 +136,6 @@ class _ExplorePageState extends State<ExplorePage>
     if (mounted) setState(() => _refreshing = false);
   }
 
-  // ── Carregar mais em baixo: acumula em _pendingBottom ─────────────────────
   Future<void> _fetchMore() async {
     if (_fetching || _loading || _refreshing) return;
     setState(() => _fetching = true);
@@ -159,10 +143,7 @@ class _ExplorePageState extends State<ExplorePage>
       final videos = await FeedFetcher.fetchAll(_page);
       if (!mounted) { _fetching = false; return; }
       if (videos.isNotEmpty) {
-        setState(() {
-          _videos.addAll(videos);
-          _page++;
-        });
+        setState(() { _videos.addAll(videos); _page++; });
       }
     } catch (_) {}
     if (mounted) setState(() => _fetching = false);
@@ -199,6 +180,13 @@ class _ExplorePageState extends State<ExplorePage>
     final topPad = MediaQuery.of(context).padding.top;
     final isDark = t.statusBar == Brightness.light;
 
+    // Altura exacta do título: sem espaço extra
+    // topPad + padding(10) + text(22) + padding(6) = topPad + 38
+    final double titleExpandedH = topPad + 38;
+
+    // Chips: altura fixa 36 + divisor 1
+    const double chipsH = 37;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -219,6 +207,7 @@ class _ExplorePageState extends State<ExplorePage>
         body: NestedScrollView(
           controller: _scroll,
           headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
+            // ── Título "Explorar" — float+snap, desaparece ao scroll ──
             SliverAppBar(
               backgroundColor: t.bg,
               floating: true,
@@ -226,18 +215,37 @@ class _ExplorePageState extends State<ExplorePage>
               pinned: false,
               elevation: 0,
               toolbarHeight: 0,
-              expandedHeight: topPad + _appBarH,
+              expandedHeight: titleExpandedH,
               flexibleSpace: FlexibleSpaceBar(
                 collapseMode: CollapseMode.pin,
-                background: _ExploreAppBar(
-                  topPad: topPad,
-                  selectedChip: _chip,
-                  isDark: isDark,
-                  onChipChanged: (c) => setState(() => _chip = c)),
+                background: Container(
+                  color: t.bg,
+                  alignment: Alignment.bottomLeft,
+                  padding: EdgeInsets.only(
+                    top: topPad,
+                    left: 16,
+                    bottom: 6,
+                  ),
+                  child: Text('Explorar', style: TextStyle(
+                      color: t.text,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5)),
+                ),
               ),
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(0),
-                child: Container(height: 0.5, color: t.divider)),
+            ),
+
+            // ── Chips — pinned: fica colado ao StatusBar quando o título some ──
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _ChipHeaderDelegate(
+                height: chipsH,
+                selectedChip: _chip,
+                isDark: isDark,
+                onChipChanged: (c) => setState(() => _chip = c),
+                bg: t.bg,
+                dividerColor: t.divider,
+              ),
             ),
           ],
           body: _loading
@@ -283,7 +291,6 @@ class _ExplorePageState extends State<ExplorePage>
     }
 
     return RefreshIndicator(
-      // Indicador nativo do Flutter — mantém posição e mostra loader
       onRefresh: _refresh,
       color: AppTheme.ytRed,
       backgroundColor: AppTheme.current.bg,
@@ -294,7 +301,6 @@ class _ExplorePageState extends State<ExplorePage>
         separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (_, i) {
           if (i == list.length) {
-            // Loader de 3 pontos no fim da lista
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
               child: Center(child: _DotsLoader(isDark: isDark)));
@@ -308,33 +314,41 @@ class _ExplorePageState extends State<ExplorePage>
   }
 }
 
-// ─── AppBar ───────────────────────────────────────────────────────────────────
-class _ExploreAppBar extends StatelessWidget {
-  final double topPad;
+// ─── SliverPersistentHeader delegate para chips ───────────────────────────────
+class _ChipHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double height;
   final _ChipFilter selectedChip;
   final void Function(_ChipFilter) onChipChanged;
   final bool isDark;
+  final Color bg;
+  final Color dividerColor;
 
-  const _ExploreAppBar({
-    required this.topPad,
+  const _ChipHeaderDelegate({
+    required this.height,
     required this.selectedChip,
     required this.onChipChanged,
     required this.isDark,
+    required this.bg,
+    required this.dividerColor,
   });
 
-  @override Widget build(BuildContext context) {
-    final t = AppTheme.current;
+  @override double get minExtent => height;
+  @override double get maxExtent => height;
+
+  @override bool shouldRebuild(_ChipHeaderDelegate old) =>
+      old.selectedChip != selectedChip ||
+      old.isDark != isDark ||
+      old.bg != bg;
+
+  @override Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
     final indicatorColor = isDark ? Colors.white : AppTheme.ytRed;
 
     return Container(
-      color: t.bg,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(height: topPad),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 8, 6),
-          child: Text('Explorar', style: TextStyle(
-              color: t.text, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5))),
-        SizedBox(height: 36,
+      color: bg,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        SizedBox(
+          height: 36,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -354,11 +368,14 @@ class _ExploreAppBar extends StatelessWidget {
                       duration: const Duration(milliseconds: 220),
                       curve: Curves.easeOutCubic,
                       style: TextStyle(
-                        color: selected ? t.text : t.textSecondary,
+                        color: selected
+                            ? (isDark ? Colors.white : Colors.black)
+                            : (isDark ? Colors.white54 : Colors.black45),
                         fontSize: 13,
                         fontWeight: selected ? FontWeight.w700 : FontWeight.w400),
                       child: Text(_kChipLabels[chip]!)),
-                    Positioned(bottom: -6, left: 0, right: 0,
+                    Positioned(
+                      bottom: -5, left: 0, right: 0,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 220),
                         curve: Curves.easeOutCubic,
@@ -367,9 +384,11 @@ class _ExploreAppBar extends StatelessWidget {
                           color: selected ? indicatorColor : Colors.transparent,
                           borderRadius: BorderRadius.circular(100)))),
                   ])));
-            })),
-        const SizedBox(height: 4),
-      ]));
+            }),
+        ),
+        Container(height: 1, color: dividerColor),
+      ]),
+    );
   }
 }
 
@@ -406,10 +425,8 @@ class _VideoCard extends StatelessWidget {
     }
   }
 
-  // Formata visualizações reais
   String _formatViews(String raw) {
     if (raw.isEmpty) return '';
-    // Se já vem formatado (ex: "1.2M", "42K") devolve directo
     if (raw.contains(RegExp(r'[KkMmBb]'))) return raw;
     final n = int.tryParse(raw.replaceAll(RegExp(r'[^\d]'), ''));
     if (n == null) return raw;
@@ -418,7 +435,6 @@ class _VideoCard extends StatelessWidget {
     return '$n';
   }
 
-  // Formata data real
   String _formatDate(DateTime? dt) {
     if (dt == null) return '';
     final diff = DateTime.now().difference(dt);
@@ -459,7 +475,6 @@ class _VideoCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const SizedBox(width: 0), // sem avatar
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(video.title,
                   maxLines: 2, overflow: TextOverflow.ellipsis,
@@ -497,7 +512,6 @@ class _ThumbImg extends StatelessWidget {
       fit: fit,
       width: double.infinity,
       height: double.infinity,
-      // filterQuality alta para imagens mais nítidas
       imageBuilder: (_, img) => Image(image: img, fit: fit,
           filterQuality: FilterQuality.high,
           width: double.infinity, height: double.infinity),
