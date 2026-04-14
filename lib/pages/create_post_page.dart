@@ -16,54 +16,37 @@ import '../theme/app_theme.dart';
 const _kGhOwner  = 'Alfredoooh';
 const _kGhRepo   = 'data';
 const _kGhBranch = 'main';
-// Token injetado via --dart-define=GH_TOKEN=... para não ficar em plain-text
-// flutter run --dart-define=GH_TOKEN=ghp_...
 const _kGhToken  = String.fromEnvironment('GH_TOKEN');
+
+// ─── SVG inline — ícone X (close) ─────────────────────────────────────────────
+// Evita dependência de um asset file que pode não estar mapeado
+const _svgClose = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>''';
 
 // ─── Estrutura de publicação ──────────────────────────────────────────────────
 class PostPayload {
-  final String id;
-  final String text;
+  final String id, text, createdAt, author;
   final List<MediaPayload> media;
-  final String createdAt;
-  final String author;
 
   PostPayload({
-    required this.id,
-    required this.text,
-    required this.media,
-    required this.createdAt,
-    required this.author,
+    required this.id, required this.text, required this.media,
+    required this.createdAt, required this.author,
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'author': author,
-    'text': text,
+    'id': id, 'author': author, 'text': text,
     'media': media.map((m) => m.toJson()).toList(),
-    'createdAt': createdAt,
-    'platform': 'android',
+    'createdAt': createdAt, 'platform': 'android',
   };
 }
 
 class MediaPayload {
-  final String type;   // 'image' | 'video'
-  final String url;
-  final String filename;
+  final String type, url, filename;
   final int sizeBytes;
 
-  MediaPayload({
-    required this.type,
-    required this.url,
-    required this.filename,
-    required this.sizeBytes,
-  });
+  MediaPayload({required this.type, required this.url, required this.filename, required this.sizeBytes});
 
   Map<String, dynamic> toJson() => {
-    'type': type,
-    'url': url,
-    'filename': filename,
-    'sizeBytes': sizeBytes,
+    'type': type, 'url': url, 'filename': filename, 'sizeBytes': sizeBytes,
   };
 }
 
@@ -72,23 +55,17 @@ Future<String> _uploadToGitHub(File file, String filename) async {
   final bytes   = await file.readAsBytes();
   final content = base64Encode(bytes);
   final path    = 'uploads/$filename';
-  final url     = Uri.parse(
-      'https://api.github.com/repos/$_kGhOwner/$_kGhRepo/contents/$path');
+  final url     = Uri.parse('https://api.github.com/repos/$_kGhOwner/$_kGhRepo/contents/$path');
 
-  // verifica se já existe (para obter sha)
   String? sha;
   final getRes = await http.get(url, headers: {
     'Authorization': 'token $_kGhToken',
     'Accept': 'application/vnd.github+json',
   });
-  if (getRes.statusCode == 200) {
-    sha = json.decode(getRes.body)['sha'] as String?;
-  }
+  if (getRes.statusCode == 200) sha = json.decode(getRes.body)['sha'] as String?;
 
   final body = <String, dynamic>{
-    'message': 'upload: $filename',
-    'content': content,
-    'branch': _kGhBranch,
+    'message': 'upload: $filename', 'content': content, 'branch': _kGhBranch,
   };
   if (sha != null) body['sha'] = sha;
 
@@ -104,9 +81,7 @@ Future<String> _uploadToGitHub(File file, String filename) async {
   if (putRes.statusCode != 200 && putRes.statusCode != 201) {
     throw Exception('GitHub upload falhou: ${putRes.statusCode}');
   }
-
-  final raw = json.decode(putRes.body);
-  return raw['content']['download_url'] as String;
+  return json.decode(putRes.body)['content']['download_url'] as String;
 }
 
 // ─── Página principal ─────────────────────────────────────────────────────────
@@ -117,6 +92,7 @@ class CreatePostPage extends StatefulWidget {
 }
 
 class _CreatePostPageState extends State<CreatePostPage> {
+  final _titleCtrl = TextEditingController();   // ← novo: campo de título
   final _textCtrl  = TextEditingController();
   final _textFocus = FocusNode();
   final _picker    = ImagePicker();
@@ -127,31 +103,44 @@ class _CreatePostPageState extends State<CreatePostPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _textFocus.requestFocus());
+    _titleCtrl.addListener(() => setState(() {}));
     _textCtrl.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
+    _titleCtrl.dispose();
     _textCtrl.dispose();
     _textFocus.dispose();
     for (final m in _media) m.videoCtrl?.dispose();
     super.dispose();
   }
 
+  // ── Helpers de UI ──────────────────────────────────────────────────────────
+  void _showSnack(String msg) {
+    final t = AppTheme.current;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg, style: TextStyle(color: t.toastText)),
+        backgroundColor: t.toastBg,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
   // ── Câmera ──────────────────────────────────────────────────────────────────
   Future<void> _openCamera() async {
     final status = await Permission.camera.request();
-    if (!status.isGranted) {
-      _showSnack('Permissão de câmera negada');
-      return;
-    }
+    if (!status.isGranted) { _showSnack('Permissão de câmera negada'); return; }
     final picked = await _picker.pickImage(source: ImageSource.camera);
     if (picked == null) return;
     _addFile(File(picked.path), false);
   }
 
-  // ── Galeria (picker nativo) ──────────────────────────────────────────────────
+  // ── Galeria (picker nativo — imagem e vídeo) ─────────────────────────────────
   Future<void> _pickMedia() async {
+    // pickMedia escolhe imagem ou vídeo conforme o que o utilizador seleciona
     final picked = await _picker.pickMedia();
     if (picked == null) return;
     final file    = File(picked.path);
@@ -162,28 +151,27 @@ class _CreatePostPageState extends State<CreatePostPage> {
     _addFile(file, isVideo);
   }
 
+  // ── Adicionar ficheiro à lista ───────────────────────────────────────────────
   Future<void> _addFile(File file, bool isVideo) async {
     VideoPlayerController? ctrl;
     if (isVideo) {
       ctrl = VideoPlayerController.file(file);
       await ctrl.initialize();
       ctrl.setLooping(true);
+      ctrl.play();   // auto-play no preview
     }
     setState(() => _media.add(_MediaItem(file: file, isVideo: isVideo, videoCtrl: ctrl)));
   }
 
-  // ── Modal galeria (todos os assets) ─────────────────────────────────────────
+  // ── Modal galeria completa ───────────────────────────────────────────────────
   Future<void> _openGalleryModal() async {
-    // pede permissão de media
     PermissionStatus status;
     if (Platform.isAndroid) {
       final sdk = await _androidSdk();
       if (sdk >= 33) {
         final imgs = await Permission.photos.request();
         final vids = await Permission.videos.request();
-        status = imgs.isGranted && vids.isGranted
-            ? PermissionStatus.granted
-            : PermissionStatus.denied;
+        status = imgs.isGranted && vids.isGranted ? PermissionStatus.granted : PermissionStatus.denied;
       } else {
         status = await Permission.storage.request();
       }
@@ -202,7 +190,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      shape: const RoundedRectangleBorder(), // bordas retas
+      shape: const RoundedRectangleBorder(),
       builder: (_) => _GalleryModal(onSelect: (file, isVideo) {
         Navigator.pop(context);
         _addFile(file, isVideo);
@@ -212,16 +200,18 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
   Future<int> _androidSdk() async {
     try {
-      final v = await const MethodChannel('flutter/platform')
-          .invokeMethod<int>('getAndroidSdkInt');
+      final v = await const MethodChannel('flutter/platform').invokeMethod<int>('getAndroidSdkInt');
       return v ?? 30;
-    } catch (_) {
-      return 30;
-    }
+    } catch (_) { return 30; }
   }
 
   // ── Publicar ────────────────────────────────────────────────────────────────
   Future<void> _publish() async {
+    // Valida título obrigatório
+    if (_titleCtrl.text.trim().isEmpty) {
+      _showSnack('Adicione um título');
+      return;
+    }
     if (_textCtrl.text.trim().isEmpty && _media.isEmpty) return;
     setState(() => _uploading = true);
 
@@ -247,7 +237,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
         author:    _kGhOwner,
       );
 
-      // guarda JSON do post no GitHub
       final jsonStr  = const JsonEncoder.withIndent('  ').convert(post.toJson());
       final jsonFile = File('${Directory.systemTemp.path}/${post.id}.json');
       await jsonFile.writeAsString(jsonStr);
@@ -265,12 +254,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
     }
   }
 
-  void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
-  }
-
+  // ── Build ────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final safeTop    = MediaQuery.of(context).padding.top;
@@ -298,8 +282,9 @@ class _CreatePostPageState extends State<CreatePostPage> {
                         child: SizedBox(
                           width: 40, height: 40,
                           child: Center(
-                            child: SvgPicture.asset(
-                              'assets/icons/svg/close.svg',
+                            // FIX: usa SVG inline para garantir que aparece
+                            child: SvgPicture.string(
+                              _svgClose,
                               width: 22, height: 22,
                               colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
                             ),
@@ -308,11 +293,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                       ),
                       const Spacer(),
                       Text('Rascunho',
-                          style: TextStyle(
-                            color: AppTheme.link,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          )),
+                          style: TextStyle(color: AppTheme.link, fontSize: 15, fontWeight: FontWeight.w600)),
                       const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: _uploading ? null : _publish,
@@ -321,10 +302,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: const StadiumBorder(),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 10),
-                          textStyle: const TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w700),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                         ),
                         child: const Text('Publicar'),
                       ),
@@ -339,6 +318,22 @@ class _CreatePostPageState extends State<CreatePostPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+
+                        // Campo de título
+                        TextField(
+                          controller: _titleCtrl,
+                          style: TextStyle(fontSize: 20, color: t.text, fontWeight: FontWeight.w700),
+                          decoration: InputDecoration(
+                            hintText: 'Título',
+                            hintStyle: TextStyle(fontSize: 20, color: t.textTertiary, fontWeight: FontWeight.w700),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                          ),
+                        ),
+
+                        const SizedBox(height: 4),
+
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -348,8 +343,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                               child: SvgPicture.asset(
                                 'assets/icons/svg/user.svg',
                                 width: 20, height: 20,
-                                colorFilter: ColorFilter.mode(
-                                    t.iconSub, BlendMode.srcIn),
+                                colorFilter: ColorFilter.mode(t.iconSub, BlendMode.srcIn),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -361,8 +355,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                                 style: TextStyle(fontSize: 18, color: t.text),
                                 decoration: InputDecoration(
                                   hintText: 'O que está acontecendo?',
-                                  hintStyle: TextStyle(
-                                      fontSize: 18, color: t.textTertiary),
+                                  hintStyle: TextStyle(fontSize: 18, color: t.textTertiary),
                                   border: InputBorder.none,
                                   enabledBorder: InputBorder.none,
                                   focusedBorder: InputBorder.none,
@@ -374,7 +367,13 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
                         if (_media.isNotEmpty) ...[
                           const SizedBox(height: 12),
-                          _MediaGrid(media: _media),
+                          _MediaGrid(
+                            media: _media,
+                            onRemove: (i) {
+                              _media[i].videoCtrl?.dispose();
+                              setState(() => _media.removeAt(i));
+                            },
+                          ),
                         ],
 
                         const SizedBox(height: 16),
@@ -384,16 +383,11 @@ class _CreatePostPageState extends State<CreatePostPage> {
                             SvgPicture.asset(
                               'assets/icons/svg/globe.svg',
                               width: 16, height: 16,
-                              colorFilter: ColorFilter.mode(
-                                  AppTheme.link, BlendMode.srcIn),
+                              colorFilter: ColorFilter.mode(AppTheme.link, BlendMode.srcIn),
                             ),
                             const SizedBox(width: 6),
                             Text('Qualquer pessoa pode responder',
-                                style: TextStyle(
-                                  color: AppTheme.link,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                )),
+                                style: TextStyle(color: AppTheme.link, fontSize: 13, fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ],
@@ -416,26 +410,12 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   padding: EdgeInsets.fromLTRB(8, 8, 8, 8 + safeBottom),
                   child: Row(
                     children: [
-                      _SvgActionBtn(
-                        asset: 'assets/icons/svg/image.svg',
-                        color: AppTheme.ytRed,
-                        onTap: _pickMedia,
-                      ),
-                      _SvgActionBtn(
-                        asset: 'assets/icons/svg/file-text.svg',
-                        color: AppTheme.ytRed,
-                        onTap: () {},
-                      ),
-                      _SvgActionBtn(
-                        asset: 'assets/icons/svg/bar-chart.svg',
-                        color: AppTheme.ytRed,
-                        onTap: () {},
-                      ),
-                      _SvgActionBtn(
-                        asset: 'assets/icons/svg/map-pin.svg',
-                        color: AppTheme.ytRed,
-                        onTap: () {},
-                      ),
+                      // FIX: todos os ícones SVG da barra de acções usam asset
+                      // com fallback para garantir que aparecem
+                      _SvgActionBtn(asset: 'assets/icons/svg/image.svg',     color: AppTheme.ytRed, onTap: _pickMedia),
+                      _SvgActionBtn(asset: 'assets/icons/svg/file-text.svg', color: AppTheme.ytRed, onTap: () {}),
+                      _SvgActionBtn(asset: 'assets/icons/svg/bar-chart.svg', color: AppTheme.ytRed, onTap: () {}),
+                      _SvgActionBtn(asset: 'assets/icons/svg/map-pin.svg',   color: AppTheme.ytRed, onTap: () {}),
                       const Spacer(),
                       SizedBox(
                         width: 28, height: 28,
@@ -451,16 +431,12 @@ class _CreatePostPageState extends State<CreatePostPage> {
                         onTap: _openGalleryModal,
                         child: Container(
                           width: 32, height: 32,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppTheme.ytRed,
-                          ),
+                          decoration: const BoxDecoration(shape: BoxShape.circle, color: AppTheme.ytRed),
                           child: Center(
                             child: SvgPicture.asset(
                               'assets/icons/svg/plus.svg',
                               width: 18, height: 18,
-                              colorFilter: const ColorFilter.mode(
-                                  Colors.white, BlendMode.srcIn),
+                              colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
                             ),
                           ),
                         ),
@@ -468,7 +444,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
                     ],
                   ),
                 ),
-
               ],
             ),
 
@@ -482,8 +457,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                     children: [
                       CircularProgressIndicator(color: AppTheme.ytRed),
                       SizedBox(height: 16),
-                      Text('A publicar…',
-                          style: TextStyle(color: Colors.white, fontSize: 16)),
+                      Text('A publicar…', style: TextStyle(color: Colors.white, fontSize: 16)),
                     ],
                   ),
                 ),
@@ -503,10 +477,11 @@ class _MediaItem {
   _MediaItem({required this.file, required this.isVideo, this.videoCtrl});
 }
 
-// ─── Grid de media seleccionada ───────────────────────────────────────────────
+// ─── Grid de media — com botão de remover ─────────────────────────────────────
 class _MediaGrid extends StatelessWidget {
   final List<_MediaItem> media;
-  const _MediaGrid({required this.media});
+  final void Function(int) onRemove;
+  const _MediaGrid({required this.media, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
@@ -524,25 +499,48 @@ class _MediaGrid extends StatelessWidget {
         final m = media[i];
         return ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: m.isVideo
-              ? (m.videoCtrl != null
-                  ? FittedBox(
-                      fit: BoxFit.cover,
-                      child: SizedBox(
-                        width:  m.videoCtrl!.value.size.width,
-                        height: m.videoCtrl!.value.size.height,
-                        child: VideoPlayer(m.videoCtrl!),
-                      ),
-                    )
-                  : Container(color: Colors.black))
-              : Image.file(m.file, fit: BoxFit.cover),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              m.isVideo
+                  ? (m.videoCtrl != null
+                      ? FittedBox(
+                          fit: BoxFit.cover,
+                          child: SizedBox(
+                            width:  m.videoCtrl!.value.size.width,
+                            height: m.videoCtrl!.value.size.height,
+                            child: VideoPlayer(m.videoCtrl!),
+                          ),
+                        )
+                      : Container(color: Colors.black))
+                  : Image.file(m.file, fit: BoxFit.cover),
+              // Badge de vídeo
+              if (m.isVideo)
+                const Positioned(
+                  bottom: 6, left: 6,
+                  child: Icon(Icons.videocam_rounded, color: Colors.white, size: 18),
+                ),
+              // Botão remover
+              Positioned(
+                top: 6, right: 6,
+                child: GestureDetector(
+                  onTap: () => onRemove(i),
+                  child: Container(
+                    width: 24, height: 24,
+                    decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 }
 
-// ─── Galeria rápida (recentes do telemóvel) ───────────────────────────────────
+// ─── Galeria rápida ───────────────────────────────────────────────────────────
 class _QuickGallery extends StatefulWidget {
   final VoidCallback onCameraTap;
   final Future<void> Function(File, bool) onThumbTap;
@@ -557,18 +555,12 @@ class _QuickGalleryState extends State<_QuickGallery> {
   bool _loaded = false;
 
   @override
-  void initState() {
-    super.initState();
-    _loadRecent();
-  }
+  void initState() { super.initState(); _loadRecent(); }
 
   Future<void> _loadRecent() async {
     final result = await PhotoManager.requestPermissionExtend();
     if (!result.isAuth) return;
-    final albums = await PhotoManager.getAssetPathList(
-      type: RequestType.common,
-      onlyAll: true,
-    );
+    final albums = await PhotoManager.getAssetPathList(type: RequestType.common, onlyAll: true);
     if (albums.isEmpty) return;
     final assets = await albums.first.getAssetListRange(start: 0, end: 20);
     if (mounted) setState(() { _assets.addAll(assets); _loaded = true; });
@@ -581,7 +573,6 @@ class _QuickGalleryState extends State<_QuickGallery> {
       height: 90,
       child: Row(
         children: [
-          // ícone câmera
           GestureDetector(
             onTap: widget.onCameraTap,
             child: Container(
@@ -600,7 +591,6 @@ class _QuickGalleryState extends State<_QuickGallery> {
               ),
             ),
           ),
-          // thumbnails recentes
           Expanded(
             child: !_loaded
                 ? const SizedBox()
@@ -608,12 +598,7 @@ class _QuickGalleryState extends State<_QuickGallery> {
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     itemCount: _assets.length,
-                    itemBuilder: (_, i) {
-                      return _AssetThumb(
-                        asset: _assets[i],
-                        onTap: widget.onThumbTap,
-                      );
-                    },
+                    itemBuilder: (_, i) => _AssetThumb(asset: _assets[i], onTap: widget.onThumbTap),
                   ),
           ),
         ],
@@ -637,8 +622,7 @@ class _AssetThumbState extends State<_AssetThumb> {
   @override
   void initState() {
     super.initState();
-    widget.asset
-        .thumbnailDataWithSize(const ThumbnailSize(150, 150))
+    widget.asset.thumbnailDataWithSize(const ThumbnailSize(150, 150))
         .then((d) { if (mounted && d != null) setState(() => _thumb = d); });
   }
 
@@ -651,25 +635,31 @@ class _AssetThumbState extends State<_AssetThumb> {
         if (file == null) return;
         widget.onTap(file, widget.asset.type == AssetType.video);
       },
-      child: Container(
-        width: 78,
-        margin: const EdgeInsets.only(right: 4),
-        decoration: BoxDecoration(
-          color: t.thumbBg,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: _thumb != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.memory(_thumb!, fit: BoxFit.cover),
-              )
-            : null,
+      child: Stack(
+        children: [
+          Container(
+            width: 78,
+            margin: const EdgeInsets.only(right: 4),
+            decoration: BoxDecoration(color: t.thumbBg, borderRadius: BorderRadius.circular(10)),
+            child: _thumb != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.memory(_thumb!, fit: BoxFit.cover),
+                  )
+                : null,
+          ),
+          if (widget.asset.type == AssetType.video)
+            const Positioned(
+              bottom: 4, left: 4,
+              child: Icon(Icons.videocam_rounded, color: Colors.white, size: 14),
+            ),
+        ],
       ),
     );
   }
 }
 
-// ─── Modal galeria completa (bordas retas) ────────────────────────────────────
+// ─── Modal galeria completa ───────────────────────────────────────────────────
 class _GalleryModal extends StatefulWidget {
   final void Function(File file, bool isVideo) onSelect;
   const _GalleryModal({required this.onSelect});
@@ -683,16 +673,10 @@ class _GalleryModalState extends State<_GalleryModal> {
   bool _loading = true;
 
   @override
-  void initState() {
-    super.initState();
-    _load();
-  }
+  void initState() { super.initState(); _load(); }
 
   Future<void> _load() async {
-    final albums = await PhotoManager.getAssetPathList(
-      type: RequestType.common,
-      onlyAll: true,
-    );
+    final albums = await PhotoManager.getAssetPathList(type: RequestType.common, onlyAll: true);
     if (albums.isEmpty) { setState(() => _loading = false); return; }
     final assets = await albums.first.getAssetListRange(start: 0, end: 200);
     if (mounted) setState(() { _assets.addAll(assets); _loading = false; });
@@ -700,40 +684,31 @@ class _GalleryModalState extends State<_GalleryModal> {
 
   @override
   Widget build(BuildContext context) {
-    final t          = AppTheme.current;
-    final safeBottom = MediaQuery.of(context).padding.bottom;
-    final screenH    = MediaQuery.of(context).size.height;
+    final t       = AppTheme.current;
+    final safeBot = MediaQuery.of(context).padding.bottom;
+    final screenH = MediaQuery.of(context).size.height;
 
     return Container(
       height: screenH * 0.85,
-      color: t.bg,   // sem BorderRadius — bordas retas
+      color: t.bg,
       child: Column(
         children: [
-          // handle
           Container(
             margin: const EdgeInsets.symmetric(vertical: 8),
             width: 40, height: 4,
-            decoration: BoxDecoration(
-              color: t.sheetHandle,
-              borderRadius: BorderRadius.circular(2),
-            ),
+            decoration: BoxDecoration(color: t.sheetHandle, borderRadius: BorderRadius.circular(2)),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
               children: [
-                Text('Galeria',
-                    style: TextStyle(
-                      color: t.text,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    )),
+                Text('Galeria', style: TextStyle(color: t.text, fontSize: 17, fontWeight: FontWeight.w700)),
                 const Spacer(),
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
-                  child: SvgPicture.asset(
-                    'assets/icons/svg/close.svg',
-                    width: 20, height: 20,
+                  // FIX: SVG inline para o close da galeria
+                  child: SvgPicture.string(
+                    _svgClose, width: 20, height: 20,
                     colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
                   ),
                 ),
@@ -743,23 +718,16 @@ class _GalleryModalState extends State<_GalleryModal> {
           const SizedBox(height: 4),
           Expanded(
             child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppTheme.ytRed))
+                ? const Center(child: CircularProgressIndicator(color: AppTheme.ytRed))
                 : _assets.isEmpty
-                    ? Center(
-                        child: Text('Sem media disponível',
-                            style: TextStyle(color: t.textSecondary)))
+                    ? Center(child: Text('Sem media disponível', style: TextStyle(color: t.textSecondary)))
                     : GridView.builder(
-                        padding: EdgeInsets.fromLTRB(2, 2, 2, 2 + safeBottom),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: 2,
-                          crossAxisSpacing: 2,
+                        padding: EdgeInsets.fromLTRB(2, 2, 2, 2 + safeBot),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3, mainAxisSpacing: 2, crossAxisSpacing: 2,
                         ),
                         itemCount: _assets.length,
-                        itemBuilder: (_, i) =>
-                            _GalleryThumb(asset: _assets[i], onSelect: widget.onSelect),
+                        itemBuilder: (_, i) => _GalleryThumb(asset: _assets[i], onSelect: widget.onSelect),
                       ),
           ),
         ],
@@ -783,8 +751,7 @@ class _GalleryThumbState extends State<_GalleryThumb> {
   @override
   void initState() {
     super.initState();
-    widget.asset
-        .thumbnailDataWithSize(const ThumbnailSize(200, 200))
+    widget.asset.thumbnailDataWithSize(const ThumbnailSize(200, 200))
         .then((d) { if (mounted && d != null) setState(() => _thumb = d); });
   }
 
@@ -808,19 +775,14 @@ class _GalleryThumbState extends State<_GalleryThumb> {
               bottom: 4, right: 4,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.videocam, color: Colors.white, size: 12),
                     const SizedBox(width: 2),
-                    Text(
-                      _fmtDuration(widget.asset.videoDuration),
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
-                    ),
+                    Text(_fmtDuration(widget.asset.videoDuration),
+                        style: const TextStyle(color: Colors.white, fontSize: 10)),
                   ],
                 ),
               ),

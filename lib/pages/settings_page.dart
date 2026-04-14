@@ -66,6 +66,8 @@ class _SettingsPageState extends State<SettingsPage>
   AppIconVariant _activeIcon = AppIconVariant.classic;
   final _ts = ThemeService.instance;
 
+  // _sheetController mantém-se apenas para o overlay de status bar —
+  // já não anima a escala/translate do conteúdo de baixo.
   late final AnimationController _sheetController;
   bool _sheetBusy = false;
 
@@ -82,34 +84,25 @@ class _SettingsPageState extends State<SettingsPage>
 
   String get _themeLabel {
     switch (_resolvedThemeMode) {
-      case ThemeMode.system:
-        return 'Automático (sistema)';
-      case ThemeMode.light:
-        return 'Tema claro';
-      case ThemeMode.dark:
-        return 'Tema escuro';
+      case ThemeMode.system: return 'Automático (sistema)';
+      case ThemeMode.light:  return 'Tema claro';
+      case ThemeMode.dark:   return 'Tema escuro';
     }
   }
 
   String get _themeSvg {
     switch (_resolvedThemeMode) {
-      case ThemeMode.system:
-        return _svgAutoTheme;
-      case ThemeMode.light:
-        return _svgSun;
-      case ThemeMode.dark:
-        return _svgDark;
+      case ThemeMode.system: return _svgAutoTheme;
+      case ThemeMode.light:  return _svgSun;
+      case ThemeMode.dark:   return _svgDark;
     }
   }
 
   String get _iconLabel {
     switch (_activeIcon) {
-      case AppIconVariant.classic:
-        return 'Classic';
-      case AppIconVariant.light:
-        return 'Light';
-      case AppIconVariant.original:
-        return 'Original';
+      case AppIconVariant.classic:  return 'Classic';
+      case AppIconVariant.light:    return 'Light';
+      case AppIconVariant.original: return 'Original';
     }
   }
 
@@ -179,7 +172,7 @@ class _SettingsPageState extends State<SettingsPage>
         useSafeArea: false,
         backgroundColor: Colors.transparent,
         barrierColor: Colors.black.withOpacity(0.34),
-        transitionAnimationController: _sheetController,
+        // Sem transitionAnimationController para não acionar o push effect
         builder: (ctx) => _IosSheetShell(
           maxHeightFactor: maxHeightFactor,
           child: builder(ctx),
@@ -196,10 +189,8 @@ class _SettingsPageState extends State<SettingsPage>
         initialMode: _cachedThemeMode,
         onChanged: (mode) {
           switch (mode) {
-            case ThemeMode.dark:
-              _ts.setDark(true);
-            case ThemeMode.light:
-              _ts.setDark(false);
+            case ThemeMode.dark:   _ts.setDark(true);
+            case ThemeMode.light:  _ts.setDark(false);
             case ThemeMode.system:
               final brightness =
                   WidgetsBinding.instance.platformDispatcher.platformBrightness;
@@ -225,7 +216,6 @@ class _SettingsPageState extends State<SettingsPage>
           }
         },
       ),
-      // Altura reduzida — conteúdo fixo, não precisa de mais
       maxHeightFactor: 0.46,
     );
   }
@@ -265,22 +255,11 @@ class _SettingsPageState extends State<SettingsPage>
   void _pickLockDelay() {
     final opts = [0, 5, 10, 30, 60, 120, 300, 600, 1800, 3600, 7200, 14400];
     final labels = [
-      'Imediato',
-      '5 seg',
-      '10 seg',
-      '30 seg',
-      '1 min',
-      '2 min',
-      '5 min',
-      '10 min',
-      '30 min',
-      '1 hora',
-      '2 horas',
-      '4 horas',
+      'Imediato', '5 seg', '10 seg', '30 seg',
+      '1 min', '2 min', '5 min', '10 min',
+      '30 min', '1 hora', '2 horas', '4 horas',
     ];
-
     int idx = opts.indexOf(_ts.lockDelay).clamp(0, opts.length - 1);
-
     _cupertinoPickerSheet(
       'Bloquear após',
       CupertinoPicker(
@@ -289,20 +268,10 @@ class _SettingsPageState extends State<SettingsPage>
         looping: false,
         onSelectedItemChanged: (i) => idx = i,
         children: labels
-            .map(
-              (l) => Center(
-                child: Text(
-                  l,
-                  style: TextStyle(color: _text, fontSize: 16),
-                ),
-              ),
-            )
+            .map((l) => Center(child: Text(l, style: TextStyle(color: _text, fontSize: 16))))
             .toList(),
       ),
-      () {
-        _ts.setLockDelay(opts[idx]);
-        setState(() {});
-      },
+      () { _ts.setLockDelay(opts[idx]); setState(() {}); },
     );
   }
 
@@ -319,25 +288,16 @@ class _SettingsPageState extends State<SettingsPage>
         onSelectedItemChanged: (i) => vol = (i + 1) * 10,
         children: List.generate(
           10,
-          (i) => Center(
-            child: Text(
-              '${(i + 1) * 10}%',
-              style: TextStyle(color: _text, fontSize: 16),
-            ),
-          ),
+          (i) => Center(child: Text('${(i + 1) * 10}%', style: TextStyle(color: _text, fontSize: 16))),
         ),
       ),
-      () {
-        _ts.setMaxVolume(vol);
-        setState(() {});
-      },
+      () { _ts.setMaxVolume(vol); setState(() {}); },
     );
   }
 
   void _pickEngine() {
     final keys = ThemeService.engines.keys.toList();
     int idx = keys.indexOf(_ts.engine).clamp(0, keys.length - 1);
-
     _cupertinoPickerSheet(
       'Motor de pesquisa',
       CupertinoPicker(
@@ -346,20 +306,10 @@ class _SettingsPageState extends State<SettingsPage>
         looping: false,
         onSelectedItemChanged: (i) => idx = i,
         children: ThemeService.engines.values
-            .map(
-              (v) => Center(
-                child: Text(
-                  v,
-                  style: TextStyle(color: _text, fontSize: 16),
-                ),
-              ),
-            )
+            .map((v) => Center(child: Text(v, style: TextStyle(color: _text, fontSize: 16))))
             .toList(),
       ),
-      () {
-        _ts.setEngine(keys[idx]);
-        setState(() {});
-      },
+      () { _ts.setEngine(keys[idx]); setState(() {}); },
     );
   }
 
@@ -367,19 +317,14 @@ class _SettingsPageState extends State<SettingsPage>
     _openIosSheet(
       builder: (ctx) {
         final t = AppTheme.current;
-
         return Column(
           mainAxisSize: MainAxisSize.max,
           children: [
             const SizedBox(height: 10),
             Center(
               child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: t.sheetHandle,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+                width: 36, height: 4,
+                decoration: BoxDecoration(color: t.sheetHandle, borderRadius: BorderRadius.circular(2)),
               ),
             ),
             Padding(
@@ -387,29 +332,13 @@ class _SettingsPageState extends State<SettingsPage>
               child: Row(
                 children: [
                   const Spacer(),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: t.text,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text(title, style: TextStyle(color: t.text, fontSize: 15, fontWeight: FontWeight.w600)),
                   const Spacer(),
                   CupertinoButton(
                     padding: EdgeInsets.zero,
                     minSize: 0,
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      onOk();
-                    },
-                    child: Text(
-                      'OK',
-                      style: TextStyle(
-                        color: AppTheme.ytRed,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    onPressed: () { Navigator.pop(ctx); onOk(); },
+                    child: Text('OK', style: TextStyle(color: AppTheme.ytRed, fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
@@ -423,9 +352,6 @@ class _SettingsPageState extends State<SettingsPage>
     );
   }
 
-  // ── Modal de wallpaper ────────────────────────────────────────────────────
-  // Altura adapta-se: menor quando switch off, maior quando on para acomodar
-  // as imagens. Imagens carregadas com cacheWidth para evitar jank.
   void _pickWallpaper() {
     _openIosSheet(
       builder: (ctx) {
@@ -433,69 +359,35 @@ class _SettingsPageState extends State<SettingsPage>
           builder: (ctx2, setLocal) {
             final t = AppTheme.current;
             final useWp = _ts.useWallpaper;
-
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 10),
                 Center(
                   child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: t.sheetHandle,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+                    width: 36, height: 4,
+                    decoration: BoxDecoration(color: t.sheetHandle, borderRadius: BorderRadius.circular(2)),
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  'Fundo de ecrã',
-                  style: TextStyle(
-                    color: t.text,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Text('Fundo de ecrã', style: TextStyle(color: t.text, fontSize: 16, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                // Linha do switch
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Row(
                     children: [
-                      SvgPicture.asset(
-                        _svgWallpaper,
-                        width: 20,
-                        height: 20,
-                        colorFilter: ColorFilter.mode(
-                          t.textSecondary,
-                          BlendMode.srcIn,
-                        ),
-                      ),
+                      SvgPicture.asset(_svgWallpaper, width: 20, height: 20,
+                          colorFilter: ColorFilter.mode(t.textSecondary, BlendMode.srcIn)),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Usar imagem como fundo',
-                              style: TextStyle(
-                                color: t.text,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                            Text('Usar imagem como fundo', style: TextStyle(color: t.text, fontSize: 14, fontWeight: FontWeight.w500)),
                             const SizedBox(height: 2),
                             Text(
-                              useWp
-                                  ? 'Imagem ativa'
-                                  : (_ts.isDark
-                                      ? 'Fundo escuro sólido'
-                                      : 'Fundo claro sólido'),
-                              style: TextStyle(
-                                color: t.textSecondary,
-                                fontSize: 12,
-                              ),
+                              useWp ? 'Imagem ativa' : (_ts.isDark ? 'Fundo escuro sólido' : 'Fundo claro sólido'),
+                              style: TextStyle(color: t.textSecondary, fontSize: 12),
                             ),
                           ],
                         ),
@@ -511,7 +403,6 @@ class _SettingsPageState extends State<SettingsPage>
                     ],
                   ),
                 ),
-                // Grade de wallpapers — só aparece quando switch on
                 if (useWp) ...[
                   const SizedBox(height: 14),
                   SizedBox(
@@ -519,13 +410,11 @@ class _SettingsPageState extends State<SettingsPage>
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      // Desativa physics pesadas; BouncingScrollPhysics é leve
                       physics: const BouncingScrollPhysics(),
                       itemCount: ThemeService.wallpapers.length,
                       itemBuilder: (_, i) {
                         final wp = ThemeService.wallpapers[i];
                         final sel = wp == _ts.bg;
-
                         return GestureDetector(
                           onTap: () {
                             _ts.setBg(wp);
@@ -534,38 +423,21 @@ class _SettingsPageState extends State<SettingsPage>
                             Navigator.pop(ctx2);
                           },
                           child: Container(
-                            width: 90,
-                            height: 168,
+                            width: 90, height: 168,
                             margin: const EdgeInsets.only(right: 10),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: sel
-                                    ? AppTheme.ytRed
-                                    : Colors.transparent,
-                                width: 2,
-                              ),
+                              border: Border.all(color: sel ? AppTheme.ytRed : Colors.transparent, width: 2),
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.asset(
-                                wp,
-                                fit: BoxFit.cover,
-                                // Decodifica a imagem num tamanho reduzido →
-                                // evita alocar memória desnecessária e
-                                // desbloqueia o rasterizador mais depressa.
-                                cacheWidth: 180,
+                              child: Image.asset(wp, fit: BoxFit.cover, cacheWidth: 180,
                                 filterQuality: FilterQuality.low,
                                 frameBuilder: (ctx, child, frame, wasSynced) {
                                   if (wasSynced || frame != null) return child;
-                                  return const SizedBox(
-                                    width: 90,
-                                    height: 168,
-                                  );
+                                  return const SizedBox(width: 90, height: 168);
                                 },
-                                errorBuilder: (_, __, ___) => Container(
-                                  color: t.thumbBg,
-                                ),
+                                errorBuilder: (_, __, ___) => Container(color: t.thumbBg),
                               ),
                             ),
                           ),
@@ -580,8 +452,6 @@ class _SettingsPageState extends State<SettingsPage>
           },
         );
       },
-      // Altura base quando switch off; sobe com animação quando ligado
-      // mas o conteúdo usa mainAxisSize.min por isso não corta nada.
       maxHeightFactor: _ts.useWallpaper ? 0.60 : 0.40,
     );
   }
@@ -590,7 +460,6 @@ class _SettingsPageState extends State<SettingsPage>
     _openIosSheet(
       builder: (ctx) {
         final t = AppTheme.current;
-
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           child: Column(
@@ -598,23 +467,12 @@ class _SettingsPageState extends State<SettingsPage>
             children: [
               Center(
                 child: Container(
-                  width: 36,
-                  height: 4,
+                  width: 36, height: 4,
                   margin: const EdgeInsets.only(bottom: 14),
-                  decoration: BoxDecoration(
-                    color: t.sheetHandle,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+                  decoration: BoxDecoration(color: t.sheetHandle, borderRadius: BorderRadius.circular(2)),
                 ),
               ),
-              Text(
-                'Limpar downloads?',
-                style: TextStyle(
-                  color: t.text,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text('Limpar downloads?', style: TextStyle(color: t.text, fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -624,9 +482,7 @@ class _SettingsPageState extends State<SettingsPage>
                       style: OutlinedButton.styleFrom(
                         foregroundColor: t.text,
                         side: BorderSide(color: t.divider),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       child: const Text('Cancelar'),
                     ),
@@ -636,8 +492,7 @@ class _SettingsPageState extends State<SettingsPage>
                     child: ElevatedButton(
                       onPressed: () async {
                         Navigator.pop(ctx);
-                        for (final item
-                            in DownloadService.instance.items.toList()) {
+                        for (final item in DownloadService.instance.items.toList()) {
                           await DownloadService.instance.delete(item.id);
                         }
                         if (context.mounted) _snack('Downloads limpos');
@@ -645,9 +500,7 @@ class _SettingsPageState extends State<SettingsPage>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.error,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       child: const Text('Apagar tudo'),
                     ),
@@ -666,340 +519,264 @@ class _SettingsPageState extends State<SettingsPage>
         padding: const EdgeInsets.only(left: 16, top: 6, bottom: 6),
         child: Text(
           t.toUpperCase(),
-          style: TextStyle(
-            color: _sub,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
+          style: TextStyle(color: _sub, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
         ),
       );
 
   Widget _section(List<Widget> children) => Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: _card,
-          borderRadius: BorderRadius.circular(16),
-        ),
+        decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(16)),
         child: Column(mainAxisSize: MainAxisSize.min, children: children),
       );
 
-  Widget _divider() => Divider(
-        height: 1,
-        color: _div,
-        indent: 52,
-        endIndent: 16,
-      );
+  Widget _divider() => Divider(height: 1, color: _div, indent: 52, endIndent: 16);
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _ts,
       builder: (_, __) {
-        final screen = RepaintBoundary(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Scaffold(
+        // ── Sem push effect: o Scaffold é devolvido diretamente,
+        //    sem o AnimatedBuilder que escalava/transladava o conteúdo.
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+          ),
+          child: Scaffold(
+            backgroundColor: _bg,
+            appBar: AppBar(
               backgroundColor: _bg,
-              appBar: AppBar(
-                backgroundColor: _bg,
-                elevation: 0,
-                surfaceTintColor: Colors.transparent,
-                leading: IconButton(
-                  icon: SvgPicture.asset(
-                    _svgBack,
-                    width: 22,
-                    height: 22,
-                    colorFilter: ColorFilter.mode(_text, BlendMode.srcIn),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                title: Text(
-                  'Definições',
-                  style: TextStyle(
-                    color: _text,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              elevation: 0,
+              surfaceTintColor: Colors.transparent,
+              leading: IconButton(
+                icon: SvgPicture.asset(_svgBack, width: 22, height: 22,
+                    colorFilter: ColorFilter.mode(_text, BlendMode.srcIn)),
+                onPressed: () => Navigator.pop(context),
               ),
-              body: ListView(
-                padding: const EdgeInsets.only(top: 8, bottom: 32),
-                children: [
-                  _label('Aparência'),
-                  _section([
+              title: Text('Definições',
+                  style: TextStyle(color: _text, fontSize: 17, fontWeight: FontWeight.w600)),
+            ),
+            body: ListView(
+              padding: const EdgeInsets.only(top: 8, bottom: 32),
+              children: [
+                _label('Aparência'),
+                _section([
+                  _TapRow(
+                    svgAsset: _themeSvg,
+                    label: 'Tema',
+                    sub: _themeLabel,
+                    textColor: _text,
+                    subColor: _sub,
+                    onTap: _pickTheme,
+                  ),
+                  _divider(),
+                  _TapRow(
+                    svgAsset: _svgWallpaper,
+                    label: 'Fundo de ecrã',
+                    sub: _ts.useWallpaper
+                        ? _ts.bg.split('/').last
+                        : (_ts.isDark ? 'Fundo escuro' : 'Fundo claro'),
+                    textColor: _text,
+                    subColor: _sub,
+                    onTap: _pickWallpaper,
+                  ),
+                  _divider(),
+                  _TapRowWithIconPreview(
+                    iconAsset: _activeIconAsset,
+                    label: 'Ícone do app',
+                    sub: _iconLabel,
+                    textColor: _text,
+                    subColor: _sub,
+                    onTap: _pickIcon,
+                  ),
+                ]),
+                const SizedBox(height: 16),
+
+                _label('Segurança'),
+                _section([
+                  _SwitchRow(
+                    svgAsset: _svgLock,
+                    label: 'Bloquear app',
+                    sub: _lock ? 'PIN obrigatório' : 'Sem bloqueio',
+                    value: _lock,
+                    textColor: _text,
+                    subColor: _sub,
+                    onChanged: (v) {
+                      _pinSheet(
+                        mode: LockMode.unlock,
+                        onDone: () async {
+                          await LockService.instance.setEnabled(v);
+                          if (mounted) setState(() => _lock = v);
+                        },
+                      );
+                    },
+                  ),
+                  if (_lock) ...[
+                    _divider(),
                     _TapRow(
-                      svgAsset: _themeSvg,
-                      label: 'Tema',
-                      sub: _themeLabel,
+                      svgAsset: _svgPin,
+                      label: 'Alterar PIN',
+                      sub: 'Muda o código de acesso',
                       textColor: _text,
                       subColor: _sub,
-                      onTap: _pickTheme,
+                      onTap: () => _pinSheet(mode: LockMode.setNew, onDone: () => _snack('PIN alterado')),
                     ),
                     _divider(),
                     _TapRow(
-                      svgAsset: _svgWallpaper,
-                      label: 'Fundo de ecrã',
-                      sub: _ts.useWallpaper
-                          ? _ts.bg.split('/').last
-                          : (_ts.isDark ? 'Fundo escuro' : 'Fundo claro'),
+                      lucideSvg: _lucideTimer,
+                      label: 'Bloquear após',
+                      sub: _ts.lockDelayLabel,
                       textColor: _text,
                       subColor: _sub,
-                      onTap: _pickWallpaper,
+                      onTap: _pickLockDelay,
                     ),
-                    _divider(),
-                    _TapRowWithIconPreview(
-                      iconAsset: _activeIconAsset,
-                      label: 'Ícone do app',
-                      sub: _iconLabel,
-                      textColor: _text,
-                      subColor: _sub,
-                      onTap: _pickIcon,
-                    ),
-                  ]),
-                  const SizedBox(height: 16),
+                  ],
+                ]),
+                const SizedBox(height: 16),
 
-                  _label('Segurança'),
-                  _section([
-                    _SwitchRow(
-                      svgAsset: _svgLock,
-                      label: 'Bloquear app',
-                      sub: _lock ? 'PIN obrigatório' : 'Sem bloqueio',
-                      value: _lock,
-                      textColor: _text,
-                      subColor: _sub,
-                      onChanged: (v) {
-                        _pinSheet(
-                          mode: LockMode.unlock,
-                          onDone: () async {
-                            await LockService.instance.setEnabled(v);
-                            if (mounted) setState(() => _lock = v);
-                          },
-                        );
-                      },
-                    ),
-                    if (_lock) ...[
-                      _divider(),
-                      _TapRow(
-                        svgAsset: _svgPin,
-                        label: 'Alterar PIN',
-                        sub: 'Muda o código de acesso',
-                        textColor: _text,
-                        subColor: _sub,
-                        onTap: () => _pinSheet(
-                          mode: LockMode.setNew,
-                          onDone: () => _snack('PIN alterado'),
-                        ),
-                      ),
-                      _divider(),
-                      _TapRow(
-                        lucideSvg: _lucideTimer,
-                        label: 'Bloquear após',
-                        sub: _ts.lockDelayLabel,
-                        textColor: _text,
-                        subColor: _sub,
-                        onTap: _pickLockDelay,
-                      ),
-                    ],
-                  ]),
-                  const SizedBox(height: 16),
+                _label('Privacidade'),
+                _section([
+                  _SwitchRow(
+                    lucideSvg: _lucideEye,
+                    label: 'Privacidade nos recentes',
+                    sub: _ts.privacyRecent ? 'App aparece em preto' : 'Conteúdo visível',
+                    value: _ts.privacyRecent,
+                    textColor: _text,
+                    subColor: _sub,
+                    onChanged: (v) {
+                      _ts.setPrivacyRecent(v);
+                      _applySecure(v);
+                      setState(() {});
+                    },
+                  ),
+                  _divider(),
+                  _SwitchRow(
+                    svgAsset: _svgScreenshot,
+                    label: 'Bloquear capturas',
+                    sub: _ts.noScreenshot ? 'Screenshots bloqueados' : 'Screenshots permitidos',
+                    value: _ts.noScreenshot,
+                    textColor: _text,
+                    subColor: _sub,
+                    onChanged: (v) {
+                      _ts.setNoScreenshot(v);
+                      _applySecure(v);
+                      setState(() {});
+                    },
+                  ),
+                ]),
+                const SizedBox(height: 16),
 
-                  _label('Privacidade'),
-                  _section([
-                    _SwitchRow(
-                      lucideSvg: _lucideEye,
-                      label: 'Privacidade nos recentes',
-                      sub: _ts.privacyRecent
-                          ? 'App aparece em preto'
-                          : 'Conteúdo visível',
-                      value: _ts.privacyRecent,
-                      textColor: _text,
-                      subColor: _sub,
-                      onChanged: (v) {
-                        _ts.setPrivacyRecent(v);
-                        _applySecure(v);
-                        setState(() {});
-                      },
-                    ),
-                    _divider(),
-                    _SwitchRow(
-                      svgAsset: _svgScreenshot,
-                      label: 'Bloquear capturas',
-                      sub: _ts.noScreenshot
-                          ? 'Screenshots bloqueados'
-                          : 'Screenshots permitidos',
-                      value: _ts.noScreenshot,
-                      textColor: _text,
-                      subColor: _sub,
-                      onChanged: (v) {
-                        _ts.setNoScreenshot(v);
-                        _applySecure(v);
-                        setState(() {});
-                      },
-                    ),
-                  ]),
-                  const SizedBox(height: 16),
+                _label('Navegação'),
+                _section([
+                  _TapRow(
+                    svgAsset: _svgEngine,
+                    label: 'Motor de pesquisa',
+                    sub: ThemeService.engines[_ts.engine] ?? 'Google',
+                    textColor: _text,
+                    subColor: _sub,
+                    onTap: _pickEngine,
+                  ),
+                  _divider(),
+                  _TapRow(
+                    svgAsset: _svgVolume,
+                    label: 'Volume máximo',
+                    sub: '${_ts.maxVolume}%',
+                    textColor: _text,
+                    subColor: _sub,
+                    onTap: _pickVolume,
+                  ),
+                ]),
+                const SizedBox(height: 16),
 
-                  _label('Navegação'),
-                  _section([
-                    _TapRow(
-                      svgAsset: _svgEngine,
-                      label: 'Motor de pesquisa',
-                      sub: ThemeService.engines[_ts.engine] ?? 'Google',
-                      textColor: _text,
-                      subColor: _sub,
-                      onTap: _pickEngine,
-                    ),
-                    _divider(),
-                    _TapRow(
-                      svgAsset: _svgVolume,
-                      label: 'Volume máximo',
-                      sub: '${_ts.maxVolume}%',
-                      textColor: _text,
-                      subColor: _sub,
-                      onTap: _pickVolume,
-                    ),
-                  ]),
-                  const SizedBox(height: 16),
+                _label('Manutenção'),
+                _section([
+                  _TapRow(
+                    lucideSvg: _lucideRefreshCw,
+                    label: 'Recarregar ícones',
+                    sub: 'Baixa novamente os favicons',
+                    textColor: _text,
+                    subColor: _sub,
+                    onTap: () async {
+                      await FaviconService.instance.clearAll();
+                      await FaviconService.instance.preloadAll();
+                      if (context.mounted) _snack('Ícones recarregados');
+                    },
+                  ),
+                  _divider(),
+                  _TapRow(
+                    svgAsset: _svgTrash,
+                    label: 'Limpar downloads',
+                    sub: 'Apaga todos os ficheiros',
+                    textColor: _text,
+                    subColor: _sub,
+                    destructive: true,
+                    onTap: _confirmClear,
+                  ),
+                ]),
+                const SizedBox(height: 16),
 
-                  _label('Manutenção'),
-                  _section([
-                    _TapRow(
-                      lucideSvg: _lucideRefreshCw,
-                      label: 'Recarregar ícones',
-                      sub: 'Baixa novamente os favicons',
-                      textColor: _text,
-                      subColor: _sub,
-                      onTap: () async {
-                        await FaviconService.instance.clearAll();
-                        await FaviconService.instance.preloadAll();
-                        if (context.mounted) _snack('Ícones recarregados');
-                      },
-                    ),
-                    _divider(),
-                    _TapRow(
-                      svgAsset: _svgTrash,
-                      label: 'Limpar downloads',
-                      sub: 'Apaga todos os ficheiros',
-                      textColor: _text,
-                      subColor: _sub,
-                      destructive: true,
-                      onTap: _confirmClear,
-                    ),
-                  ]),
-                  const SizedBox(height: 16),
-
-                  _label('Sobre'),
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: _card,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.asset(
-                              'assets/logo.png',
-                              width: 44,
-                              height: 44,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.ytRedDark,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(
-                                  Icons.shield_rounded,
-                                  color: Colors.white,
-                                  size: 24,
-                                ),
+                _label('Sobre'),
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.asset(
+                            'assets/logo.png',
+                            width: 44, height: 44,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 44, height: 44,
+                              decoration: BoxDecoration(
+                                color: AppTheme.ytRedDark,
+                                borderRadius: BorderRadius.circular(12),
                               ),
+                              child: const Icon(Icons.shield_rounded, color: Colors.white, size: 24),
                             ),
                           ),
-                          const SizedBox(width: 14),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'nuxxx',
-                                style: TextStyle(
-                                  color: _text,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Versão 1.0.0 · Navegação privada',
-                                style: TextStyle(
-                                  color: _sub,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                        ),
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('nuxxx', style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text('Versão 1.0.0 · Navegação privada', style: TextStyle(color: _sub, fontSize: 12)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _section([
+                  _TapRow(
+                    lucideSvg: _lucideScrollText,
+                    label: 'Licenças de software',
+                    sub: 'Dependências open source',
+                    textColor: _text,
+                    subColor: _sub,
+                    // ── FIX: navega para a página de licenças nativa do Flutter
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LicensePage(
+                          applicationName: 'nuxxx',
+                          applicationVersion: '1.0.0',
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  _section([
-                    _TapRow(
-                      lucideSvg: _lucideScrollText,
-                      label: 'Licenças de software',
-                      sub: 'Dependências open source',
-                      textColor: _text,
-                      subColor: _sub,
-                      onTap: () => openOssLicenses(),
-                    ),
-                  ]),
-                  const SizedBox(height: 16),
-                ],
-              ),
+                ]),
+                const SizedBox(height: 16),
+              ],
             ),
           ),
-        );
-
-        return AnimatedBuilder(
-          animation: _sheetController,
-          child: screen,
-          builder: (_, child) {
-            final t = _sheetController.value;
-
-            final overlayStyle = t > 0.01
-                ? const SystemUiOverlayStyle(
-                    statusBarColor: Colors.transparent,
-                    statusBarIconBrightness: Brightness.light,
-                    statusBarBrightness: Brightness.dark,
-                  )
-                : const SystemUiOverlayStyle(
-                    statusBarColor: Colors.transparent,
-                    statusBarIconBrightness: Brightness.dark,
-                    statusBarBrightness: Brightness.light,
-                  );
-
-            return AnnotatedRegion<SystemUiOverlayStyle>(
-              value: overlayStyle,
-              child: Stack(
-                children: [
-                  const ColoredBox(color: Colors.black),
-                  Transform.translate(
-                    offset: Offset(0, 14 * t),
-                    child: Transform.scale(
-                      scale: 1 - (0.055 * t),
-                      alignment: Alignment.center,
-                      child: child!,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
         );
       },
     );
@@ -1013,10 +790,7 @@ class _IosSheetShell extends StatelessWidget {
   final Widget child;
   final double maxHeightFactor;
 
-  const _IosSheetShell({
-    required this.child,
-    this.maxHeightFactor = 0.58,
-  });
+  const _IosSheetShell({required this.child, this.maxHeightFactor = 0.58});
 
   @override
   Widget build(BuildContext context) {
@@ -1038,10 +812,7 @@ class _IosSheetShell extends StatelessWidget {
             topRight: Radius.circular(16),
           ),
           clipBehavior: Clip.antiAlias,
-          child: SafeArea(
-            top: false,
-            child: child,
-          ),
+          child: SafeArea(top: false, child: child),
         ),
       ),
     );
@@ -1055,10 +826,7 @@ class _IconPickerSheet extends StatefulWidget {
   final AppIconVariant current;
   final ValueChanged<AppIconVariant> onChanged;
 
-  const _IconPickerSheet({
-    required this.current,
-    required this.onChanged,
-  });
+  const _IconPickerSheet({required this.current, required this.onChanged});
 
   @override
   State<_IconPickerSheet> createState() => _IconPickerSheetState();
@@ -1084,12 +852,8 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
         const SizedBox(height: 10),
         Center(
           child: Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: t.sheetHandle,
-              borderRadius: BorderRadius.circular(2),
-            ),
+            width: 36, height: 4,
+            decoration: BoxDecoration(color: t.sheetHandle, borderRadius: BorderRadius.circular(2)),
           ),
         ),
         const SizedBox(height: 14),
@@ -1097,27 +861,14 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
             children: [
-              Text(
-                'Ícone do app',
-                style: TextStyle(
-                  color: t.text,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
-                ),
-              ),
+              Text('Ícone do app',
+                  style: TextStyle(color: t.text, fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
               const Spacer(),
               CupertinoButton(
                 padding: EdgeInsets.zero,
                 minSize: 0,
                 onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Fechar',
-                  style: TextStyle(
-                    color: t.textSecondary,
-                    fontSize: 15,
-                  ),
-                ),
+                child: Text('Fechar', style: TextStyle(color: t.textSecondary, fontSize: 15)),
               ),
             ],
           ),
@@ -1136,7 +887,6 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: _kIcons.map((data) {
               final isSelected = _selected == data.variant;
-
               return GestureDetector(
                 onTap: () {
                   setState(() => _selected = data.variant);
@@ -1149,13 +899,10 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
                   width: 96,
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppTheme.ytRed.withOpacity(0.12)
-                        : Colors.transparent,
+                    color: isSelected ? AppTheme.ytRed.withOpacity(0.12) : Colors.transparent,
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                      color:
-                          isSelected ? AppTheme.ytRed : Colors.transparent,
+                      color: isSelected ? AppTheme.ytRed : Colors.transparent,
                       width: 2,
                     ),
                   ),
@@ -1163,47 +910,21 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(18),
-                        child: Image.asset(
-                          data.asset,
-                          width: 64,
-                          height: 64,
-                          fit: BoxFit.cover,
-                          // Cache reduzido para ícones pequenos
-                          cacheWidth: 128,
-                          filterQuality: FilterQuality.medium,
+                        child: Image.asset(data.asset, width: 64, height: 64, fit: BoxFit.cover,
+                          cacheWidth: 128, filterQuality: FilterQuality.medium,
                           errorBuilder: (_, __, ___) => Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: t.cardAlt,
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: Icon(
-                              Icons.apps_rounded,
-                              color: t.textSecondary,
-                              size: 28,
-                            ),
+                            width: 64, height: 64,
+                            decoration: BoxDecoration(color: t.cardAlt, borderRadius: BorderRadius.circular(18)),
+                            child: Icon(Icons.apps_rounded, color: t.textSecondary, size: 28),
                           ),
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        data.label,
-                        style: TextStyle(
-                          color: isSelected ? AppTheme.ytRed : t.text,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      Text(data.label,
+                          style: TextStyle(color: isSelected ? AppTheme.ytRed : t.text, fontSize: 13, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
-                      Text(
-                        data.sub,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: t.textSecondary,
-                          fontSize: 10,
-                        ),
-                      ),
+                      Text(data.sub, textAlign: TextAlign.center,
+                          style: TextStyle(color: t.textSecondary, fontSize: 10)),
                     ],
                   ),
                 ),
@@ -1224,10 +945,7 @@ class _ThemeModal extends StatefulWidget {
   final ThemeMode initialMode;
   final ValueChanged<ThemeMode> onChanged;
 
-  const _ThemeModal({
-    required this.initialMode,
-    required this.onChanged,
-  });
+  const _ThemeModal({required this.initialMode, required this.onChanged});
 
   @override
   State<_ThemeModal> createState() => _ThemeModalState();
@@ -1259,66 +977,32 @@ class _ThemeModalState extends State<_ThemeModal> {
         const SizedBox(height: 10),
         Center(
           child: Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: t.sheetHandle,
-              borderRadius: BorderRadius.circular(2),
-            ),
+            width: 36, height: 4,
+            decoration: BoxDecoration(color: t.sheetHandle, borderRadius: BorderRadius.circular(2)),
           ),
         ),
         const SizedBox(height: 14),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              Text(
-                'Tema',
-                style: TextStyle(
-                  color: t.text,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
-                ),
-              ),
-            ],
-          ),
+          child: Text('Tema', style: TextStyle(color: t.text, fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
         ),
         const SizedBox(height: 8),
         _ThemeOption(
-          svgAsset: _svgAutoTheme,
-          label: 'Automático',
-          sub: 'Segue as definições do sistema',
-          selected: _selected == ThemeMode.system,
-          textColor: t.text,
-          subColor: t.textSecondary,
-          accentColor: AppTheme.ytRed,
-          iconColor: t.iconSub,
-          onTap: () => _pick(ThemeMode.system),
+          svgAsset: _svgAutoTheme, label: 'Automático', sub: 'Segue as definições do sistema',
+          selected: _selected == ThemeMode.system, textColor: t.text, subColor: t.textSecondary,
+          accentColor: AppTheme.ytRed, iconColor: t.iconSub, onTap: () => _pick(ThemeMode.system),
         ),
         Divider(height: 1, color: t.divider, indent: 52, endIndent: 16),
         _ThemeOption(
-          svgAsset: _svgSun,
-          label: 'Tema claro',
-          sub: 'Interface sempre clara',
-          selected: _selected == ThemeMode.light,
-          textColor: t.text,
-          subColor: t.textSecondary,
-          accentColor: AppTheme.ytRed,
-          iconColor: t.iconSub,
-          onTap: () => _pick(ThemeMode.light),
+          svgAsset: _svgSun, label: 'Tema claro', sub: 'Interface sempre clara',
+          selected: _selected == ThemeMode.light, textColor: t.text, subColor: t.textSecondary,
+          accentColor: AppTheme.ytRed, iconColor: t.iconSub, onTap: () => _pick(ThemeMode.light),
         ),
         Divider(height: 1, color: t.divider, indent: 52, endIndent: 16),
         _ThemeOption(
-          svgAsset: _svgDark,
-          label: 'Tema escuro',
-          sub: 'Interface sempre escura',
-          selected: _selected == ThemeMode.dark,
-          textColor: t.text,
-          subColor: t.textSecondary,
-          accentColor: AppTheme.ytRed,
-          iconColor: t.iconSub,
-          onTap: () => _pick(ThemeMode.dark),
+          svgAsset: _svgDark, label: 'Tema escuro', sub: 'Interface sempre escura',
+          selected: _selected == ThemeMode.dark, textColor: t.text, subColor: t.textSecondary,
+          accentColor: AppTheme.ytRed, iconColor: t.iconSub, onTap: () => _pick(ThemeMode.dark),
         ),
         SizedBox(height: 12 + bottom),
       ],
@@ -1336,15 +1020,9 @@ class _ThemeOption extends StatelessWidget {
   final VoidCallback onTap;
 
   const _ThemeOption({
-    required this.svgAsset,
-    required this.label,
-    required this.sub,
-    required this.selected,
-    required this.textColor,
-    required this.subColor,
-    required this.accentColor,
-    required this.iconColor,
-    required this.onTap,
+    required this.svgAsset, required this.label, required this.sub,
+    required this.selected, required this.textColor, required this.subColor,
+    required this.accentColor, required this.iconColor, required this.onTap,
   });
 
   @override
@@ -1356,54 +1034,29 @@ class _ThemeOption extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
           children: [
-            SvgPicture.asset(
-              svgAsset,
-              width: 20,
-              height: 20,
-              colorFilter: ColorFilter.mode(
-                selected ? accentColor : iconColor,
-                BlendMode.srcIn,
-              ),
-            ),
+            SvgPicture.asset(svgAsset, width: 20, height: 20,
+                colorFilter: ColorFilter.mode(selected ? accentColor : iconColor, BlendMode.srcIn)),
             const SizedBox(width: 14),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: selected ? accentColor : textColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Text(label, style: TextStyle(color: selected ? accentColor : textColor, fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
-                Text(
-                  sub,
-                  style: TextStyle(color: subColor, fontSize: 12),
-                ),
+                Text(sub, style: TextStyle(color: subColor, fontSize: 12)),
               ],
             ),
             const Spacer(),
             AnimatedContainer(
               duration: const Duration(milliseconds: 260),
               curve: Curves.easeOutBack,
-              width: 22,
-              height: 22,
+              width: 22, height: 22,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: selected ? accentColor : const Color(0x00000000),
-                border: Border.all(
-                  color: selected ? accentColor : subColor.withOpacity(0.35),
-                  width: 2,
-                ),
+                border: Border.all(color: selected ? accentColor : subColor.withOpacity(0.35), width: 2),
               ),
               child: selected
-                  ? const Icon(
-                      Icons.check_rounded,
-                      color: Color(0xFFFFFFFF),
-                      size: 13,
-                    )
+                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 13)
                   : const SizedBox.shrink(),
             ),
           ],
@@ -1417,18 +1070,13 @@ class _ThemeOption extends StatelessWidget {
 // _TapRowWithIconPreview
 // ─────────────────────────────────────────────────────────────────────────────
 class _TapRowWithIconPreview extends StatelessWidget {
-  final String iconAsset;
-  final String label, sub;
+  final String iconAsset, label, sub;
   final VoidCallback onTap;
   final Color textColor, subColor;
 
   const _TapRowWithIconPreview({
-    required this.iconAsset,
-    required this.label,
-    required this.sub,
-    required this.onTap,
-    required this.textColor,
-    required this.subColor,
+    required this.iconAsset, required this.label, required this.sub,
+    required this.onTap, required this.textColor, required this.subColor,
   });
 
   @override
@@ -1442,24 +1090,11 @@ class _TapRowWithIconPreview extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(5),
-              child: Image.asset(
-                iconAsset,
-                width: 20,
-                height: 20,
-                fit: BoxFit.cover,
-                cacheWidth: 40,
+              child: Image.asset(iconAsset, width: 20, height: 20, fit: BoxFit.cover, cacheWidth: 40,
                 errorBuilder: (_, __, ___) => Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: AppTheme.ytRedDark,
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: const Icon(
-                    Icons.apps_rounded,
-                    color: Colors.white,
-                    size: 12,
-                  ),
+                  width: 20, height: 20,
+                  decoration: BoxDecoration(color: AppTheme.ytRedDark, borderRadius: BorderRadius.circular(5)),
+                  child: const Icon(Icons.apps_rounded, color: Colors.white, size: 12),
                 ),
               ),
             ),
@@ -1467,28 +1102,13 @@ class _TapRowWithIconPreview extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                Text(label, style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 2),
-                Text(
-                  sub,
-                  style: TextStyle(color: subColor, fontSize: 12),
-                ),
+                Text(sub, style: TextStyle(color: subColor, fontSize: 12)),
               ],
             ),
             const Spacer(),
-            _SvgIcon(
-              assetPath: _svgChevron,
-              lucideSvg: null,
-              size: 16,
-              color: subColor.withOpacity(0.5),
-            ),
+            _SvgIcon(assetPath: _svgChevron, lucideSvg: null, size: 16, color: subColor.withOpacity(0.5)),
           ],
         ),
       ),
@@ -1508,19 +1128,15 @@ class _TapRow extends StatelessWidget {
   final bool destructive;
 
   const _TapRow({
-    this.svgAsset,
-    this.lucideSvg,
-    required this.label,
-    required this.sub,
-    required this.onTap,
-    required this.textColor,
-    required this.subColor,
+    this.svgAsset, this.lucideSvg,
+    required this.label, required this.sub,
+    required this.onTap, required this.textColor, required this.subColor,
     this.destructive = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final fgColor = destructive ? AppTheme.error : textColor;
+    final fgColor   = destructive ? AppTheme.error : textColor;
     final iconColor = destructive ? AppTheme.error : subColor;
 
     return InkWell(
@@ -1530,37 +1146,18 @@ class _TapRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
           children: [
-            _SvgIcon(
-              assetPath: svgAsset,
-              lucideSvg: lucideSvg,
-              color: iconColor,
-            ),
+            _SvgIcon(assetPath: svgAsset, lucideSvg: lucideSvg, color: iconColor),
             const SizedBox(width: 14),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: fgColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                Text(label, style: TextStyle(color: fgColor, fontSize: 14, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 2),
-                Text(
-                  sub,
-                  style: TextStyle(color: subColor, fontSize: 12),
-                ),
+                Text(sub, style: TextStyle(color: subColor, fontSize: 12)),
               ],
             ),
             const Spacer(),
-            _SvgIcon(
-              assetPath: _svgChevron,
-              lucideSvg: null,
-              size: 16,
-              color: subColor.withOpacity(0.5),
-            ),
+            _SvgIcon(assetPath: _svgChevron, lucideSvg: null, size: 16, color: subColor.withOpacity(0.5)),
           ],
         ),
       ),
@@ -1580,13 +1177,9 @@ class _SwitchRow extends StatelessWidget {
   final ValueChanged<bool> onChanged;
 
   const _SwitchRow({
-    this.svgAsset,
-    this.lucideSvg,
-    required this.label,
-    required this.sub,
-    required this.value,
-    required this.textColor,
-    required this.subColor,
+    this.svgAsset, this.lucideSvg,
+    required this.label, required this.sub,
+    required this.value, required this.textColor, required this.subColor,
     required this.onChanged,
   });
 
@@ -1596,28 +1189,14 @@ class _SwitchRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       child: Row(
         children: [
-          _SvgIcon(
-            assetPath: svgAsset,
-            lucideSvg: lucideSvg,
-            color: subColor,
-          ),
+          _SvgIcon(assetPath: svgAsset, lucideSvg: lucideSvg, color: subColor),
           const SizedBox(width: 14),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              Text(label, style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w500)),
               const SizedBox(height: 2),
-              Text(
-                sub,
-                style: TextStyle(color: subColor, fontSize: 12),
-              ),
+              Text(sub, style: TextStyle(color: subColor, fontSize: 12)),
             ],
           ),
           const Spacer(),
@@ -1635,51 +1214,29 @@ class _MiniSwitch extends StatefulWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
 
-  const _MiniSwitch({
-    required this.value,
-    required this.onChanged,
-  });
+  const _MiniSwitch({required this.value, required this.onChanged});
 
   @override
   State<_MiniSwitch> createState() => _MiniSwitchState();
 }
 
-class _MiniSwitchState extends State<_MiniSwitch>
-    with SingleTickerProviderStateMixin {
-  static const double _w = 44;
-  static const double _h = 25;
-  static const double _thumb = 19;
-  static const double _pad = 3;
+class _MiniSwitchState extends State<_MiniSwitch> with SingleTickerProviderStateMixin {
+  static const double _w = 44, _h = 25, _thumb = 19, _pad = 3;
 
   late final AnimationController _ctrl;
-  late final Animation<double> _position;
-  late final Animation<double> _scale;
-  late final Animation<double> _bgAnim;
+  late final Animation<double> _position, _scale, _bgAnim;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 340),
-    );
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 340));
     if (widget.value) _ctrl.value = 1.0;
 
-    _position = CurvedAnimation(
-      parent: _ctrl,
-      curve: Curves.easeOutBack,
-      reverseCurve: Curves.easeInBack,
-    );
-
+    _position = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack, reverseCurve: Curves.easeInBack);
     _scale = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.82), weight: 30),
-      TweenSequenceItem(
-        tween: Tween(begin: 0.82, end: 1.0)
-            .chain(CurveTween(curve: Curves.elasticOut)),
-        weight: 70,
-      ),
+      TweenSequenceItem(tween: Tween(begin: 0.82, end: 1.0).chain(CurveTween(curve: Curves.elasticOut)), weight: 70),
     ]).animate(_ctrl);
-
     _bgAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
   }
 
@@ -1692,30 +1249,21 @@ class _MiniSwitchState extends State<_MiniSwitch>
   }
 
   @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _ctrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
     final t = AppTheme.current;
-
     return GestureDetector(
       onTap: () => widget.onChanged(!widget.value),
       child: AnimatedBuilder(
         animation: _ctrl,
         builder: (_, __) {
-          final bg = Color.lerp(t.cardAlt, AppTheme.ytRed, _bgAnim.value)!;
+          final bg     = Color.lerp(t.cardAlt, AppTheme.ytRed, _bgAnim.value)!;
           final travel = _w - _thumb - _pad * 2;
-
           return Container(
-            width: _w,
-            height: _h,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(_h / 2),
-              color: bg,
-            ),
+            width: _w, height: _h,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(_h / 2), color: bg),
             child: Stack(
               children: [
                 Positioned(
@@ -1724,18 +1272,11 @@ class _MiniSwitchState extends State<_MiniSwitch>
                   child: Transform.scale(
                     scale: _scale.value,
                     child: Container(
-                      width: _thumb,
-                      height: _thumb,
+                      width: _thumb, height: _thumb,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Color(0xFFFFFFFF),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0x33000000),
-                            blurRadius: 6,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
+                        color: Colors.white,
+                        boxShadow: [BoxShadow(color: Color(0x33000000), blurRadius: 6, offset: Offset(0, 2))],
                       ),
                     ),
                   ),
@@ -1758,43 +1299,21 @@ class _SvgIcon extends StatelessWidget {
   final double size;
   final Color color;
 
-  const _SvgIcon({
-    this.assetPath,
-    this.lucideSvg,
-    this.size = 20,
-    required this.color,
-  });
+  const _SvgIcon({this.assetPath, this.lucideSvg, this.size = 20, required this.color});
 
   @override
   Widget build(BuildContext context) {
     final cf = ColorFilter.mode(color, BlendMode.srcIn);
-
     if (assetPath != null) {
-      return SvgPicture.asset(
-        assetPath!,
-        width: size,
-        height: size,
-        colorFilter: cf,
+      return SvgPicture.asset(assetPath!, width: size, height: size, colorFilter: cf,
         errorBuilder: (_, __, ___) => lucideSvg != null
-            ? SvgPicture.string(
-                lucideSvg!,
-                width: size,
-                height: size,
-                colorFilter: cf,
-              )
+            ? SvgPicture.string(lucideSvg!, width: size, height: size, colorFilter: cf)
             : SizedBox(width: size, height: size),
       );
     }
-
     if (lucideSvg != null) {
-      return SvgPicture.string(
-        lucideSvg!,
-        width: size,
-        height: size,
-        colorFilter: cf,
-      );
+      return SvgPicture.string(lucideSvg!, width: size, height: size, colorFilter: cf);
     }
-
     return SizedBox(width: size, height: size);
   }
 }
