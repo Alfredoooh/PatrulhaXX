@@ -21,14 +21,14 @@ const _kGhToken  = String.fromEnvironment('GH_TOKEN');
 // ─── Estrutura de publicação ──────────────────────────────────────────────────
 class PostPayload {
   final String id, text, createdAt, author;
-  final List<MediaPayload> media;
+  final List media;
 
   PostPayload({
     required this.id, required this.text, required this.media,
     required this.createdAt, required this.author,
   });
 
-  Map<String, dynamic> toJson() => {
+  Map toJson() => {
     'id': id, 'author': author, 'text': text,
     'media': media.map((m) => m.toJson()).toList(),
     'createdAt': createdAt, 'platform': 'android',
@@ -41,13 +41,13 @@ class MediaPayload {
 
   MediaPayload({required this.type, required this.url, required this.filename, required this.sizeBytes});
 
-  Map<String, dynamic> toJson() => {
+  Map toJson() => {
     'type': type, 'url': url, 'filename': filename, 'sizeBytes': sizeBytes,
   };
 }
 
 // ─── Upload GitHub ─────────────────────────────────────────────────────────────
-Future<String> _uploadToGitHub(File file, String filename) async {
+Future _uploadToGitHub(File file, String filename) async {
   final bytes   = await file.readAsBytes();
   final content = base64Encode(bytes);
   final path    = 'uploads/$filename';
@@ -60,7 +60,7 @@ Future<String> _uploadToGitHub(File file, String filename) async {
   });
   if (getRes.statusCode == 200) sha = json.decode(getRes.body)['sha'] as String?;
 
-  final body = <String, dynamic>{
+  final body = {
     'message': 'upload: $filename', 'content': content, 'branch': _kGhBranch,
   };
   if (sha != null) body['sha'] = sha;
@@ -84,10 +84,10 @@ Future<String> _uploadToGitHub(File file, String filename) async {
 class CreatePostPage extends StatefulWidget {
   const CreatePostPage({super.key});
   @override
-  State<CreatePostPage> createState() => _CreatePostPageState();
+  State createState() => _CreatePostPageState();
 }
 
-class _CreatePostPageState extends State<CreatePostPage> {
+class _CreatePostPageState extends State {
   final _titleCtrl = TextEditingController();
   final _textCtrl  = TextEditingController();
   final _textFocus = FocusNode();
@@ -126,7 +126,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
   }
 
   // ── Câmera ──────────────────────────────────────────────────────────────────
-  Future<void> _openCamera() async {
+  Future _openCamera() async {
     final status = await Permission.camera.request();
     if (!status.isGranted) { _showSnack('Permissão de câmera negada'); return; }
     final picked = await _picker.pickImage(source: ImageSource.camera);
@@ -135,7 +135,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
   }
 
   // ── Galeria ──────────────────────────────────────────────────────────────────
-  Future<void> _pickMedia() async {
+  Future _pickMedia() async {
     final picked = await _picker.pickMedia();
     if (picked == null) return;
     final file    = File(picked.path);
@@ -147,7 +147,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
   }
 
   // ── Adicionar ficheiro ───────────────────────────────────────────────────────
-  Future<void> _addFile(File file, bool isVideo) async {
+  Future _addFile(File file, bool isVideo) async {
     VideoPlayerController? ctrl;
     if (isVideo) {
       ctrl = VideoPlayerController.file(file);
@@ -159,7 +159,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
   }
 
   // ── Modal galeria completa ───────────────────────────────────────────────────
-  Future<void> _openGalleryModal() async {
+  Future _openGalleryModal() async {
     PermissionStatus status;
     if (Platform.isAndroid) {
       final sdk = await _androidSdk();
@@ -193,15 +193,15 @@ class _CreatePostPageState extends State<CreatePostPage> {
     );
   }
 
-  Future<int> _androidSdk() async {
+  Future _androidSdk() async {
     try {
-      final v = await const MethodChannel('flutter/platform').invokeMethod<int>('getAndroidSdkInt');
+      final v = await const MethodChannel('flutter/platform').invokeMethod('getAndroidSdkInt');
       return v ?? 30;
     } catch (_) { return 30; }
   }
 
   // ── Publicar ────────────────────────────────────────────────────────────────
-  Future<void> _publish() async {
+  Future _publish() async {
     if (_titleCtrl.text.trim().isEmpty) {
       _showSnack('Adicione um título');
       return;
@@ -210,7 +210,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
     setState(() => _uploading = true);
 
     try {
-      final mediaPayloads = <MediaPayload>[];
+      final mediaPayloads = [];
       for (final m in _media) {
         final ext      = p.extension(m.file.path);
         final filename = '${DateTime.now().millisecondsSinceEpoch}_${mediaPayloads.length}$ext';
@@ -249,7 +249,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
   }
 
   // ── Cor adaptativa (branco no dark, cinza escuro no light) ──────────────────
-  Color _adaptiveAccent(AppThemeData t) =>
+  Color _adaptiveAccent(AppTheme t) =>
       t.isDark ? Colors.white : const Color(0xFF2C2C2C);
 
   // ── Build ────────────────────────────────────────────────────────────────────
@@ -260,7 +260,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
     final t          = AppTheme.current;
     final accent     = _adaptiveAccent(t);
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
+    return AnnotatedRegion(
       value: t.systemUiOverlay,
       child: Scaffold(
         backgroundColor: t.bg,
@@ -560,7 +560,7 @@ class _MediaGrid extends StatelessWidget {
 // ─── Galeria rápida ───────────────────────────────────────────────────────────
 class _QuickGallery extends StatefulWidget {
   final VoidCallback onCameraTap;
-  final Future<void> Function(File, bool) onThumbTap;
+  final Future Function(File, bool) onThumbTap;
   const _QuickGallery({required this.onCameraTap, required this.onThumbTap});
 
   @override
@@ -568,13 +568,13 @@ class _QuickGallery extends StatefulWidget {
 }
 
 class _QuickGalleryState extends State<_QuickGallery> {
-  final List<AssetEntity> _assets = [];
+  final List _assets = [];
   bool _loaded = false;
 
   @override
   void initState() { super.initState(); _loadRecent(); }
 
-  Future<void> _loadRecent() async {
+  Future _loadRecent() async {
     final result = await PhotoManager.requestPermissionExtend();
     if (!result.isAuth) return;
     final albums = await PhotoManager.getAssetPathList(type: RequestType.common, onlyAll: true);
@@ -626,7 +626,7 @@ class _QuickGalleryState extends State<_QuickGallery> {
 
 class _AssetThumb extends StatefulWidget {
   final AssetEntity asset;
-  final Future<void> Function(File, bool) onTap;
+  final Future Function(File, bool) onTap;
   const _AssetThumb({required this.asset, required this.onTap});
 
   @override
@@ -690,13 +690,13 @@ class _GalleryModal extends StatefulWidget {
 }
 
 class _GalleryModalState extends State<_GalleryModal> {
-  final List<AssetEntity> _assets = [];
+  final List _assets = [];
   bool _loading = true;
 
   @override
   void initState() { super.initState(); _load(); }
 
-  Future<void> _load() async {
+  Future _load() async {
     final albums = await PhotoManager.getAssetPathList(type: RequestType.common, onlyAll: true);
     if (albums.isEmpty) { setState(() => _loading = false); return; }
     final assets = await albums.first.getAssetListRange(start: 0, end: 200);
