@@ -141,18 +141,19 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
   String _input = '';
   String? _firstPin;
   bool _error = false;
+  bool _visible = false;
   bool _showToast = false;
   bool _toastSuccess = false;
   String _toastMsg = '';
   bool _processing = false;
 
-  // PIN fixo de 4 dígitos
-  static const int _pinLength = 4;
-
   late final AnimationController _shake;
   late final Animation<double> _shakeAnim;
 
   final List<int> _keyTimestamps = [];
+
+  // ── Alterado: 4 dígitos (igual ao defaultPin do LockService) ──
+  static const int _pinLength = 4;
 
   @override
   void initState() {
@@ -199,8 +200,8 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
       _error = false;
       _input += k;
     });
-    // Confirma automaticamente ao preencher os 4 dígitos
-    if (_input.length == _pinLength) {
+    // Auto-confirma ao preencher os 4 dígitos
+    if (_input.length == _pinLength && !_processing) {
       Future.delayed(const Duration(milliseconds: 120), () {
         if (mounted && !_processing) _onConfirm();
       });
@@ -300,19 +301,17 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final screenH = MediaQuery.of(context).size.height;
-    final botPad = MediaQuery.of(context).padding.bottom;
 
-    final keypadBg     = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA);
-    final keyBg        = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFFFFFFF);
-    final keyText      = isDark ? Colors.white            : Colors.black;
-    final dividerColor = isDark ? const Color(0xFF3A3A3C) : const Color(0xFFC6C6C8);
-    final digitBoxBg   = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFAEAEB2);
-    final headerBg     = isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7);
-    final titleColor   = isDark ? Colors.white            : Colors.black;
+    final headerBg      = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFEEEFF4);
+    final keypadBg      = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFFFFFFF);
+    final keyBg         = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFFFFFFF);
+    final keyText       = isDark ? Colors.white            : Colors.black;
+    final dividerColor  = isDark ? const Color(0xFF3A3A3C) : const Color(0xFFD1D1D6);
+    final digitBoxBg    = isDark ? const Color(0xFF3A3A3C) : const Color(0xFFDDDDE3);
+    final titleColor    = isDark ? Colors.white            : Colors.black;
     final subtitleColor = isDark
-        ? Colors.white.withOpacity(0.55)
-        : Colors.black.withOpacity(0.55);
+        ? Colors.white.withOpacity(0.50)
+        : Colors.black.withOpacity(0.45);
 
     return Scaffold(
       backgroundColor: headerBg,
@@ -324,29 +323,31 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
-                  width: 110,
-                  height: 110,
+                  width: 100,
+                  height: 100,
                   child: Lottie.asset(
                     'assets/lottie/lock.json',
                     repeat: true,
                     animate: true,
                     errorBuilder: (_, __, ___) => Icon(
                       Icons.lock_rounded,
-                      size: 60,
-                      color: titleColor.withOpacity(0.4),
+                      size: 56,
+                      color: isDark
+                          ? Colors.white.withOpacity(0.35)
+                          : Colors.black.withOpacity(0.25),
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
 
                 Text(
                   _title,
                   style: TextStyle(
                     color: titleColor,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.1,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
                   ),
                 ),
 
@@ -361,80 +362,93 @@ class _LockScreenState extends State<LockScreen> with TickerProviderStateMixin {
                     style: TextStyle(
                       color: _error ? AppTheme.error : subtitleColor,
                       fontSize: 14,
+                      height: 1.4,
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 32),
 
-                // ── 4 digit boxes ──────────────────────────────────────
+                // ── 4 digit boxes ──────────────────────────────────────────
                 AnimatedBuilder(
                   animation: _shakeAnim,
                   builder: (_, child) => Transform.translate(
                       offset: Offset(_shakeAnim.value, 0), child: child),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(_pinLength, (i) {
-                      final filled = i < _input.length;
-                      final ch = filled ? _input[i] : null;
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
-                        width: 54,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: _error
-                              ? AppTheme.error.withOpacity(0.18)
-                              : filled
-                                  ? digitBoxBg
-                                  : digitBoxBg.withOpacity(0.45),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _error
-                                ? AppTheme.error.withOpacity(0.5)
-                                : filled
-                                    ? dividerColor
-                                    : dividerColor.withOpacity(0.4),
-                            width: 0.8,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(_pinLength, (i) {
+                        final filled = i < _input.length;
+                        final ch = filled && _visible ? _input[i] : null;
+                        return Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: _error
+                                    ? AppTheme.error.withOpacity(0.15)
+                                    : filled
+                                        ? digitBoxBg
+                                        : digitBoxBg.withOpacity(0.55),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: _error
+                                      ? AppTheme.error.withOpacity(0.4)
+                                      : Colors.transparent,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Center(
+                                child: ch != null
+                                    ? Text(
+                                        ch,
+                                        style: TextStyle(
+                                          color: titleColor,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      )
+                                    : filled
+                                        ? Container(
+                                            width: 10,
+                                            height: 10,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: _error
+                                                  ? AppTheme.error
+                                                  : titleColor,
+                                            ),
+                                          )
+                                        : null,
+                              ),
+                            ),
                           ),
-                        ),
-                        child: Center(
-                          child: ch != null
-                              ? Text(
-                                  ch,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                )
-                              : null,
-                        ),
-                      );
-                    }),
+                        );
+                      }),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          // ── Teclado ────────────────────────────────────────────────────
-          SizedBox(
-            height: screenH * 0.52 + botPad,
-            child: _Keypad(
-              keypadBg: keypadBg,
-              keyBg: keyBg,
-              keyText: keyText,
-              dividerColor: dividerColor,
-              onKey: _onKey,
-              onDelete: _onDel,
-              processing: _processing,
-              isDark: isDark,
-            ),
+          // ── Teclado numérico ───────────────────────────────────────────
+          _Keypad(
+            keypadBg: keypadBg,
+            keyBg: keyBg,
+            keyText: keyText,
+            dividerColor: dividerColor,
+            onKey: _onKey,
+            onDelete: _onDel,
+            onToggleVisible: () => setState(() => _visible = !_visible),
+            isVisible: _visible,
+            processing: _processing,
           ),
         ]),
 
-        // Toast
         if (_showToast)
           _TopToast(
             success: _toastSuccess,
@@ -456,8 +470,9 @@ class _Keypad extends StatelessWidget {
   final Color dividerColor;
   final ValueChanged<String> onKey;
   final VoidCallback onDelete;
+  final VoidCallback onToggleVisible;
+  final bool isVisible;
   final bool processing;
-  final bool isDark;
 
   const _Keypad({
     required this.keypadBg,
@@ -466,115 +481,116 @@ class _Keypad extends StatelessWidget {
     required this.dividerColor,
     required this.onKey,
     required this.onDelete,
+    required this.onToggleVisible,
+    required this.isVisible,
     required this.processing,
-    required this.isDark,
   });
+
+  static const double _rowH = 72.0;
 
   @override
   Widget build(BuildContext context) {
+    final botPad = MediaQuery.of(context).padding.bottom;
+
     return Container(
       color: keypadBg,
-      child: Column(
-        children: [
-          Divider(height: 1, thickness: 1, color: dividerColor),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            height: processing ? 2 : 0,
-            child: LinearProgressIndicator(
-              backgroundColor: Colors.transparent,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                  isDark ? Colors.white24 : Colors.black12),
-            ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(height: 1, color: dividerColor),
+
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          height: processing ? 2 : 0,
+          child: LinearProgressIndicator(
+            backgroundColor: Colors.transparent,
+            valueColor: AlwaysStoppedAnimation<Color>(
+                keyText.withOpacity(0.15)),
           ),
-          Expanded(
-            child: Column(
-              children: [
-                _buildRow(['1', '2', '3']),
-                Divider(height: 1, thickness: 1, color: dividerColor),
-                _buildRow(['4', '5', '6']),
-                Divider(height: 1, thickness: 1, color: dividerColor),
-                _buildRow(['7', '8', '9']),
-                Divider(height: 1, thickness: 1, color: dividerColor),
-                _buildLastRow(),
-              ],
+        ),
+
+        _buildRow(['1', '2', '3']),
+        Container(height: 1, color: dividerColor),
+        _buildRow(['4', '5', '6']),
+        Container(height: 1, color: dividerColor),
+        _buildRow(['7', '8', '9']),
+        Container(height: 1, color: dividerColor),
+
+        // Última linha: visibilidade | 0 | backspace
+        SizedBox(
+          height: _rowH,
+          child: Row(children: [
+            Expanded(
+              child: _KeyBtn(
+                keyBg: keypadBg,
+                onTap: onToggleVisible,
+                enabled: !processing,
+                child: Icon(
+                  isVisible
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: keyText.withOpacity(0.6),
+                  size: 22,
+                ),
+              ),
             ),
-          ),
-        ],
-      ),
+            Container(width: 1, height: _rowH, color: dividerColor),
+            Expanded(
+              child: _KeyBtn(
+                keyBg: keyBg,
+                onTap: () => onKey('0'),
+                enabled: !processing,
+                child: Text('0',
+                    style: TextStyle(
+                      color: keyText,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w400,
+                    )),
+              ),
+            ),
+            Container(width: 1, height: _rowH, color: dividerColor),
+            Expanded(
+              child: _KeyBtn(
+                keyBg: keypadBg,
+                onTap: onDelete,
+                enabled: !processing,
+                child: Icon(
+                  Icons.backspace_outlined,
+                  color: keyText.withOpacity(0.6),
+                  size: 22,
+                ),
+              ),
+            ),
+          ]),
+        ),
+
+        SizedBox(height: botPad),
+      ]),
     );
   }
 
   Widget _buildRow(List<String> keys) {
-    return Expanded(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (int i = 0; i < keys.length; i++) ...[
-            if (i > 0)
-              VerticalDivider(width: 1, thickness: 1, color: dividerColor),
-            Expanded(
-              child: _KeyBtn(
-                keyBg: keyBg,
-                onTap: () => onKey(keys[i]),
-                enabled: !processing,
-                child: Text(
-                  keys[i],
-                  style: TextStyle(
-                    color: keyText,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLastRow() {
-    return Expanded(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Célula vazia esquerda
-          Expanded(child: Container(color: keypadBg)),
-
-          VerticalDivider(width: 1, thickness: 1, color: dividerColor),
-
+    return SizedBox(
+      height: _rowH,
+      child: Row(children: [
+        for (int i = 0; i < keys.length; i++) ...[
+          if (i > 0)
+            Container(width: 1, height: _rowH, color: dividerColor),
           Expanded(
             child: _KeyBtn(
               keyBg: keyBg,
-              onTap: () => onKey('0'),
+              onTap: () => onKey(keys[i]),
               enabled: !processing,
               child: Text(
-                '0',
+                keys[i],
                 style: TextStyle(
                   color: keyText,
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.w400,
                 ),
               ),
             ),
           ),
-
-          VerticalDivider(width: 1, thickness: 1, color: dividerColor),
-
-          Expanded(
-            child: _KeyBtn(
-              keyBg: keyBg,
-              onTap: onDelete,
-              enabled: !processing,
-              child: Icon(
-                Icons.backspace_outlined,
-                color: keyText.withOpacity(0.75),
-                size: 24,
-              ),
-            ),
-          ),
         ],
-      ),
+      ]),
     );
   }
 }
@@ -602,18 +618,25 @@ class _KeyBtnState extends State<_KeyBtn> {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTapDown: widget.enabled ? (_) => setState(() => _pressed = true) : null,
+      onTapDown: widget.enabled
+          ? (_) => setState(() => _pressed = true)
+          : null,
       onTapUp: widget.enabled
           ? (_) {
               setState(() => _pressed = false);
               widget.onTap();
             }
           : null,
-      onTapCancel:
-          widget.enabled ? () => setState(() => _pressed = false) : null,
+      onTapCancel: widget.enabled
+          ? () => setState(() => _pressed = false)
+          : null,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 60),
-        color: _pressed ? widget.keyBg.withOpacity(0.4) : widget.keyBg,
+        duration: const Duration(milliseconds: 50),
+        width: double.infinity,
+        height: double.infinity,
+        color: _pressed
+            ? widget.keyBg.withOpacity(0.45)
+            : widget.keyBg,
         child: Center(child: widget.child),
       ),
     );

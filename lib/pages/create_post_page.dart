@@ -18,10 +18,6 @@ const _kGhRepo   = 'data';
 const _kGhBranch = 'main';
 const _kGhToken  = String.fromEnvironment('GH_TOKEN');
 
-// ─── SVG inline — ícone X (close) ─────────────────────────────────────────────
-// Evita dependência de um asset file que pode não estar mapeado
-const _svgClose = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>''';
-
 // ─── Estrutura de publicação ──────────────────────────────────────────────────
 class PostPayload {
   final String id, text, createdAt, author;
@@ -92,7 +88,7 @@ class CreatePostPage extends StatefulWidget {
 }
 
 class _CreatePostPageState extends State<CreatePostPage> {
-  final _titleCtrl = TextEditingController();   // ← novo: campo de título
+  final _titleCtrl = TextEditingController();
   final _textCtrl  = TextEditingController();
   final _textFocus = FocusNode();
   final _picker    = ImagePicker();
@@ -138,9 +134,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
     _addFile(File(picked.path), false);
   }
 
-  // ── Galeria (picker nativo — imagem e vídeo) ─────────────────────────────────
+  // ── Galeria ──────────────────────────────────────────────────────────────────
   Future<void> _pickMedia() async {
-    // pickMedia escolhe imagem ou vídeo conforme o que o utilizador seleciona
     final picked = await _picker.pickMedia();
     if (picked == null) return;
     final file    = File(picked.path);
@@ -151,14 +146,14 @@ class _CreatePostPageState extends State<CreatePostPage> {
     _addFile(file, isVideo);
   }
 
-  // ── Adicionar ficheiro à lista ───────────────────────────────────────────────
+  // ── Adicionar ficheiro ───────────────────────────────────────────────────────
   Future<void> _addFile(File file, bool isVideo) async {
     VideoPlayerController? ctrl;
     if (isVideo) {
       ctrl = VideoPlayerController.file(file);
       await ctrl.initialize();
       ctrl.setLooping(true);
-      ctrl.play();   // auto-play no preview
+      ctrl.play();
     }
     setState(() => _media.add(_MediaItem(file: file, isVideo: isVideo, videoCtrl: ctrl)));
   }
@@ -207,7 +202,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
   // ── Publicar ────────────────────────────────────────────────────────────────
   Future<void> _publish() async {
-    // Valida título obrigatório
     if (_titleCtrl.text.trim().isEmpty) {
       _showSnack('Adicione um título');
       return;
@@ -254,12 +248,17 @@ class _CreatePostPageState extends State<CreatePostPage> {
     }
   }
 
+  // ── Cor adaptativa (branco no dark, cinza escuro no light) ──────────────────
+  Color _adaptiveAccent(AppThemeData t) =>
+      t.isDark ? Colors.white : const Color(0xFF2C2C2C);
+
   // ── Build ────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final safeTop    = MediaQuery.of(context).padding.top;
     final safeBottom = MediaQuery.of(context).padding.bottom;
     final t          = AppTheme.current;
+    final accent     = _adaptiveAccent(t);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: t.systemUiOverlay,
@@ -282,9 +281,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
                         child: SizedBox(
                           width: 40, height: 40,
                           child: Center(
-                            // FIX: usa SVG inline para garantir que aparece
-                            child: SvgPicture.string(
-                              _svgClose,
+                            child: SvgPicture.asset(
+                              'assets/icons/svg/close.svg',
                               width: 22, height: 22,
                               colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
                             ),
@@ -292,8 +290,15 @@ class _CreatePostPageState extends State<CreatePostPage> {
                         ),
                       ),
                       const Spacer(),
-                      Text('Rascunho',
-                          style: TextStyle(color: AppTheme.link, fontSize: 15, fontWeight: FontWeight.w600)),
+                      // "Rascunho" — branco no dark, cinza escuro no light
+                      Text(
+                        'Rascunho',
+                        style: TextStyle(
+                          color: accent,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: _uploading ? null : _publish,
@@ -378,16 +383,23 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
                         const SizedBox(height: 16),
 
+                        // "Qualquer pessoa pode responder" — branco/dark adaptativo
                         Row(
                           children: [
                             SvgPicture.asset(
                               'assets/icons/svg/globe.svg',
                               width: 16, height: 16,
-                              colorFilter: ColorFilter.mode(AppTheme.link, BlendMode.srcIn),
+                              colorFilter: ColorFilter.mode(accent, BlendMode.srcIn),
                             ),
                             const SizedBox(width: 6),
-                            Text('Qualquer pessoa pode responder',
-                                style: TextStyle(color: AppTheme.link, fontSize: 13, fontWeight: FontWeight.w500)),
+                            Text(
+                              'Qualquer pessoa pode responder',
+                              style: TextStyle(
+                                color: accent,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -395,7 +407,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   ),
                 ),
 
-                // ── Galeria rápida (recentes) ──────────────────────────────
+                // ── Galeria rápida ─────────────────────────────────────────
                 _QuickGallery(
                   onCameraTap: _openCamera,
                   onThumbTap: _addFile,
@@ -410,8 +422,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   padding: EdgeInsets.fromLTRB(8, 8, 8, 8 + safeBottom),
                   child: Row(
                     children: [
-                      // FIX: todos os ícones SVG da barra de acções usam asset
-                      // com fallback para garantir que aparecem
                       _SvgActionBtn(asset: 'assets/icons/svg/image.svg',     color: AppTheme.ytRed, onTap: _pickMedia),
                       _SvgActionBtn(asset: 'assets/icons/svg/file-text.svg', color: AppTheme.ytRed, onTap: () {}),
                       _SvgActionBtn(asset: 'assets/icons/svg/bar-chart.svg', color: AppTheme.ytRed, onTap: () {}),
@@ -477,7 +487,7 @@ class _MediaItem {
   _MediaItem({required this.file, required this.isVideo, this.videoCtrl});
 }
 
-// ─── Grid de media — com botão de remover ─────────────────────────────────────
+// ─── Grid de media ─────────────────────────────────────────────────────────────
 class _MediaGrid extends StatelessWidget {
   final List<_MediaItem> media;
   final void Function(int) onRemove;
@@ -490,10 +500,7 @@ class _MediaGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       itemCount: media.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
-        childAspectRatio: 1,
+        crossAxisCount: 2, mainAxisSpacing: 4, crossAxisSpacing: 4, childAspectRatio: 1,
       ),
       itemBuilder: (_, i) {
         final m = media[i];
@@ -514,11 +521,15 @@ class _MediaGrid extends StatelessWidget {
                         )
                       : Container(color: Colors.black))
                   : Image.file(m.file, fit: BoxFit.cover),
-              // Badge de vídeo
+              // Badge vídeo
               if (m.isVideo)
-                const Positioned(
+                Positioned(
                   bottom: 6, left: 6,
-                  child: Icon(Icons.videocam_rounded, color: Colors.white, size: 18),
+                  child: SvgPicture.asset(
+                    'assets/icons/svg/video.svg',
+                    width: 18, height: 18,
+                    colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                  ),
                 ),
               // Botão remover
               Positioned(
@@ -528,7 +539,13 @@ class _MediaGrid extends StatelessWidget {
                   child: Container(
                     width: 24, height: 24,
                     decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
+                    child: Center(
+                      child: SvgPicture.asset(
+                        'assets/icons/svg/close.svg',
+                        width: 12, height: 12,
+                        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -649,9 +666,13 @@ class _AssetThumbState extends State<_AssetThumb> {
                 : null,
           ),
           if (widget.asset.type == AssetType.video)
-            const Positioned(
+            Positioned(
               bottom: 4, left: 4,
-              child: Icon(Icons.videocam_rounded, color: Colors.white, size: 14),
+              child: SvgPicture.asset(
+                'assets/icons/svg/video.svg',
+                width: 14, height: 14,
+                colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+              ),
             ),
         ],
       ),
@@ -706,9 +727,9 @@ class _GalleryModalState extends State<_GalleryModal> {
                 const Spacer(),
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
-                  // FIX: SVG inline para o close da galeria
-                  child: SvgPicture.string(
-                    _svgClose, width: 20, height: 20,
+                  child: SvgPicture.asset(
+                    'assets/icons/svg/close.svg',
+                    width: 20, height: 20,
                     colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
                   ),
                 ),
@@ -779,10 +800,16 @@ class _GalleryThumbState extends State<_GalleryThumb> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.videocam, color: Colors.white, size: 12),
+                    SvgPicture.asset(
+                      'assets/icons/svg/video.svg',
+                      width: 12, height: 12,
+                      colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                    ),
                     const SizedBox(width: 2),
-                    Text(_fmtDuration(widget.asset.videoDuration),
-                        style: const TextStyle(color: Colors.white, fontSize: 10)),
+                    Text(
+                      _fmtDuration(widget.asset.videoDuration),
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                    ),
                   ],
                 ),
               ),
@@ -813,8 +840,7 @@ class _SvgActionBtn extends StatelessWidget {
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       child: SvgPicture.asset(
-        asset,
-        width: 22, height: 22,
+        asset, width: 22, height: 22,
         colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
       ),
     ),

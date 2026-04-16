@@ -127,8 +127,9 @@ class _ExplorePageState extends State<ExplorePage>
         _page = randomPage + 1;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scroll.hasClients) {
-            final itemH = MediaQuery.of(context).size.width * 9 / 16 + 90.0;
-            _scroll.jumpTo(_scroll.offset + videos.length * itemH);
+            final colW = MediaQuery.of(context).size.width / 2;
+            final itemH = colW * 9 / 16 + 80.0;
+            _scroll.jumpTo(_scroll.offset + (videos.length / 2).ceil() * itemH);
           }
         });
       }
@@ -180,12 +181,11 @@ class _ExplorePageState extends State<ExplorePage>
     final topPad = MediaQuery.of(context).padding.top;
     final isDark = t.statusBar == Brightness.light;
 
-    // Altura exacta do título: sem espaço extra
-    // topPad + padding(10) + text(22) + padding(6) = topPad + 38
+    // FIX: título compacto — topPad + 8 (padding top) + 22 (text) + 8 (padding bottom)
     final double titleExpandedH = topPad + 38;
 
-    // Chips: altura fixa 36 + divisor 1
-    const double chipsH = 37;
+    // FIX: chips altura inclui topPad para não ficar atrás da statusbar quando pinned
+    final double chipsH = topPad + 37;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -222,9 +222,9 @@ class _ExplorePageState extends State<ExplorePage>
                   color: t.bg,
                   alignment: Alignment.bottomLeft,
                   padding: EdgeInsets.only(
-                    top: topPad,
+                    top: topPad + 8,
                     left: 16,
-                    bottom: 6,
+                    bottom: 8,
                   ),
                   child: Text('Explorar', style: TextStyle(
                       color: t.text,
@@ -235,11 +235,12 @@ class _ExplorePageState extends State<ExplorePage>
               ),
             ),
 
-            // ── Chips — pinned: fica colado ao StatusBar quando o título some ──
+            // ── Chips — pinned: fica colado ao topo (acima da statusbar) ──
             SliverPersistentHeader(
               pinned: true,
               delegate: _ChipHeaderDelegate(
                 height: chipsH,
+                topPad: topPad,
                 selectedChip: _chip,
                 isDark: isDark,
                 onChipChanged: (c) => setState(() => _chip = c),
@@ -252,7 +253,7 @@ class _ExplorePageState extends State<ExplorePage>
               ? _buildSkeletons()
               : _error
                   ? _buildError()
-                  : _buildList(isDark),
+                  : _buildGrid(isDark),
         ),
       ),
     );
@@ -275,14 +276,19 @@ class _ExplorePageState extends State<ExplorePage>
     ]));
   }
 
-  Widget _buildSkeletons() => ListView.separated(
+  Widget _buildSkeletons() => GridView.builder(
     physics: const NeverScrollableScrollPhysics(),
-    padding: const EdgeInsets.fromLTRB(0, 6, 0, 32),
+    padding: const EdgeInsets.fromLTRB(10, 8, 10, 32),
+    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 2,
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
+      childAspectRatio: 0.72,
+    ),
     itemCount: 6,
-    separatorBuilder: (_, __) => const SizedBox(height: 10),
     itemBuilder: (_, __) => const _VideoCardSkeleton());
 
-  Widget _buildList(bool isDark) {
+  Widget _buildGrid(bool isDark) {
     final list = _filteredFor(_chip);
     if (list.isEmpty) {
       final t = AppTheme.current;
@@ -294,16 +300,19 @@ class _ExplorePageState extends State<ExplorePage>
       onRefresh: _refresh,
       color: AppTheme.ytRed,
       backgroundColor: AppTheme.current.bg,
-      child: ListView.separated(
+      child: GridView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(0, 6, 0, 32),
-        itemCount: list.length + (_fetching ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 32),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 0.72,
+        ),
+        itemCount: list.length + (_fetching ? 2 : 0),
         itemBuilder: (_, i) {
-          if (i == list.length) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Center(child: _DotsLoader(isDark: isDark)));
+          if (i >= list.length) {
+            return const _VideoCardSkeleton();
           }
           return _VideoCard(
             key: ValueKey(list[i].embedUrl),
@@ -317,6 +326,7 @@ class _ExplorePageState extends State<ExplorePage>
 // ─── SliverPersistentHeader delegate para chips ───────────────────────────────
 class _ChipHeaderDelegate extends SliverPersistentHeaderDelegate {
   final double height;
+  final double topPad;
   final _ChipFilter selectedChip;
   final void Function(_ChipFilter) onChipChanged;
   final bool isDark;
@@ -325,6 +335,7 @@ class _ChipHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   const _ChipHeaderDelegate({
     required this.height,
+    required this.topPad,
     required this.selectedChip,
     required this.onChipChanged,
     required this.isDark,
@@ -346,6 +357,8 @@ class _ChipHeaderDelegate extends SliverPersistentHeaderDelegate {
 
     return Container(
       color: bg,
+      // FIX: padding top = topPad para os chips não ficarem atrás da statusbar
+      padding: EdgeInsets.only(top: topPad),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         SizedBox(
           height: 36,
@@ -450,44 +463,51 @@ class _VideoCard extends StatelessWidget {
     final t = AppTheme.current;
     final views = _formatViews(video.views);
     final date  = _formatDate(video.publishedAt);
-    final meta  = [video.sourceLabel, if (views.isNotEmpty) '$views vis.', if (date.isNotEmpty) date]
-        .join('  ·  ');
+    final meta  = [if (views.isNotEmpty) '$views vis.', if (date.isNotEmpty) date].join('  ·  ');
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        color: t.bg,
+        decoration: BoxDecoration(
+          color: t.isDark ? const Color(0xFF1C1C1C) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(t.isDark ? 0.35 : 0.10),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Thumbnail adaptável: usa AspectRatio 16/9 por defeito
           AspectRatio(
             aspectRatio: 16 / 9,
             child: Stack(fit: StackFit.expand, children: [
               Positioned.fill(child: _ThumbImg(url: video.thumb, headers: _headers)),
               Positioned(right: 0, bottom: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
                   decoration: const BoxDecoration(
                     color: Color(0xCC000000),
-                    borderRadius: BorderRadius.only(topLeft: Radius.circular(8))),
+                    borderRadius: BorderRadius.only(topLeft: Radius.circular(6))),
                   child: Text(video.duration,
-                      style: const TextStyle(color: Colors.white, fontSize: 12,
+                      style: const TextStyle(color: Colors.white, fontSize: 10,
                           fontWeight: FontWeight.w700, height: 1)))),
             ])),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(video.title,
-                  maxLines: 2, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: t.text, fontSize: 15,
-                      fontWeight: FontWeight.w600, height: 1.3)),
-                const SizedBox(height: 6),
+            padding: const EdgeInsets.fromLTRB(8, 7, 8, 8),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(video.title,
+                maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: t.text, fontSize: 12,
+                    fontWeight: FontWeight.w600, height: 1.3)),
+              if (meta.isNotEmpty) ...[
+                const SizedBox(height: 4),
                 Text(meta, maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: t.textSecondary, fontSize: 12.5, height: 1.2)),
-              ])),
-              const SizedBox(width: 8),
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Icon(Icons.more_vert_rounded, size: 22, color: t.iconTertiary)),
+                    style: TextStyle(color: t.textSecondary, fontSize: 10.5, height: 1.2)),
+              ],
             ])),
         ]),
       ),
@@ -523,7 +543,7 @@ class _ThumbImg extends StatelessWidget {
 
   Widget _fallback(AppTheme t) => Container(
     color: t.thumbBg,
-    child: Center(child: Icon(Icons.play_circle_outline_rounded, color: t.iconSub, size: 32)));
+    child: Center(child: Icon(Icons.play_circle_outline_rounded, color: t.iconSub, size: 28)));
 }
 
 // ─── Dots Loader ──────────────────────────────────────────────────────────────
@@ -611,17 +631,30 @@ class _VideoCardSkeletonState extends State<_VideoCardSkeleton> with SingleTicke
 
   @override Widget build(BuildContext context) {
     final t = AppTheme.current;
-    return Container(color: t.bg, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      AspectRatio(aspectRatio: 16 / 9, child: _box()),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _box(w: double.infinity, h: 15, r: 4),
-          const SizedBox(height: 8),
-          _box(w: 200, h: 15, r: 4),
-          const SizedBox(height: 8),
-          _box(w: 140, h: 12, r: 4),
-        ])),
-    ]));
+    return Container(
+      decoration: BoxDecoration(
+        color: t.isDark ? const Color(0xFF1C1C1C) : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(t.isDark ? 0.35 : 0.10),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        AspectRatio(aspectRatio: 16 / 9, child: _box()),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 7, 8, 8),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _box(w: double.infinity, h: 12, r: 4),
+            const SizedBox(height: 6),
+            _box(w: double.infinity, h: 12, r: 4),
+            const SizedBox(height: 6),
+            _box(w: 80, h: 10, r: 4),
+          ])),
+      ]));
   }
 }
