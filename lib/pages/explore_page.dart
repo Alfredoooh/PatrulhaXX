@@ -127,9 +127,8 @@ class _ExplorePageState extends State<ExplorePage>
         _page = randomPage + 1;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scroll.hasClients) {
-            final colW = MediaQuery.of(context).size.width / 2;
-            final itemH = colW / (16 / 9) + 72.0;
-            _scroll.jumpTo(_scroll.offset + (videos.length / 2).ceil() * itemH);
+            final itemH = MediaQuery.of(context).size.width * 9 / 16 + 90.0;
+            _scroll.jumpTo(_scroll.offset + videos.length * itemH);
           }
         });
       }
@@ -181,11 +180,8 @@ class _ExplorePageState extends State<ExplorePage>
     final topPad = MediaQuery.of(context).padding.top;
     final isDark = t.statusBar == Brightness.light;
 
-    // FIX: título compacto — topPad + 8 top + 22 text height + 8 bottom
-    final double titleExpandedH = topPad + 38;
-
-    // FIX: chips com topPad incluído para não ficar atrás da statusbar quando pinned
-    final double chipsH = topPad + 37;
+    // Chips: altura fixa 36 + divisor 1
+    const double chipsH = 37;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -207,40 +203,28 @@ class _ExplorePageState extends State<ExplorePage>
         body: NestedScrollView(
           controller: _scroll,
           headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
-            // ── Título "Explorar" — float+snap, desaparece ao scroll ──
-            SliverAppBar(
-              backgroundColor: t.bg,
-              floating: true,
-              snap: true,
-              pinned: false,
-              elevation: 0,
-              toolbarHeight: 0,
-              expandedHeight: titleExpandedH,
-              flexibleSpace: FlexibleSpaceBar(
-                collapseMode: CollapseMode.pin,
-                background: Container(
-                  color: t.bg,
-                  alignment: Alignment.bottomLeft,
-                  padding: EdgeInsets.only(
-                    top: topPad + 4,
-                    left: 16,
-                    bottom: 6,
-                  ),
-                  child: Text('Explorar', style: TextStyle(
-                      color: t.text,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5)),
+            // ── Título "Explorar" — sem expansão, tamanho exacto ──
+            SliverToBoxAdapter(
+              child: Container(
+                color: t.bg,
+                padding: EdgeInsets.only(
+                  top: topPad + 8,
+                  left: 16,
+                  bottom: 8,
                 ),
+                child: Text('Explorar', style: TextStyle(
+                    color: t.text,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5)),
               ),
             ),
 
-            // ── Chips — pinned: fica colado ao topo acima da statusbar ──
+            // ── Chips — pinned: fica colado ao StatusBar quando o título some ──
             SliverPersistentHeader(
               pinned: true,
               delegate: _ChipHeaderDelegate(
                 height: chipsH,
-                topPad: topPad,
                 selectedChip: _chip,
                 isDark: isDark,
                 onChipChanged: (c) => setState(() => _chip = c),
@@ -253,7 +237,7 @@ class _ExplorePageState extends State<ExplorePage>
               ? _buildSkeletons()
               : _error
                   ? _buildError()
-                  : _buildGrid(isDark),
+                  : _buildList(isDark),
         ),
       ),
     );
@@ -288,7 +272,7 @@ class _ExplorePageState extends State<ExplorePage>
     itemCount: 6,
     itemBuilder: (_, __) => const _VideoCardSkeleton());
 
-  Widget _buildGrid(bool isDark) {
+  Widget _buildList(bool isDark) {
     final list = _filteredFor(_chip);
     if (list.isEmpty) {
       final t = AppTheme.current;
@@ -324,7 +308,6 @@ class _ExplorePageState extends State<ExplorePage>
 // ─── SliverPersistentHeader delegate para chips ───────────────────────────────
 class _ChipHeaderDelegate extends SliverPersistentHeaderDelegate {
   final double height;
-  final double topPad;
   final _ChipFilter selectedChip;
   final void Function(_ChipFilter) onChipChanged;
   final bool isDark;
@@ -333,7 +316,6 @@ class _ChipHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   const _ChipHeaderDelegate({
     required this.height,
-    required this.topPad,
     required this.selectedChip,
     required this.onChipChanged,
     required this.isDark,
@@ -355,8 +337,6 @@ class _ChipHeaderDelegate extends SliverPersistentHeaderDelegate {
 
     return Container(
       color: bg,
-      // FIX: padding top = topPad para os chips não ficarem atrás da statusbar
-      padding: EdgeInsets.only(top: topPad),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         SizedBox(
           height: 36,
