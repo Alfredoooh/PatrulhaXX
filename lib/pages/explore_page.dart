@@ -128,7 +128,7 @@ class _ExplorePageState extends State<ExplorePage>
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scroll.hasClients) {
             final colW = MediaQuery.of(context).size.width / 2;
-            final itemH = colW * 9 / 16 + 80.0;
+            final itemH = colW / (16 / 9) + 72.0;
             _scroll.jumpTo(_scroll.offset + (videos.length / 2).ceil() * itemH);
           }
         });
@@ -181,10 +181,10 @@ class _ExplorePageState extends State<ExplorePage>
     final topPad = MediaQuery.of(context).padding.top;
     final isDark = t.statusBar == Brightness.light;
 
-    // FIX: título compacto — topPad + 8 (padding top) + 22 (text) + 8 (padding bottom)
+    // FIX: título compacto — topPad + 8 top + 22 text height + 8 bottom
     final double titleExpandedH = topPad + 38;
 
-    // FIX: chips altura inclui topPad para não ficar atrás da statusbar quando pinned
+    // FIX: chips com topPad incluído para não ficar atrás da statusbar quando pinned
     final double chipsH = topPad + 37;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -222,9 +222,9 @@ class _ExplorePageState extends State<ExplorePage>
                   color: t.bg,
                   alignment: Alignment.bottomLeft,
                   padding: EdgeInsets.only(
-                    top: topPad + 8,
+                    top: topPad + 4,
                     left: 16,
-                    bottom: 8,
+                    bottom: 6,
                   ),
                   child: Text('Explorar', style: TextStyle(
                       color: t.text,
@@ -235,7 +235,7 @@ class _ExplorePageState extends State<ExplorePage>
               ),
             ),
 
-            // ── Chips — pinned: fica colado ao topo (acima da statusbar) ──
+            // ── Chips — pinned: fica colado ao topo acima da statusbar ──
             SliverPersistentHeader(
               pinned: true,
               delegate: _ChipHeaderDelegate(
@@ -283,7 +283,7 @@ class _ExplorePageState extends State<ExplorePage>
       crossAxisCount: 2,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
-      childAspectRatio: 0.72,
+      childAspectRatio: 0.85,
     ),
     itemCount: 6,
     itemBuilder: (_, __) => const _VideoCardSkeleton());
@@ -307,13 +307,11 @@ class _ExplorePageState extends State<ExplorePage>
           crossAxisCount: 2,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
-          childAspectRatio: 0.72,
+          childAspectRatio: 0.85,
         ),
         itemCount: list.length + (_fetching ? 2 : 0),
         itemBuilder: (_, i) {
-          if (i >= list.length) {
-            return const _VideoCardSkeleton();
-          }
+          if (i >= list.length) return const _VideoCardSkeleton();
           return _VideoCard(
             key: ValueKey(list[i].embedUrl),
             video: list[i],
@@ -463,7 +461,8 @@ class _VideoCard extends StatelessWidget {
     final t = AppTheme.current;
     final views = _formatViews(video.views);
     final date  = _formatDate(video.publishedAt);
-    final meta  = [if (views.isNotEmpty) '$views vis.', if (date.isNotEmpty) date].join('  ·  ');
+    final meta  = [video.sourceLabel, if (views.isNotEmpty) '$views vis.', if (date.isNotEmpty) date]
+        .join('  ·  ');
 
     return GestureDetector(
       onTap: onTap,
@@ -481,7 +480,6 @@ class _VideoCard extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Thumbnail adaptável: usa AspectRatio 16/9 por defeito
           AspectRatio(
             aspectRatio: 16 / 9,
             child: Stack(fit: StackFit.expand, children: [
@@ -497,7 +495,7 @@ class _VideoCard extends StatelessWidget {
                           fontWeight: FontWeight.w700, height: 1)))),
             ])),
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 7, 8, 8),
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(video.title,
                 maxLines: 2, overflow: TextOverflow.ellipsis,
@@ -647,7 +645,7 @@ class _VideoCardSkeletonState extends State<_VideoCardSkeleton> with SingleTicke
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         AspectRatio(aspectRatio: 16 / 9, child: _box()),
         Padding(
-          padding: const EdgeInsets.fromLTRB(8, 7, 8, 8),
+          padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _box(w: double.infinity, h: 12, r: 4),
             const SizedBox(height: 6),
