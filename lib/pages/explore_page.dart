@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../models/feed_video_model.dart';
 import '../theme/app_theme.dart';
 import 'exibicao_page.dart';
@@ -23,6 +24,12 @@ const _kChipLabels = <_ChipFilter, String>{
   _ChipFilter.latina: 'Latina',
   _ChipFilter.loira: 'Loira',
 };
+
+// ─── Aspect ratios variáveis estilo TikTok ────────────────────────────────────
+const List<double> _kAspectRatios = [
+  9 / 16, 3 / 4, 2 / 3, 9 / 16, 4 / 5,
+  2 / 3,  9 / 16, 3 / 4, 4 / 5, 9 / 16,
+];
 
 // ─── ExplorePage ──────────────────────────────────────────────────────────────
 class ExplorePage extends StatefulWidget {
@@ -125,12 +132,6 @@ class _ExplorePageState extends State<ExplorePage>
       if (videos.isNotEmpty) {
         _videos.insertAll(0, videos);
         _page = randomPage + 1;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scroll.hasClients) {
-            final itemH = MediaQuery.of(context).size.width * 9 / 16 + 90.0;
-            _scroll.jumpTo(_scroll.offset + videos.length * itemH);
-          }
-        });
       }
     } catch (_) {}
     if (mounted) setState(() => _refreshing = false);
@@ -180,8 +181,8 @@ class _ExplorePageState extends State<ExplorePage>
     final topPad = MediaQuery.of(context).padding.top;
     final isDark = t.statusBar == Brightness.light;
 
-    // Chips: altura fixa 36 + divisor 1
-    const double chipsH = 37;
+    // Chips: topPad + 40 (pill height) + 8 (margin bottom)
+    final double chipsH = topPad + 48;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -203,15 +204,11 @@ class _ExplorePageState extends State<ExplorePage>
         body: NestedScrollView(
           controller: _scroll,
           headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
-            // ── Título "Explorar" — sem expansão, tamanho exacto ──
+            // ── Título ──
             SliverToBoxAdapter(
               child: Container(
                 color: t.bg,
-                padding: EdgeInsets.only(
-                  top: topPad + 8,
-                  left: 16,
-                  bottom: 8,
-                ),
+                padding: EdgeInsets.only(top: topPad + 8, left: 16, bottom: 8),
                 child: Text('Explorar', style: TextStyle(
                     color: t.text,
                     fontSize: 22,
@@ -220,16 +217,16 @@ class _ExplorePageState extends State<ExplorePage>
               ),
             ),
 
-            // ── Chips — pinned: fica colado ao StatusBar quando o título some ──
+            // ── Chips pill — pinned acima da statusbar ──
             SliverPersistentHeader(
               pinned: true,
               delegate: _ChipHeaderDelegate(
                 height: chipsH,
+                topPad: topPad,
                 selectedChip: _chip,
                 isDark: isDark,
                 onChipChanged: (c) => setState(() => _chip = c),
                 bg: t.bg,
-                dividerColor: t.divider,
               ),
             ),
           ],
@@ -237,7 +234,7 @@ class _ExplorePageState extends State<ExplorePage>
               ? _buildSkeletons()
               : _error
                   ? _buildError()
-                  : _buildList(isDark),
+                  : _buildGrid(),
         ),
       ),
     );
@@ -254,25 +251,30 @@ class _ExplorePageState extends State<ExplorePage>
         onTap: _fetch,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          decoration: BoxDecoration(color: AppTheme.ytRed, borderRadius: BorderRadius.circular(100)),
+          decoration: BoxDecoration(
+              color: AppTheme.ytRed, borderRadius: BorderRadius.circular(100)),
           child: const Text('Tentar novamente',
               style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)))),
     ]));
   }
 
-  Widget _buildSkeletons() => GridView.builder(
-    physics: const NeverScrollableScrollPhysics(),
-    padding: const EdgeInsets.fromLTRB(10, 8, 10, 32),
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+  Widget _buildSkeletons() {
+    return MasonryGridView.count(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 32),
       crossAxisCount: 2,
+      mainAxisSpacing: 12,
       crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 0.85,
-    ),
-    itemCount: 6,
-    itemBuilder: (_, __) => const _VideoCardSkeleton());
+      itemCount: 8,
+      itemBuilder: (_, i) {
+        final ratio = _kAspectRatios[i % _kAspectRatios.length];
+        final w = (MediaQuery.of(context).size.width - 30) / 2;
+        final h = w / ratio;
+        return _SkeletonTile(height: h);
+      });
+  }
 
-  Widget _buildList(bool isDark) {
+  Widget _buildGrid() {
     final list = _filteredFor(_chip);
     if (list.isEmpty) {
       final t = AppTheme.current;
@@ -284,111 +286,103 @@ class _ExplorePageState extends State<ExplorePage>
       onRefresh: _refresh,
       color: AppTheme.ytRed,
       backgroundColor: AppTheme.current.bg,
-      child: GridView.builder(
+      child: MasonryGridView.count(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 32),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 0.85,
-        ),
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 10,
         itemCount: list.length + (_fetching ? 2 : 0),
         itemBuilder: (_, i) {
-          if (i >= list.length) return const _VideoCardSkeleton();
-          return _VideoCard(
+          if (i >= list.length) {
+            final ratio = _kAspectRatios[i % _kAspectRatios.length];
+            final w = (MediaQuery.of(context).size.width - 30) / 2;
+            return _SkeletonTile(height: w / ratio);
+          }
+          final ratio = _kAspectRatios[i % _kAspectRatios.length];
+          return _VideoTile(
             key: ValueKey(list[i].embedUrl),
             video: list[i],
+            aspectRatio: ratio,
             onTap: () => _openVideo(list[i]));
         }),
     );
   }
 }
 
-// ─── SliverPersistentHeader delegate para chips ───────────────────────────────
+// ─── Chips pill delegate ───────────────────────────────────────────────────────
 class _ChipHeaderDelegate extends SliverPersistentHeaderDelegate {
   final double height;
+  final double topPad;
   final _ChipFilter selectedChip;
   final void Function(_ChipFilter) onChipChanged;
   final bool isDark;
   final Color bg;
-  final Color dividerColor;
 
   const _ChipHeaderDelegate({
     required this.height,
+    required this.topPad,
     required this.selectedChip,
     required this.onChipChanged,
     required this.isDark,
     required this.bg,
-    required this.dividerColor,
   });
 
   @override double get minExtent => height;
   @override double get maxExtent => height;
 
   @override bool shouldRebuild(_ChipHeaderDelegate old) =>
-      old.selectedChip != selectedChip ||
-      old.isDark != isDark ||
-      old.bg != bg;
+      old.selectedChip != selectedChip || old.isDark != isDark || old.bg != bg;
 
-  @override Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    final indicatorColor = isDark ? Colors.white : AppTheme.ytRed;
+  @override Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final selectedBg   = isDark ? Colors.white : Colors.black;
+    final selectedText = isDark ? Colors.black : Colors.white;
+    final unselBg      = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF0F0F0);
+    final unselText    = isDark ? Colors.white70 : Colors.black54;
 
     return Container(
       color: bg,
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        SizedBox(
-          height: 36,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            itemCount: _ChipFilter.values.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 2),
-            itemBuilder: (_, i) {
-              final chip = _ChipFilter.values[i];
-              final selected = selectedChip == chip;
-              return GestureDetector(
-                onTap: () => onChipChanged(chip),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
+      padding: EdgeInsets.only(top: topPad, bottom: 8),
+      child: SizedBox(
+        height: 40,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          itemCount: _ChipFilter.values.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 6),
+          itemBuilder: (_, i) {
+            final chip = _ChipFilter.values[i];
+            final selected = selectedChip == chip;
+            return GestureDetector(
+              onTap: () => onChipChanged(chip),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: selected ? selectedBg : unselBg,
+                  borderRadius: BorderRadius.circular(100)),
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 200),
                   curve: Curves.easeOutCubic,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: Stack(clipBehavior: Clip.none, children: [
-                    AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOutCubic,
-                      style: TextStyle(
-                        color: selected
-                            ? (isDark ? Colors.white : Colors.black)
-                            : (isDark ? Colors.white54 : Colors.black45),
-                        fontSize: 13,
-                        fontWeight: selected ? FontWeight.w700 : FontWeight.w400),
-                      child: Text(_kChipLabels[chip]!)),
-                    Positioned(
-                      bottom: -5, left: 0, right: 0,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOutCubic,
-                        height: 2.5,
-                        decoration: BoxDecoration(
-                          color: selected ? indicatorColor : Colors.transparent,
-                          borderRadius: BorderRadius.circular(100)))),
-                  ])));
-            }),
-        ),
-        Container(height: 1, color: dividerColor),
-      ]),
+                  style: TextStyle(
+                    color: selected ? selectedText : unselText,
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
+                  child: Text(_kChipLabels[chip]!))));
+          }),
+      ),
     );
   }
 }
 
-// ─── VideoCard ────────────────────────────────────────────────────────────────
-class _VideoCard extends StatelessWidget {
+// ─── VideoTile (estilo TikTok) ─────────────────────────────────────────────────
+class _VideoTile extends StatelessWidget {
   final FeedVideo video;
+  final double aspectRatio;
   final VoidCallback onTap;
 
-  const _VideoCard({super.key, required this.video, required this.onTap});
+  const _VideoTile({super.key, required this.video, required this.aspectRatio, required this.onTap});
 
   static const _ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
       'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
@@ -426,69 +420,45 @@ class _VideoCard extends StatelessWidget {
     return '$n';
   }
 
-  String _formatDate(DateTime? dt) {
-    if (dt == null) return '';
-    final diff = DateTime.now().difference(dt);
-    if (diff.inDays == 0) return 'hoje';
-    if (diff.inDays == 1) return 'ontem';
-    if (diff.inDays < 7) return 'há ${diff.inDays} dias';
-    if (diff.inDays < 30) return 'há ${(diff.inDays / 7).floor()} sem.';
-    if (diff.inDays < 365) return 'há ${(diff.inDays / 30).floor()} meses';
-    return 'há ${(diff.inDays / 365).floor()} anos';
-  }
-
   @override Widget build(BuildContext context) {
     final t = AppTheme.current;
     final views = _formatViews(video.views);
-    final date  = _formatDate(video.publishedAt);
-    final meta  = [video.sourceLabel, if (views.isNotEmpty) '$views vis.', if (date.isNotEmpty) date]
-        .join('  ·  ');
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: t.isDark ? const Color(0xFF1C1C1C) : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(t.isDark ? 0.35 : 0.10),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          AspectRatio(
-            aspectRatio: 16 / 9,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // ── Thumbnail sem card, bordas arredondadas ──
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: AspectRatio(
+            aspectRatio: aspectRatio,
             child: Stack(fit: StackFit.expand, children: [
-              Positioned.fill(child: _ThumbImg(url: video.thumb, headers: _headers)),
-              Positioned(right: 0, bottom: 0,
+              _ThumbImg(url: video.thumb, headers: _headers),
+              // duração no canto inferior direito
+              Positioned(right: 6, bottom: 6,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-                  decoration: const BoxDecoration(
-                    color: Color(0xCC000000),
-                    borderRadius: BorderRadius.only(topLeft: Radius.circular(6))),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xCC000000),
+                    borderRadius: BorderRadius.circular(4)),
                   child: Text(video.duration,
                       style: const TextStyle(color: Colors.white, fontSize: 10,
                           fontWeight: FontWeight.w700, height: 1)))),
             ])),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(video.title,
-                maxLines: 2, overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: t.text, fontSize: 12,
-                    fontWeight: FontWeight.w600, height: 1.3)),
-              if (meta.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(meta, maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: t.textSecondary, fontSize: 10.5, height: 1.2)),
-              ],
-            ])),
-        ]),
-      ),
+        ),
+        const SizedBox(height: 5),
+        // ── Texto direto no fundo, sem card ──
+        Text(video.title,
+          maxLines: 2, overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: t.text, fontSize: 12,
+              fontWeight: FontWeight.w600, height: 1.3)),
+        const SizedBox(height: 2),
+        Text(
+          [video.sourceLabel, if (views.isNotEmpty) '$views vis.'].join('  ·  '),
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: t.textSecondary, fontSize: 10.5, height: 1.2)),
+        const SizedBox(height: 4),
+      ]),
     );
   }
 }
@@ -497,9 +467,8 @@ class _VideoCard extends StatelessWidget {
 class _ThumbImg extends StatelessWidget {
   final String url;
   final Map<String, String> headers;
-  final BoxFit fit;
 
-  const _ThumbImg({required this.url, required this.headers, this.fit = BoxFit.cover});
+  const _ThumbImg({required this.url, required this.headers});
 
   @override Widget build(BuildContext context) {
     final t = AppTheme.current;
@@ -507,12 +476,9 @@ class _ThumbImg extends StatelessWidget {
     return CachedNetworkImage(
       imageUrl: url,
       httpHeaders: headers,
-      fit: fit,
+      fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,
-      imageBuilder: (_, img) => Image(image: img, fit: fit,
-          filterQuality: FilterQuality.high,
-          width: double.infinity, height: double.infinity),
       placeholder: (_, __) => const _Shimmer(),
       errorWidget: (_, __, ___) => _fallback(t),
       fadeInDuration: const Duration(milliseconds: 280),
@@ -521,79 +487,24 @@ class _ThumbImg extends StatelessWidget {
 
   Widget _fallback(AppTheme t) => Container(
     color: t.thumbBg,
-    child: Center(child: Icon(Icons.play_circle_outline_rounded, color: t.iconSub, size: 28)));
+    child: Center(child: Icon(Icons.play_circle_outline_rounded,
+        color: t.iconSub, size: 28)));
 }
 
-// ─── Dots Loader ──────────────────────────────────────────────────────────────
-class _DotsLoader extends StatefulWidget {
-  final bool isDark;
-  const _DotsLoader({this.isDark = true});
-  @override State<_DotsLoader> createState() => _DotsLoaderState();
+// ─── Skeleton tile ────────────────────────────────────────────────────────────
+class _SkeletonTile extends StatefulWidget {
+  final double height;
+  const _SkeletonTile({required this.height});
+  @override State<_SkeletonTile> createState() => _SkeletonTileState();
 }
-class _DotsLoaderState extends State<_DotsLoader> with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  @override void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat();
-  }
-  @override void dispose() { _ctrl.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    final dotColor = t.isDark ? Colors.white : AppTheme.ytRed;
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (_, __) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(3, (i) {
-          final raw = (_ctrl.value * 3) - i;
-          final phase = (raw % 3.0).clamp(0.0, 1.0);
-          final bounce = phase < 0.5 ? phase * 2 : (1.0 - phase) * 2;
-          return Transform.translate(
-            offset: Offset(0, -7.0 * Curves.easeInOut.transform(bounce)),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: 7, height: 7,
-              decoration: BoxDecoration(
-                color: dotColor.withOpacity(0.35 + 0.65 * bounce),
-                borderRadius: BorderRadius.circular(100))));
-        })));
-  }
-}
-
-// ─── Shimmer ──────────────────────────────────────────────────────────────────
-class _Shimmer extends StatefulWidget {
-  const _Shimmer();
-  @override State<_Shimmer> createState() => _ShimmerState();
-}
-class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin {
+class _SkeletonTileState extends State<_SkeletonTile> with SingleTickerProviderStateMixin {
   late final AnimationController _c;
   late final Animation<double> _a;
   @override void initState() {
     super.initState();
     _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
-    _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
-  }
-  @override void dispose() { _c.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _a,
-    builder: (_, __) => Container(
-      decoration: BoxDecoration(gradient: LinearGradient(
-        begin: Alignment(_a.value - 1, 0), end: Alignment(_a.value + 1, 0),
-        colors: AppTheme.current.shimmer))));
-}
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-class _VideoCardSkeleton extends StatefulWidget {
-  const _VideoCardSkeleton();
-  @override State<_VideoCardSkeleton> createState() => _VideoCardSkeletonState();
-}
-class _VideoCardSkeletonState extends State<_VideoCardSkeleton> with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-  late final Animation<double> _a;
-  @override void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
-    _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+    _a = Tween<double>(begin: -2, end: 2)
+        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
   }
   @override void dispose() { _c.dispose(); super.dispose(); }
 
@@ -608,31 +519,38 @@ class _VideoCardSkeletonState extends State<_VideoCardSkeleton> with SingleTicke
           colors: AppTheme.current.shimmer))));
 
   @override Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    return Container(
-      decoration: BoxDecoration(
-        color: t.isDark ? const Color(0xFF1C1C1C) : Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(t.isDark ? 0.35 : 0.10),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        AspectRatio(aspectRatio: 16 / 9, child: _box()),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _box(w: double.infinity, h: 12, r: 4),
-            const SizedBox(height: 6),
-            _box(w: double.infinity, h: 12, r: 4),
-            const SizedBox(height: 6),
-            _box(w: 80, h: 10, r: 4),
-          ])),
-      ]));
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: _box(w: double.infinity, h: widget.height)),
+      const SizedBox(height: 6),
+      _box(w: double.infinity, h: 11, r: 4),
+      const SizedBox(height: 4),
+      _box(w: 100, h: 10, r: 4),
+      const SizedBox(height: 4),
+    ]);
   }
+}
+
+// ─── Shimmer ──────────────────────────────────────────────────────────────────
+class _Shimmer extends StatefulWidget {
+  const _Shimmer();
+  @override State<_Shimmer> createState() => _ShimmerState();
+}
+class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _a;
+  @override void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+    _a = Tween<double>(begin: -2, end: 2)
+        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+  }
+  @override void dispose() { _c.dispose(); super.dispose(); }
+  @override Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _a,
+    builder: (_, __) => Container(
+      decoration: BoxDecoration(gradient: LinearGradient(
+        begin: Alignment(_a.value - 1, 0), end: Alignment(_a.value + 1, 0),
+        colors: AppTheme.current.shimmer))));
 }
