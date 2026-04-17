@@ -2,17 +2,18 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/site_model.dart';
-import '../services/theme_service.dart';
-import 'browser_page.dart';
-import 'exibicao_page.dart';
-import 'home_page.dart' show iosRoute;
 import '../models/feed_video_model.dart';
 import '../theme/app_theme.dart';
+import 'exibicao_page.dart';
+import 'home_page.dart' show iosRoute;
+import 'search_page.dart';
 
+// ─── SVG inline ───────────────────────────────────────────────────────────────
 const _iBack =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     '<path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23'
@@ -24,7 +25,6 @@ const _iSearch =
     '<path d="M23.707,22.293l-5.969-5.969a10.016,10.016,0,1,0-1.414,1.414l5.969,5.969'
     'a1,1,0,0,0,1.414-1.414ZM10,18a8,8,0,1,1,8-8A8.009,8.009,0,0,1,10,18Z"/></svg>';
 
-// Ícone recentes/histórico — enviado pelo utilizador
 const _iHistory =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">'
     '<path d="M256,80C159.9,80,80,159.9,80,256s79.9,176,176,176s176-79.9,176-176'
@@ -35,6 +35,74 @@ const _iHistory =
     'S397.4,0,256,0z M256,480C132.3,480,32,379.7,32,256S132.3,32,256,32'
     's224,100.3,224,224S379.7,480,256,480z"/>'
     '</svg>';
+
+const _googleSvg = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+  <path fill="none" d="M0 0h48v48H0z"/>
+</svg>''';
+
+// ─── Motores de pesquisa ───────────────────────────────────────────────────────
+enum SearchEngine { google, bing, duckduckgo, yahoo }
+
+extension SearchEngineX on SearchEngine {
+  String get label {
+    switch (this) {
+      case SearchEngine.google:     return 'Google';
+      case SearchEngine.bing:       return 'Bing';
+      case SearchEngine.duckduckgo: return 'DuckDuckGo';
+      case SearchEngine.yahoo:      return 'Yahoo';
+    }
+  }
+
+  // URLs já com parâmetros de SafeSearch desativado
+  String buildUrl(String query) {
+    final q = Uri.encodeComponent(query);
+    switch (this) {
+      case SearchEngine.google:
+        // &safe=off — ignorado frequentemente pelo Google, mas enviamos na mesma
+        return 'https://www.google.com/search?q=$q&safe=off';
+      case SearchEngine.bing:
+        // &adlt=off desativa SafeSearch no Bing
+        return 'https://www.bing.com/search?q=$q&adlt=off';
+      case SearchEngine.duckduckgo:
+        // &kp=-2 é o mais fiável para desativar SafeSearch
+        return 'https://duckduckgo.com/?q=$q&kp=-2';
+      case SearchEngine.yahoo:
+        return 'https://search.yahoo.com/search?p=$q&vm=r';
+    }
+  }
+
+  String get svgIcon {
+    switch (this) {
+      case SearchEngine.google:
+        return _googleSvg;
+      case SearchEngine.bing:
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path fill="#008373" d="M8 3l6 2v18l-4-2-2 3 10 6 8-5V14l-14-5z"/></svg>';
+      case SearchEngine.duckduckgo:
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#DE5833"/><text x="16" y="21" text-anchor="middle" fill="white" font-size="14" font-weight="bold">D</text></svg>';
+      case SearchEngine.yahoo:
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#6001D2"/><text x="16" y="22" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Y!</text></svg>';
+    }
+  }
+}
+
+// ─── Preferência do motor guardada ────────────────────────────────────────────
+class _EnginePrefs {
+  static const _key = 'search_engine_v1';
+  static Future<SearchEngine> load() async {
+    final p = await SharedPreferences.getInstance();
+    final v = p.getInt(_key) ?? 0;
+    return SearchEngine.values[v.clamp(0, SearchEngine.values.length - 1)];
+  }
+  static Future<void> save(SearchEngine e) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setInt(_key, e.index);
+  }
+}
 
 // ─── Modelo Eporner ───────────────────────────────────────────────────────────
 class _EpornerVideo {
@@ -82,7 +150,6 @@ class _EpornerVideo {
   }
 }
 
-// ─── API Eporner ──────────────────────────────────────────────────────────────
 class _EpornerApi {
   static const _base = 'https://www.eporner.com/api/v2/video/search/';
   static const _ua   = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36';
@@ -119,8 +186,7 @@ class SearchResultsPage extends StatefulWidget {
   final String? query;
   const SearchResultsPage({super.key, this.query, this.onVideoTap});
 
-  @override
-  State<SearchResultsPage> createState() => _SearchResultsPageState();
+  @override State<SearchResultsPage> createState() => _SearchResultsPageState();
 }
 
 class _SearchResultsPageState extends State<SearchResultsPage>
@@ -131,13 +197,15 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   late final ScrollController _scroll;
   final _focus = FocusNode();
 
+  // Modo: 'videos' mostra resultados da API, 'web' mostra InAppWebView
+  _ResultMode _mode = _ResultMode.videos;
+
   List<FeedVideo> _feedVideos  = [];
   bool _loading     = false;
   bool _loadingMore = false;
   bool _searching   = false;
-  // Quando true, o campo mostra o texto da query como display (não editável)
-  // Ao clicar activa o modo de edição
   bool _editingQuery = false;
+  bool _webLoading  = false;
   String? _error;
   int _page       = 1;
   int _totalPages = 1;
@@ -146,23 +214,30 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   List<String> _history     = [];
   static const _kHistory = 'search_history_v3';
 
-  @override
-  void initState() {
+  SearchEngine _engine = SearchEngine.duckduckgo;
+  InAppWebViewController? _webCtrl;
+
+  @override void initState() {
     super.initState();
     _q      = TextEditingController(text: widget.query ?? '');
     _scroll = ScrollController()..addListener(_onScroll);
     _q.addListener(_onTyping);
+    _loadPrefs();
     _loadHistory();
     if ((widget.query ?? '').isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _doSearch(widget.query!));
     }
   }
 
-  @override
-  void dispose() {
+  @override void dispose() {
     _q.removeListener(_onTyping);
     _q.dispose(); _scroll.dispose(); _focus.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPrefs() async {
+    final e = await _EnginePrefs.load();
+    if (mounted) setState(() => _engine = e);
   }
 
   Future<void> _loadHistory() async {
@@ -224,13 +299,32 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     _q.selection = TextSelection.collapsed(offset: q.length);
     await _saveHistory(q);
     setState(() {
-      _searching = true;
-      _editingQuery = false; // volta ao modo display após pesquisar
-      _loading = true; _error = null;
-      _feedVideos = []; _suggestions = [];
-      _page = 1; _totalPages = 1;
+      _searching    = true;
+      _editingQuery = false;
+      _loading      = true;
+      _error        = null;
+      _feedVideos   = [];
+      _suggestions  = [];
+      _page         = 1;
+      _totalPages   = 1;
+      _mode         = _ResultMode.videos;
     });
     await _fetch(reset: true);
+  }
+
+  // Pesquisa no motor web configurado
+  void _doWebSearch(String q) {
+    q = q.trim(); if (q.isEmpty) return;
+    _focus.unfocus();
+    _q.text = q;
+    setState(() {
+      _searching    = true;
+      _editingQuery = false;
+      _mode         = _ResultMode.web;
+      _webLoading   = true;
+    });
+    final url = _engine.buildUrl(q);
+    _webCtrl?.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
   }
 
   Future<void> _fetch({bool reset = false}) async {
@@ -312,10 +406,8 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     }
   }
 
-  // Clicou no display da query — activa edição
   void _activateEditing() {
     setState(() => _editingQuery = true);
-    // Pequeno delay para garantir que o TextField já foi inserido na árvore
     Future.delayed(const Duration(milliseconds: 50), () {
       if (mounted) _focus.requestFocus();
     });
@@ -324,72 +416,76 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   void _clearSearch() {
     _q.clear();
     setState(() {
-      _searching = false;
+      _searching    = false;
       _editingQuery = false;
-      _feedVideos = [];
-      _suggestions = [];
+      _feedVideos   = [];
+      _suggestions  = [];
+      _mode         = _ResultMode.videos;
     });
     _focus.requestFocus();
   }
 
-  void _showAppBarMenu(BuildContext ctx) {
+  void _showEngineSheet() {
     final t = AppTheme.current;
-    final RenderBox btn = ctx.findRenderObject() as RenderBox;
-    final RenderBox overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
-    final pos = btn.localToGlobal(Offset(btn.size.width, btn.size.height), ancestor: overlay);
-    showMenu<String>(
-      context: ctx,
-      color: t.popup,
-      elevation: 6,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(color: t.borderSoft)),
-      position: RelativeRect.fromLTRB(pos.dx - 180, pos.dy + 4, pos.dx, pos.dy + 200),
-      items: [
-        PopupMenuItem<String>(
-          value: 'options', height: 46,
-          child: Text('Opções de pesquisa', style: TextStyle(color: t.text, fontSize: 14)),
-        ),
-        PopupMenuItem<String>(
-          value: 'filter', height: 46,
-          child: Text('Filtro de pesquisa', style: TextStyle(color: t.text, fontSize: 14)),
-        ),
-      ],
-    ).then((val) {
-      if (val == null || !mounted) return;
-      final msg = val == 'options' ? 'Opções de pesquisa' : 'Filtro de pesquisa';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg, style: TextStyle(color: t.toastText)),
-        backgroundColor: t.toastBg,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ));
-    });
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: t.bg,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4,
+            decoration: BoxDecoration(
+              color: t.divider, borderRadius: BorderRadius.circular(100))),
+          const SizedBox(height: 16),
+          Text('Motor de pesquisa',
+            style: TextStyle(color: t.text, fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          ...SearchEngine.values.map((e) => ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: SvgPicture.string(e.svgIcon, width: 26, height: 26),
+            title: Text(e.label,
+              style: TextStyle(color: t.text, fontSize: 14, fontWeight: FontWeight.w500)),
+            trailing: _engine == e
+                ? Icon(Icons.check_rounded, color: AppTheme.ytRed, size: 20)
+                : null,
+            onTap: () async {
+              await _EnginePrefs.save(e);
+              if (mounted) setState(() => _engine = e);
+              if (mounted) Navigator.pop(context);
+              // re-pesquisa no novo motor se já há query
+              if (_q.text.trim().isNotEmpty) _doWebSearch(_q.text.trim());
+            },
+          )),
+        ]),
+      ),
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  // Volta à SearchPage
+  void _goToSearchPage() {
+    Navigator.pushReplacement(context, iosRoute(const SearchPage()));
+  }
+
+  @override Widget build(BuildContext context) {
     super.build(context);
     final t      = AppTheme.current;
     final topPad = MediaQuery.of(context).padding.top;
+    final isDark = t.statusBar == Brightness.light;
 
-    // Determina se mostra o campo editável ou o display da query
-    // - Não está em modo pesquisa → sempre editável (estado inicial)
-    // - Está em modo pesquisa + editando → TextField activo
-    // - Está em modo pesquisa + não editando → display não editável
     final showEditableField = !_searching || _editingQuery;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: t.statusBar,
-      ),
+        statusBarIconBrightness: t.statusBar),
       child: Scaffold(
         backgroundColor: t.bg,
         resizeToAvoidBottomInset: false,
         body: Column(children: [
 
-          // ── AppBar ─────────────────────────────────────────────────────────
+          // ── AppBar ──────────────────────────────────────────────────────────
           Container(
             color: t.appBar,
             child: Column(children: [
@@ -402,13 +498,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                   GestureDetector(
                     onTap: () {
                       if (_editingQuery) {
-                        // Cancela edição e volta ao display
-                        setState(() {
-                          _editingQuery = false;
-                          _q.text = _feedVideos.isNotEmpty || _searching
-                              ? _q.text
-                              : '';
-                        });
+                        setState(() { _editingQuery = false; });
                         _focus.unfocus();
                       } else if (_searching) {
                         _clearSearch();
@@ -424,89 +514,111 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                     ),
                   ),
 
-                  // Campo: display quando há resultados, editável nos outros casos
+                  // Campo de pesquisa
                   Expanded(
                     child: GestureDetector(
-                      // Ao tocar no display → activa edição
-                      onTap: (!showEditableField) ? _activateEditing : null,
+                      onTap: !showEditableField ? _activateEditing : null,
                       child: Container(
                         height: 44,
                         decoration: BoxDecoration(
-                          color: t.inputBg,
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(color: t.inputBorder),
-                        ),
+                          color: isDark
+                              ? const Color(0xFF2A2A2A)
+                              : const Color(0xFFF2F2F2),
+                          borderRadius: BorderRadius.circular(10)),
                         child: Row(children: [
-                          const SizedBox(width: 12),
-                          SvgPicture.string(_iSearch, width: 16, height: 16,
-                              colorFilter: ColorFilter.mode(t.inputHint, BlendMode.srcIn)),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
 
-                          Expanded(
-                            child: showEditableField
-                                // ── Campo editável ──────────────────────────
-                                ? TextField(
-                                    controller: _q,
-                                    focusNode: _focus,
-                                    autofocus: !_searching,
-                                    style: TextStyle(color: t.inputText, fontSize: 14.5),
-                                    textInputAction: TextInputAction.search,
-                                    cursorColor: AppTheme.ytRed,
-                                    cursorWidth: 1.5,
-                                    onSubmitted: _doSearch,
-                                    decoration: InputDecoration(
-                                      border: InputBorder.none,
-                                      hintText: 'Pesquisar vídeos...',
-                                      hintStyle: TextStyle(color: t.inputHint, fontSize: 14.5),
-                                      isDense: true,
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(vertical: 11),
-                                    ),
-                                  )
-                                // ── Display da query (não editável) ─────────
-                                : Text(
-                                    _q.text,
-                                    style: TextStyle(
-                                      color: t.inputText,
-                                      fontSize: 14.5,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                          ),
-
-                          // X para limpar — só no modo editável
-                          if (showEditableField && _q.text.isNotEmpty)
-                            GestureDetector(
-                              onTap: _clearSearch,
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: 10),
-                                child: Icon(Icons.close_rounded,
-                                    color: t.iconSub, size: 17)),
-                            )
-                          else
-                            const SizedBox(width: 12),
+                          // Quando há pesquisa activa e não está a editar:
+                          // mostra logo do motor + texto da query
+                          if (!showEditableField) ...[
+                            SvgPicture.string(_engine.svgIcon, width: 18, height: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(_q.text,
+                                style: TextStyle(
+                                  color: t.inputText, fontSize: 14.5),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis)),
+                            const SizedBox(width: 10),
+                          ] else ...[
+                            // Campo editável
+                            Icon(Icons.search_rounded, size: 18,
+                                color: isDark ? Colors.white38 : Colors.black38),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: _q,
+                                focusNode: _focus,
+                                autofocus: !_searching,
+                                style: TextStyle(color: t.inputText, fontSize: 14.5),
+                                textInputAction: TextInputAction.search,
+                                cursorColor: AppTheme.ytRed,
+                                cursorWidth: 1.5,
+                                onSubmitted: _doSearch,
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: 'Pesquisar vídeos...',
+                                  hintStyle: TextStyle(
+                                      color: isDark ? Colors.white30 : Colors.black38,
+                                      fontSize: 14.5),
+                                  isDense: true,
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(vertical: 11),
+                                ),
+                              ),
+                            ),
+                            if (_q.text.isNotEmpty)
+                              GestureDetector(
+                                onTap: _clearSearch,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: Icon(Icons.close_rounded,
+                                      color: isDark ? Colors.white54 : Colors.black38,
+                                      size: 17))),
+                          ],
                         ]),
                       ),
                     ),
                   ),
 
-                  // Três pontinhos
-                  Builder(builder: (btnCtx) => GestureDetector(
-                    onTap: () => _showAppBarMenu(btnCtx),
+                  // Botão motor de pesquisa (ícone do motor activo)
+                  GestureDetector(
+                    onTap: _showEngineSheet,
                     behavior: HitTestBehavior.opaque,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      child: Icon(Icons.more_vert_rounded, color: t.icon, size: 22),
-                    ),
-                  )),
+                      child: SvgPicture.string(_engine.svgIcon, width: 22, height: 22)),
+                  ),
                 ]),
               ),
+
+              // Tabs: Vídeos | Web
+              if (_searching && !_editingQuery)
+                Row(children: [
+                  _Tab(
+                    label: 'Vídeos',
+                    active: _mode == _ResultMode.videos,
+                    onTap: () => setState(() => _mode = _ResultMode.videos)),
+                  _Tab(
+                    label: 'Web',
+                    active: _mode == _ResultMode.web,
+                    onTap: () {
+                      setState(() => _mode = _ResultMode.web);
+                      if (_webCtrl == null) {
+                        // WebView ainda não criado, será criado no build
+                      } else {
+                        _webCtrl!.loadUrl(
+                          urlRequest: URLRequest(
+                            url: WebUri(_engine.buildUrl(_q.text.trim()))));
+                      }
+                    }),
+                ]),
+
               Divider(height: 1, color: t.divider),
             ]),
           ),
 
-          // ── Corpo ──────────────────────────────────────────────────────────
+          // ── Corpo ────────────────────────────────────────────────────────
           Expanded(
             child: !_searching || _editingQuery
                 ? _SuggestionsView(
@@ -524,25 +636,87 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                     onRemoveHistory: _removeHistory,
                     onClearHistory: _clearHistory,
                   )
-                : _loading
-                    ? _SkeletonList()
-                    : _error != null
-                        ? _ErrorView(message: _error!, onRetry: () => _doSearch(_q.text))
-                        : _VideosTab(
-                            videos: _feedVideos,
-                            loadingMore: _loadingMore,
-                            scroll: _scroll,
-                            onTap: _openVideo,
-                          ),
+                : _mode == _ResultMode.web
+                    ? _buildWebView()
+                    : _loading
+                        ? const _SkeletonList()
+                        : _error != null
+                            ? _ErrorView(message: _error!, onRetry: () => _doSearch(_q.text))
+                            : _VideosTab(
+                                videos: _feedVideos,
+                                loadingMore: _loadingMore,
+                                scroll: _scroll,
+                                onTap: _openVideo,
+                              ),
           ),
         ]),
       ),
     );
   }
+
+  Widget _buildWebView() {
+    final t = AppTheme.current;
+    final url = _engine.buildUrl(_q.text.trim());
+    return Stack(children: [
+      InAppWebView(
+        initialUrlRequest: URLRequest(url: WebUri(url)),
+        initialSettings: InAppWebViewSettings(
+          javaScriptEnabled: true,
+          userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
+              'AppleWebKit/537.36 (KHTML, like Gecko) '
+              'Chrome/124.0.0.0 Mobile Safari/537.36',
+          transparentBackground: true,
+          supportZoom: true,
+          useShouldOverrideUrlLoading: false,
+        ),
+        onWebViewCreated: (ctrl) => _webCtrl = ctrl,
+        onLoadStart: (_, __) => setState(() => _webLoading = true),
+        onLoadStop: (_, __) => setState(() => _webLoading = false),
+        onReceivedError: (_, __, ___) => setState(() => _webLoading = false),
+      ),
+      if (_webLoading)
+        Positioned(
+          top: 0, left: 0, right: 0,
+          child: LinearProgressIndicator(
+            backgroundColor: Colors.transparent,
+            color: AppTheme.ytRed,
+            minHeight: 2)),
+    ]);
+  }
 }
 
+// ─── Tab selector ─────────────────────────────────────────────────────────────
+class _Tab extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  const _Tab({required this.label, required this.active, required this.onTap});
+
+  @override Widget build(BuildContext context) {
+    final t = AppTheme.current;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(
+            color: active ? AppTheme.ytRed : Colors.transparent,
+            width: 2))),
+        child: Text(label,
+          style: TextStyle(
+            color: active ? t.text : t.textSecondary,
+            fontSize: 13,
+            fontWeight: active ? FontWeight.w700 : FontWeight.w400)),
+      ),
+    );
+  }
+}
+
+// ─── Modo resultado ───────────────────────────────────────────────────────────
+enum _ResultMode { videos, web }
+
 // ─────────────────────────────────────────────────────────────────────────────
-// _SuggestionsView
+// _SuggestionsView (sem alterações)
 // ─────────────────────────────────────────────────────────────────────────────
 class _SuggestionsView extends StatelessWidget {
   final String query;
@@ -558,8 +732,7 @@ class _SuggestionsView extends StatelessWidget {
     required this.onRemoveHistory, required this.onClearHistory,
   });
 
-  @override
-  Widget build(BuildContext context) {
+  @override Widget build(BuildContext context) {
     final showSuggestions = query.length >= 2 && suggestions.isNotEmpty;
     final items = showSuggestions ? suggestions : history;
 
@@ -610,8 +783,7 @@ class _SuggestionsView extends StatelessWidget {
                     padding: const EdgeInsets.only(left: 12),
                     child: Icon(
                       showSuggestions ? Icons.north_west_rounded : Icons.close_rounded,
-                      color: subColor, size: 18),
-                  ),
+                      color: subColor, size: 18)),
                 ),
               ]),
             ),
@@ -624,7 +796,7 @@ class _SuggestionsView extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _VideosTab
+// _VideosTab (sem alterações)
 // ─────────────────────────────────────────────────────────────────────────────
 class _VideosTab extends StatelessWidget {
   final List<FeedVideo> videos;
@@ -637,8 +809,7 @@ class _VideosTab extends StatelessWidget {
     required this.scroll, required this.onTap,
   });
 
-  @override
-  Widget build(BuildContext context) {
+  @override Widget build(BuildContext context) {
     final t = AppTheme.current;
     if (videos.isEmpty) {
       return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -670,7 +841,7 @@ class _VideosTab extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _VideoCard
+// _VideoCard (sem alterações)
 // ─────────────────────────────────────────────────────────────────────────────
 class _VideoCard extends StatelessWidget {
   final FeedVideo video;
@@ -705,33 +876,7 @@ class _VideoCard extends StatelessWidget {
     }
   }
 
-  void _showMenu(BuildContext ctx, AppTheme t) {
-    final RenderBox btn = ctx.findRenderObject() as RenderBox;
-    final RenderBox overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
-    final pos = btn.localToGlobal(Offset(btn.size.width, btn.size.height), ancestor: overlay);
-    showMenu<String>(
-      context: ctx,
-      color: t.popup,
-      elevation: 6,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(color: t.borderSoft)),
-      position: RelativeRect.fromLTRB(pos.dx - 200, pos.dy - 30, pos.dx, pos.dy + 200),
-      items: [
-        PopupMenuItem<String>(
-          value: 'options', height: 46,
-          child: Text('Opções de pesquisa', style: TextStyle(color: t.text, fontSize: 14)),
-        ),
-        PopupMenuItem<String>(
-          value: 'filter', height: 46,
-          child: Text('Filtro de pesquisa', style: TextStyle(color: t.text, fontSize: 14)),
-        ),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  @override Widget build(BuildContext context) {
     final t = AppTheme.current;
     return GestureDetector(
       onTap: onTap,
@@ -764,28 +909,17 @@ class _VideoCard extends StatelessWidget {
               _FaviconAvatar(source: video.source, size: 36),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(video.title,
-                      style: TextStyle(color: t.text, fontSize: 14,
-                          fontWeight: FontWeight.w500, height: 1.35),
-                      maxLines: 2, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 4),
-                    Text(_buildSubtitle(video),
-                      style: TextStyle(color: t.textSecondary, fontSize: 12),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ],
-                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(video.title,
+                    style: TextStyle(color: t.text, fontSize: 14,
+                        fontWeight: FontWeight.w500, height: 1.35),
+                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Text(_buildSubtitle(video),
+                    style: TextStyle(color: t.textSecondary, fontSize: 12),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                ]),
               ),
-              Builder(builder: (btnCtx) => GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _showMenu(btnCtx, t),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 0, 4, 0),
-                  child: Icon(Icons.more_vert_rounded, color: t.iconTertiary, size: 20),
-                ),
-              )),
             ]),
           ),
         ]),
@@ -800,6 +934,7 @@ class _VideoCard extends StatelessWidget {
   }
 }
 
+// ─── ThumbNet, ThumbShimmer, FaviconAvatar, Skeleton, Error ─────────────────
 class _ThumbNet extends StatefulWidget {
   final String url;
   final Map<String, String> headers;
@@ -809,8 +944,7 @@ class _ThumbNet extends StatefulWidget {
 class _ThumbNetState extends State<_ThumbNet> {
   int _attempt = 0;
   bool _failed  = false;
-  @override
-  Widget build(BuildContext context) {
+  @override Widget build(BuildContext context) {
     final t = AppTheme.current;
     if (widget.url.isEmpty || _failed) {
       return Container(color: t.thumbBg,
@@ -886,8 +1020,7 @@ class _FaviconAvatar extends StatelessWidget {
         ),
         loadingBuilder: (_, child, p) => p == null ? child : Container(
           width: size, height: size,
-          decoration: BoxDecoration(color: t.avatarBg, shape: BoxShape.circle),
-        ),
+          decoration: BoxDecoration(color: t.avatarBg, shape: BoxShape.circle)),
       ),
     );
   }
@@ -898,8 +1031,7 @@ class _SkeletonList extends StatelessWidget {
   @override Widget build(BuildContext context) => ListView.builder(
     padding: const EdgeInsets.only(top: 8),
     itemCount: 5,
-    itemBuilder: (_, __) => const _CardSkeleton(),
-  );
+    itemBuilder: (_, __) => const _CardSkeleton());
 }
 
 class _CardSkeleton extends StatefulWidget {
@@ -926,11 +1058,7 @@ class _CardSkeletonState extends State<_CardSkeleton>
         borderRadius: BorderRadius.circular(r),
         gradient: LinearGradient(
           begin: Alignment(_a.value - 1, 0), end: Alignment(_a.value + 1, 0),
-          colors: AppTheme.current.shimmer,
-        ),
-      ),
-    ),
-  );
+          colors: AppTheme.current.shimmer))));
 
   @override Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
@@ -976,13 +1104,10 @@ class _ErrorView extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
                 border: Border.all(color: t.border),
-                borderRadius: BorderRadius.circular(8),
-              ),
+                borderRadius: BorderRadius.circular(8)),
               child: Text('Tentar novamente',
                   style: TextStyle(color: t.text, fontSize: 13,
-                      fontWeight: FontWeight.w500)),
-            ),
-          ),
+                      fontWeight: FontWeight.w500)))),
         ]),
       ),
     );
