@@ -9,7 +9,7 @@ import '../widgets/site_icon_widget.dart';
 import 'browser_page.dart';
 import 'downloads_page.dart';
 import 'settings_page.dart';
-import 'search_tab_page.dart';
+import 'search_page.dart';
 import 'biblioteca_page.dart';
 import '../services/theme_service.dart';
 import 'explore_page.dart';
@@ -19,16 +19,10 @@ import 'create_post_page.dart';
 
 const kPrimaryColor = Color(0xFFFF9000);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CupertinoPageRoute helper
-// ─────────────────────────────────────────────────────────────────────────────
 Route<T> iosRoute<T>(Widget page) {
   return CupertinoPageRoute<T>(builder: (_) => page);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// kSites
-// ─────────────────────────────────────────────────────────────────────────────
 final kSites = <SiteModel>[
   SiteModel(id: 'pornhub',    name: 'Pornhub',    baseUrl: 'https://www.pornhub.com',    allowedDomain: 'pornhub.com',    searchUrl: 'https://www.pornhub.com/video/search?search=',   primaryColor: const Color(0xFFFF9000)),
   SiteModel(id: 'xvideos',   name: 'XVideos',    baseUrl: 'https://www.xvideos.com',    allowedDomain: 'xvideos.com',    searchUrl: 'https://www.xvideos.com/?k=',                     primaryColor: const Color(0xFF1A1A1A)),
@@ -50,9 +44,6 @@ final kSites = <SiteModel>[
   SiteModel(id: 'sunporno',  name: 'SunPorno',   baseUrl: 'https://www.sunporno.com',   allowedDomain: 'sunporno.com',   searchUrl: 'https://www.sunporno.com/search/',                primaryColor: const Color(0xFFFF8C00)),
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FreeBrowserPage
-// ─────────────────────────────────────────────────────────────────────────────
 class FreeBrowserPage extends StatelessWidget {
   final String url, title;
   const FreeBrowserPage({super.key, required this.url, required this.title});
@@ -68,9 +59,6 @@ class FreeBrowserPage extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HomePage
-// ─────────────────────────────────────────────────────────────────────────────
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
   @override
@@ -99,7 +87,7 @@ class _HomePageState extends State<HomePage>
 
   Color _wallpaperColor = Colors.black;
 
-  static const _kNavH = 53.0;
+  static const _kNavH = 48.0;
 
   @override
   void initState() {
@@ -237,7 +225,8 @@ class _HomePageState extends State<HomePage>
                                   onColorExtracted: _onColorExtracted,
                                 ),
                                 ExplorePage(onVideoTap: (_) {}),
-                                const SearchTabPage(),
+                                // ← SearchPage directa, sem SearchTabPage
+                                const SearchPage(),
                                 const BibliotecaPage(),
                               ],
                             ),
@@ -287,10 +276,7 @@ class _HomePageState extends State<HomePage>
   }
 }
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _BottomNav
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── BottomNav — sem labels, estilo Instagram ─────────────────────────────────
 class _BottomNav extends StatelessWidget {
   final int tab;
   final void Function(int) onTab;
@@ -312,40 +298,34 @@ class _BottomNav extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: t.bg,
-            border: Border(
-              top: BorderSide(color: t.divider, width: 0.6),
-            ),
+            border: Border(top: BorderSide(color: t.divider, width: 0.6)),
           ),
           child: SizedBox(
             height: navH + safeBottom,
             child: Padding(
-              padding: EdgeInsets.only(top: 8, bottom: safeBottom),
+              padding: EdgeInsets.only(bottom: safeBottom),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _NavIcon(
-                    label: 'Início',
                     assetFilled:  'assets/icons/svg/browse_filled.svg',
                     assetOutline: 'assets/icons/svg/browse_outline.svg',
                     active: tab == 0,
                     onTap: () => onTab(0),
                   ),
                   _NavIcon(
-                    label: 'Explorar',
                     assetFilled:  'assets/icons/svg/explore_filled.svg',
                     assetOutline: 'assets/icons/svg/explore_outline.svg',
                     active: tab == 1,
                     onTap: () => onTab(1),
                   ),
                   _NavIcon(
-                    label: 'Pesquisa',
                     assetFilled:  'assets/icons/svg/search_filled.svg',
                     assetOutline: 'assets/icons/svg/search_outline.svg',
                     active: tab == 2,
                     onTap: () => onTab(2),
                   ),
                   _NavIcon(
-                    label: 'Biblioteca',
                     assetFilled:  'assets/icons/svg/library_filled.svg',
                     assetOutline: 'assets/icons/svg/library_outline.svg',
                     active: tab == 3,
@@ -362,12 +342,11 @@ class _BottomNav extends StatelessWidget {
 }
 
 class _NavIcon extends StatelessWidget {
-  final String label, assetFilled, assetOutline;
+  final String assetFilled, assetOutline;
   final bool active;
   final VoidCallback onTap;
 
   const _NavIcon({
-    required this.label,
     required this.active,
     required this.onTap,
     required this.assetFilled,
@@ -383,48 +362,33 @@ class _NavIcon extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ColorFiltered(
-              colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-              child: SvgPicture.asset(
-                  active ? assetFilled : assetOutline,
-                  width: 22, height: 22),
-            ),
-            const SizedBox(height: 5),
-            Text(label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 10.5,
-                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                )),
-          ],
+      child: SizedBox(
+        width: 56,
+        height: double.infinity,
+        child: Center(
+          child: ColorFiltered(
+            colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+            child: SvgPicture.asset(
+              active ? assetFilled : assetOutline,
+              width: 24, height: 24),
+          ),
         ),
       ),
     );
   }
 }
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _WallpaperColorExtractor
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── _WallpaperColorExtractor ─────────────────────────────────────────────────
 class _WallpaperColorExtractor extends StatefulWidget {
   final String imageUrl;
   final void Function(Color) onColor;
-  const _WallpaperColorExtractor(
-      {required this.imageUrl, required this.onColor});
+  const _WallpaperColorExtractor({required this.imageUrl, required this.onColor});
 
   @override
-  State<_WallpaperColorExtractor> createState() =>
-      _WallpaperColorExtractorState();
+  State<_WallpaperColorExtractor> createState() => _WallpaperColorExtractorState();
 }
 
-class _WallpaperColorExtractorState
-    extends State<_WallpaperColorExtractor> {
+class _WallpaperColorExtractorState extends State<_WallpaperColorExtractor> {
   bool _done = false;
 
   String get _html => '''
@@ -461,8 +425,7 @@ class _WallpaperColorExtractorState
     return SizedBox(
       width: 1, height: 1,
       child: InAppWebView(
-        initialData:
-            InAppWebViewInitialData(data: _html, mimeType: 'text/html'),
+        initialData: InAppWebViewInitialData(data: _html, mimeType: 'text/html'),
         initialSettings: InAppWebViewSettings(
             javaScriptEnabled: true, transparentBackground: true),
         onWebViewCreated: (ctrl) {
@@ -486,10 +449,7 @@ class _WallpaperColorExtractorState
   }
 }
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _NavDrawer
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── _NavDrawer ───────────────────────────────────────────────────────────────
 class _NavDrawer extends StatelessWidget {
   final VoidCallback onDownloads, onSettings;
   const _NavDrawer({required this.onDownloads, required this.onSettings});
@@ -547,8 +507,7 @@ class _NavDrawer extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
                   child: Text('nuxxx',
-                      style: TextStyle(
-                          color: t.textTertiary, fontSize: 11)),
+                      style: TextStyle(color: t.textTertiary, fontSize: 11)),
                 ),
               ],
             ),
@@ -562,8 +521,7 @@ class _NavDrawer extends StatelessWidget {
 class _DrawerItemSvg extends StatelessWidget {
   final String assetPath, label;
   final VoidCallback onTap;
-  const _DrawerItemSvg(
-      {required this.assetPath, required this.label, required this.onTap});
+  const _DrawerItemSvg({required this.assetPath, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -576,8 +534,7 @@ class _DrawerItemSvg extends StatelessWidget {
         child: Row(children: [
           SvgPicture.asset(assetPath,
               width: 20, height: 20,
-              colorFilter:
-                  ColorFilter.mode(t.iconSub, BlendMode.srcIn)),
+              colorFilter: ColorFilter.mode(t.iconSub, BlendMode.srcIn)),
           const SizedBox(width: 20),
           Text(label,
               style: TextStyle(
@@ -591,10 +548,7 @@ class _DrawerItemSvg extends StatelessWidget {
   }
 }
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _HomeTab
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── _HomeTab ─────────────────────────────────────────────────────────────────
 class _HomeTab extends StatelessWidget {
   final AnimationController fadeIn;
   final void Function(SiteModel) onOpen;
@@ -661,8 +615,7 @@ class _HomeTab extends StatelessWidget {
   }
 }
 
-
-// ─── AppBar da home ───────────────────────────────────────────────────────────
+// ─── _HomeAppBar ──────────────────────────────────────────────────────────────
 class _HomeAppBar extends StatelessWidget {
   final VoidCallback onMenu;
   const _HomeAppBar({required this.onMenu});
@@ -690,12 +643,8 @@ class _HomeAppBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          // ── botão "+" abre CreatePostPage ─────────────────────────────
           GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              iosRoute(const CreatePostPage()),
-            ),
+            onTap: () => Navigator.push(context, iosRoute(const CreatePostPage())),
             behavior: HitTestBehavior.opaque,
             child: SizedBox(
               width: 38, height: 44,
@@ -714,10 +663,7 @@ class _HomeAppBar extends StatelessWidget {
   }
 }
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _HomeFeedSection
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── _HomeFeedSection ─────────────────────────────────────────────────────────
 class _HomeFeedSection extends StatefulWidget {
   const _HomeFeedSection();
   @override
@@ -769,8 +715,7 @@ class _HomeFeedSectionState extends State<_HomeFeedSection>
     final t = AppTheme.current;
 
     if (_loading) {
-      return Column(
-          children: List.generate(3, (_) => _PhotoCardSkeleton()));
+      return Column(children: List.generate(3, (_) => _PhotoCardSkeleton()));
     }
 
     if (_photos.isEmpty) {
@@ -835,17 +780,14 @@ class _HomeFeedPhotoTile extends StatelessWidget {
             fit: BoxFit.cover,
             width: double.infinity,
             headers: const {
-              'User-Agent':
-                  'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36',
-              'Accept':
-                  'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+              'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36',
+              'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
             },
             errorBuilder: (_, __, ___) => Container(
               height: 120,
               color: t.thumbBg,
-              child: Center(
-                  child: Icon(Icons.image_not_supported_rounded,
-                      color: t.iconSub, size: 28)),
+              child: Center(child: Icon(Icons.image_not_supported_rounded,
+                  color: t.iconSub, size: 28)),
             ),
             loadingBuilder: (_, child, p) => p == null
                 ? child
@@ -901,18 +843,13 @@ class _PhotoCardSkeletonState extends State<_PhotoCardSkeleton>
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200))
-      ..repeat();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
     _a = Tween<double>(begin: -2, end: 2)
         .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
   }
 
   @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
+  void dispose() { _c.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -934,10 +871,7 @@ class _PhotoCardSkeletonState extends State<_PhotoCardSkeleton>
   }
 }
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _SitesRow
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── _SitesRow ────────────────────────────────────────────────────────────────
 class _SitesRow extends StatelessWidget {
   final List<SiteModel> sites;
   final void Function(SiteModel) onTap;
@@ -987,10 +921,7 @@ class _SiteCellState extends State<_SiteCell>
   }
 
   @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
+  void dispose() { _c.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -1001,8 +932,7 @@ class _SiteCellState extends State<_SiteCell>
       onTapCancel: () => _c.reverse(),
       child: AnimatedBuilder(
         animation: _s,
-        builder: (_, child) =>
-            Transform.scale(scale: _s.value, child: child),
+        builder: (_, child) => Transform.scale(scale: _s.value, child: child),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
