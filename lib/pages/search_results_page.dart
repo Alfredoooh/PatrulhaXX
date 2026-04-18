@@ -1,15 +1,13 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/site_model.dart';
 import '../models/feed_video_model.dart';
 import '../theme/app_theme.dart';
-import 'exibicao_page.dart';
+import '../services/theme_service.dart';
 import 'home_page.dart' show iosRoute;
 import 'search_page.dart';
 
@@ -18,11 +16,6 @@ const _iBack =
     '<path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23'
     'a1,1,0,0,0,1-1h0a1,1,0,0,0-1-1H2.55L6.17,7.38A1,1,0,0,0,6.17,6h0A1,1,0,0,0,'
     '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/></svg>';
-
-const _iSearch =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M23.707,22.293l-5.969-5.969a10.016,10.016,0,1,0-1.414,1.414l5.969,5.969'
-    'a1,1,0,0,0,1.414-1.414ZM10,18a8,8,0,1,1,8-8A8.009,8.009,0,0,1,10,18Z"/></svg>';
 
 const _iHistory =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">'
@@ -35,97 +28,48 @@ const _iHistory =
     's224,100.3,224,224S379.7,480,256,480z"/>'
     '</svg>';
 
-// CSS que oculta o header/navbar do DuckDuckGo
-const _ddgHideHeaderCss = '''
+// ─── DDG URLs por tab ─────────────────────────────────────────────────────────
+const _ddgHideCss = '''
 (function() {
-  const style = document.createElement('style');
-  style.textContent = `
+  const s = document.createElement('style');
+  s.textContent = `
     #header, .header, .nav-bar, #duckbar,
     .header--aside, .js-header-wrapper,
     [class*="header"], [id*="header"],
-    .site-wrapper--has-sidebar .ddgsi,
     #logo_homepage_link, .logo-wrap,
     .search-form--adv, .search-form__input-wrap,
     .js-search-form, #search_form_homepage,
     .search-wrap--home { display: none !important; }
+    ::-webkit-scrollbar { width: 0px !important; }
   `;
-  document.head.appendChild(style);
+  document.head.appendChild(s);
 })();
 ''';
 
-// URL DuckDuckGo com SafeSearch desativado, sem header
-String _ddgUrl(String query) {
-  final q = Uri.encodeComponent(query);
-  // kp=-2: safesearch off | kav=1: adult content | ia=web: resultados web
-  return 'https://duckduckgo.com/?q=$q&kp=-2&kav=1&ia=web&kaj=m';
-}
+enum _WebTab { tudo, imagens, videos, noticias }
 
-// ─── Modelo Eporner ───────────────────────────────────────────────────────────
-class _EpornerVideo {
-  final String id, title, url, thumbUrl, lengthMin, views, rate, keywords;
-  const _EpornerVideo({
-    required this.id, required this.title, required this.url,
-    required this.thumbUrl, required this.lengthMin,
-    required this.views, required this.rate, required this.keywords,
-  });
-
-  factory _EpornerVideo.fromJson(Map<String, dynamic> j) {
-    String thumb = '';
-    final thumbs = j['thumbs'] as List<dynamic>?;
-    if (thumbs != null && thumbs.isNotEmpty) {
-      final sorted = thumbs.map((t) => t as Map).toList()
-        ..sort((a, b) => ((b['width'] ?? 0) as int).compareTo((a['width'] ?? 0) as int));
-      thumb = sorted.first['src'] as String? ?? '';
+extension _WebTabX on _WebTab {
+  String get label {
+    switch (this) {
+      case _WebTab.tudo:     return 'Tudo';
+      case _WebTab.imagens:  return 'Imagens';
+      case _WebTab.videos:   return 'Vídeos';
+      case _WebTab.noticias: return 'Notícias';
     }
-    if (thumb.isEmpty) {
-      final dt = j['default_thumb'] as Map<String, dynamic>?;
-      thumb = (dt?['src'] as String?) ?? '';
-    }
-    return _EpornerVideo(
-      id:        (j['id'] as String?) ?? '',
-      title:     FeedVideo.cleanTitle((j['title'] as String?) ?? ''),
-      url:       (j['url'] as String?) ?? '',
-      thumbUrl:  thumb,
-      lengthMin: (j['length_min'] as String?) ?? '',
-      views:     _fmtViews(j['views']),
-      rate:      _fmtRate(j['rate']),
-      keywords:  (j['keywords'] as String?) ?? '',
-    );
   }
 
-  static String _fmtViews(dynamic v) {
-    final n = int.tryParse(v?.toString() ?? '') ?? 0;
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
-    if (n >= 1000)    return '${(n / 1000).toStringAsFixed(0)}k';
-    return n > 0 ? '$n' : '';
-  }
-
-  static String _fmtRate(dynamic r) =>
-      (double.tryParse(r?.toString() ?? '') ?? 0.0).toStringAsFixed(1);
-}
-
-class _EpornerApi {
-  static const _base = 'https://www.eporner.com/api/v2/video/search/';
-  static const _ua   = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36';
-
-  static Future<({List<_EpornerVideo> videos, int totalPages})>
-      search({required String query, int page = 1, int perPage = 40}) async {
-    final uri = Uri.parse(_base).replace(queryParameters: {
-      'query':     query.isEmpty ? 'all' : query,
-      'per_page':  '$perPage', 'page': '$page',
-      'thumbsize': 'big', 'order': 'latest',
-      'lq': '1', 'format': 'json',
-    });
-    final resp = await http.get(uri,
-        headers: {'Accept': 'application/json', 'User-Agent': _ua})
-        .timeout(const Duration(seconds: 15));
-    if (resp.statusCode != 200) throw Exception('HTTP ${resp.statusCode}');
-    final data = json.decode(resp.body) as Map<String, dynamic>;
-    final rawVideos = (data['videos'] as List<dynamic>?) ?? [];
-    return (
-      videos:     rawVideos.map((v) => _EpornerVideo.fromJson(v as Map<String, dynamic>)).toList(),
-      totalPages: (data['total_pages'] as int?) ?? 1,
-    );
+  String url(String q) {
+    final enc = Uri.encodeComponent(q);
+    switch (this) {
+      case _WebTab.tudo:
+        return 'https://duckduckgo.com/?q=$enc&kp=-2&kav=1&ia=web&kaj=m';
+      case _WebTab.imagens:
+        return 'https://duckduckgo.com/?q=$enc&kp=-2&kav=1&iax=images&ia=images&kaj=m';
+      case _WebTab.videos:
+        return 'https://duckduckgo.com/?q=$enc&kp=-2&kav=1&ia=videos&iax=videos&kaj=m';
+      case _WebTab.noticias:
+        return 'https://duckduckgo.com/?q=$enc&kp=-2&kav=1&ia=news&iax=news&kaj=m';
+    }
   }
 }
 
@@ -142,23 +86,36 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   @override bool get wantKeepAlive => true;
 
   late final TextEditingController _q;
-  late final ScrollController _scroll;
   final _focus = FocusNode();
 
   bool _searching    = false;
   bool _editingQuery = false;
-  bool _webLoading   = false;
 
   List<String> _suggestions = [];
   List<String> _history     = [];
   static const _kHistory = 'search_history_v3';
 
-  InAppWebViewController? _webCtrl;
+  _WebTab _activeTab = _WebTab.tudo;
+
+  // Um controller por tab para não perder posição
+  final Map<_WebTab, InAppWebViewController> _webCtrls = {};
+  final Map<_WebTab, bool> _webLoading = {
+    _WebTab.tudo:     false,
+    _WebTab.imagens:  false,
+    _WebTab.videos:   false,
+    _WebTab.noticias: false,
+  };
+  // Guarda se cada tab já foi inicializada (evita reload ao mudar tab)
+  final Map<_WebTab, bool> _tabReady = {
+    _WebTab.tudo:     false,
+    _WebTab.imagens:  false,
+    _WebTab.videos:   false,
+    _WebTab.noticias: false,
+  };
 
   @override void initState() {
     super.initState();
-    _q      = TextEditingController(text: widget.query ?? '');
-    _scroll = ScrollController();
+    _q = TextEditingController(text: widget.query ?? '');
     _q.addListener(_onTyping);
     _loadHistory();
     if ((widget.query ?? '').isNotEmpty) {
@@ -168,7 +125,8 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
   @override void dispose() {
     _q.removeListener(_onTyping);
-    _q.dispose(); _scroll.dispose(); _focus.dispose();
+    _q.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -223,14 +181,21 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     _q.text = q;
     _q.selection = TextSelection.collapsed(offset: q.length);
     await _saveHistory(q);
+    // Reset: todas as tabs vão recarregar com nova query
+    _tabReady.updateAll((_, __) => false);
     setState(() {
       _searching    = true;
       _editingQuery = false;
       _suggestions  = [];
-      _webLoading   = true;
+      _activeTab    = _WebTab.tudo;
+      _webLoading.updateAll((_, __) => false);
     });
-    // Se o WebView já existe, carrega nova URL
-    _webCtrl?.loadUrl(urlRequest: URLRequest(url: WebUri(_ddgUrl(q))));
+    // Carrega a tab activa
+    final ctrl = _webCtrls[_activeTab];
+    if (ctrl != null) {
+      await ctrl.loadUrl(
+          urlRequest: URLRequest(url: WebUri(_activeTab.url(q))));
+    }
   }
 
   void _activateEditing() {
@@ -250,156 +215,263 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     _focus.requestFocus();
   }
 
-  // Botão back do sistema: navega na WebView se possível
   Future<bool> _onWillPop() async {
-    if (_searching && _webCtrl != null) {
-      final canGoBack = await _webCtrl!.canGoBack();
-      if (canGoBack) {
-        await _webCtrl!.goBack();
-        return false; // não fecha a página
+    if (_searching) {
+      final ctrl = _webCtrls[_activeTab];
+      if (ctrl != null && await ctrl.canGoBack()) {
+        await ctrl.goBack();
+        return false;
       }
     }
-    return true; // fecha normalmente
+    return true;
   }
 
-  // Botão back da AppBar: volta sempre à SearchPage
   void _backToSearch() {
-    Navigator.pushReplacement(context, iosRoute(const SearchPage()));
+    Navigator.pushReplacement(context, iosRoute(SearchPage()));
+  }
+
+  void _switchTab(_WebTab tab) {
+    if (_activeTab == tab) return;
+    setState(() => _activeTab = tab);
+    // Se a tab ainda não foi carregada, carrega agora
+    if (!(_tabReady[tab] ?? false) && _searching) {
+      final ctrl = _webCtrls[tab];
+      if (ctrl != null) {
+        ctrl.loadUrl(urlRequest: URLRequest(url: WebUri(tab.url(_q.text.trim()))));
+      }
+    }
   }
 
   @override Widget build(BuildContext context) {
     super.build(context);
-    final t      = AppTheme.current;
     final topPad = MediaQuery.of(context).padding.top;
-    final isDark = t.statusBar == Brightness.light;
     final showEditable = !_searching || _editingQuery;
 
     return WillPopScope(
       onWillPop: _onWillPop,
-      child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: t.statusBar),
-        child: Scaffold(
-          backgroundColor: t.bg,
-          resizeToAvoidBottomInset: false,
-          body: Column(children: [
+      child: ListenableBuilder(
+        listenable: ThemeService.instance,
+        builder: (_, __) {
+          final t      = AppTheme.current;
+          final isDark = t.statusBar == Brightness.light;
 
-            // ── AppBar ──────────────────────────────────────────────────────
-            Container(
-              color: t.appBar,
-              child: Column(children: [
-                SizedBox(height: topPad),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-                  child: Row(children: [
+          return AnnotatedRegion<SystemUiOverlayStyle>(
+            value: SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: t.statusBar),
+            child: Scaffold(
+              backgroundColor: t.bg,
+              resizeToAvoidBottomInset: false,
+              body: Column(children: [
 
-                    // Back → volta à SearchPage
-                    GestureDetector(
-                      onTap: _backToSearch,
-                      behavior: HitTestBehavior.opaque,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        child: SvgPicture.string(_iBack, width: 20, height: 20,
-                            colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn)),
-                      ),
+                // ── AppBar ────────────────────────────────────────────────────
+                Container(
+                  color: t.appBar,
+                  child: Column(children: [
+                    SizedBox(height: topPad),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+                      child: Row(children: [
+                        // Back
+                        GestureDetector(
+                          onTap: _backToSearch,
+                          behavior: HitTestBehavior.opaque,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            child: SvgPicture.string(_iBack, width: 20, height: 20,
+                                colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn)),
+                          ),
+                        ),
+
+                        // Input
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: !showEditable ? _activateEditing : null,
+                            child: Container(
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF2A2A2A)
+                                    : const Color(0xFFF2F2F2),
+                                borderRadius: BorderRadius.circular(10)),
+                              child: Row(children: [
+                                const SizedBox(width: 10),
+                                if (!showEditable) ...[
+                                  _DdgIcon(size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(_q.text,
+                                      style: TextStyle(color: t.inputText, fontSize: 14.5),
+                                      maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                  const SizedBox(width: 10),
+                                ] else ...[
+                                  Icon(Icons.search_rounded, size: 18,
+                                      color: isDark ? Colors.white38 : Colors.black38),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _q,
+                                      focusNode: _focus,
+                                      autofocus: !_searching,
+                                      style: TextStyle(color: t.inputText, fontSize: 14.5),
+                                      textInputAction: TextInputAction.search,
+                                      cursorColor: AppTheme.ytRed,
+                                      cursorWidth: 1.5,
+                                      onSubmitted: _doSearch,
+                                      decoration: InputDecoration(
+                                        border: InputBorder.none,
+                                        hintText: 'Pesquisar...',
+                                        hintStyle: TextStyle(
+                                            color: isDark ? Colors.white30 : Colors.black38,
+                                            fontSize: 14.5),
+                                        isDense: true,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(vertical: 11)),
+                                    )),
+                                  if (_q.text.isNotEmpty)
+                                    GestureDetector(
+                                      onTap: _clearSearch,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(right: 8),
+                                        child: Icon(Icons.close_rounded,
+                                            color: isDark ? Colors.white54 : Colors.black38,
+                                            size: 17))),
+                                ],
+                              ]),
+                            ),
+                          ),
+                        ),
+                      ]),
                     ),
 
-                    // Input
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: !showEditable ? _activateEditing : null,
-                        child: Container(
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF2A2A2A)
-                                : const Color(0xFFF2F2F2),
-                            borderRadius: BorderRadius.circular(10)),
-                          child: Row(children: [
-                            const SizedBox(width: 10),
-                            if (!showEditable) ...[
-                              // Display: ícone DDG + texto query
-                              _DdgIcon(size: 18),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(_q.text,
-                                  style: TextStyle(color: t.inputText, fontSize: 14.5),
-                                  maxLines: 1, overflow: TextOverflow.ellipsis)),
-                              const SizedBox(width: 10),
-                            ] else ...[
-                              Icon(Icons.search_rounded, size: 18,
-                                  color: isDark ? Colors.white38 : Colors.black38),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: TextField(
-                                  controller: _q,
-                                  focusNode: _focus,
-                                  autofocus: !_searching,
-                                  style: TextStyle(color: t.inputText, fontSize: 14.5),
-                                  textInputAction: TextInputAction.search,
-                                  cursorColor: AppTheme.ytRed,
-                                  cursorWidth: 1.5,
-                                  onSubmitted: _doSearch,
-                                  decoration: InputDecoration(
-                                    border: InputBorder.none,
-                                    hintText: 'Pesquisar...',
-                                    hintStyle: TextStyle(
-                                        color: isDark ? Colors.white30 : Colors.black38,
-                                        fontSize: 14.5),
-                                    isDense: true,
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(vertical: 11)),
-                                )),
-                              if (_q.text.isNotEmpty)
-                                GestureDetector(
-                                  onTap: _clearSearch,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(right: 8),
-                                    child: Icon(Icons.close_rounded,
-                                        color: isDark ? Colors.white54 : Colors.black38,
-                                        size: 17))),
-                            ],
-                          ]),
+                    // ── Tabs (só visíveis quando há pesquisa activa) ──
+                    if (_searching && !_editingQuery)
+                      SizedBox(
+                        height: 36,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          children: _WebTab.values.map((tab) {
+                            final active = _activeTab == tab;
+                            return GestureDetector(
+                              onTap: () => _switchTab(tab),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                margin: const EdgeInsets.only(right: 6, bottom: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 14),
+                                decoration: BoxDecoration(
+                                  color: active
+                                      ? (isDark ? Colors.white : Colors.black)
+                                      : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE)),
+                                  borderRadius: BorderRadius.circular(6)),
+                                alignment: Alignment.center,
+                                child: AnimatedDefaultTextStyle(
+                                  duration: const Duration(milliseconds: 180),
+                                  style: TextStyle(
+                                    color: active
+                                        ? (isDark ? Colors.black : Colors.white)
+                                        : (isDark ? Colors.white70 : Colors.black54),
+                                    fontSize: 12,
+                                    fontWeight: active ? FontWeight.w700 : FontWeight.w500),
+                                  child: Text(tab.label))));
+                          }).toList(),
                         ),
                       ),
-                    ),
+
+                    Divider(height: 1, color: t.divider),
                   ]),
                 ),
-                Divider(height: 1, color: t.divider),
+
+                // ── Corpo ─────────────────────────────────────────────────────
+                Expanded(
+                  child: showEditable
+                      ? _SuggestionsView(
+                          query: _q.text.trim(),
+                          history: _history,
+                          suggestions: _suggestions,
+                          textColor: t.text,
+                          subColor: t.textSecondary,
+                          divColor: t.divider,
+                          onSelect: _doSearch,
+                          onFill: (q) {
+                            _q.text = q;
+                            _q.selection = TextSelection.collapsed(offset: q.length);
+                          },
+                          onRemoveHistory: _removeHistory,
+                          onClearHistory: _clearHistory,
+                        )
+                      : _buildWebViews(isDark),
+                ),
               ]),
             ),
-
-            // ── Corpo ────────────────────────────────────────────────────────
-            Expanded(
-              child: showEditable
-                  ? _SuggestionsView(
-                      query: _q.text.trim(),
-                      history: _history,
-                      suggestions: _suggestions,
-                      textColor: t.text,
-                      subColor: t.textSecondary,
-                      divColor: t.divider,
-                      onSelect: _doSearch,
-                      onFill: (q) {
-                        _q.text = q;
-                        _q.selection = TextSelection.collapsed(offset: q.length);
-                      },
-                      onRemoveHistory: _removeHistory,
-                      onClearHistory: _clearHistory,
-                    )
-                  : _buildWebView(),
-            ),
-          ]),
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildWebView() {
+  // Constrói todos os WebViews em stack (Offstage) para não perder posição
+  Widget _buildWebViews(bool isDark) {
+    return Stack(
+      children: _WebTab.values.map((tab) {
+        final isActive = tab == _activeTab;
+        return Offstage(
+          offstage: !isActive,
+          child: _WebPane(
+            key: ValueKey(tab),
+            tab: tab,
+            query: _q.text.trim(),
+            isDark: isDark,
+            isActive: isActive,
+            loading: _webLoading[tab] ?? false,
+            onCreated: (ctrl) {
+              _webCtrls[tab] = ctrl;
+              // Se é a tab activa e ainda não foi carregada, carrega agora
+              if (isActive && !(_tabReady[tab] ?? false)) {
+                _tabReady[tab] = true;
+              }
+            },
+            onLoadStart: () {
+              if (mounted) setState(() => _webLoading[tab] = true);
+            },
+            onLoadStop: (ctrl) async {
+              await ctrl.evaluateJavascript(source: _ddgHideCss);
+              _tabReady[tab] = true;
+              if (mounted) setState(() => _webLoading[tab] = false);
+            },
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+// ─── WebPane individual por tab ───────────────────────────────────────────────
+class _WebPane extends StatelessWidget {
+  final _WebTab tab;
+  final String query;
+  final bool isDark, isActive, loading;
+  final void Function(InAppWebViewController) onCreated;
+  final VoidCallback onLoadStart;
+  final void Function(InAppWebViewController) onLoadStop;
+
+  const _WebPane({
+    super.key,
+    required this.tab,
+    required this.query,
+    required this.isDark,
+    required this.isActive,
+    required this.loading,
+    required this.onCreated,
+    required this.onLoadStart,
+    required this.onLoadStop,
+  });
+
+  @override Widget build(BuildContext context) {
+    final t = AppTheme.current;
     return Stack(children: [
       InAppWebView(
-        initialUrlRequest: URLRequest(url: WebUri(_ddgUrl(_q.text.trim()))),
+        initialUrlRequest: URLRequest(url: WebUri(tab.url(query))),
         initialSettings: InAppWebViewSettings(
           javaScriptEnabled: true,
           userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
@@ -408,21 +480,23 @@ class _SearchResultsPageState extends State<SearchResultsPage>
           transparentBackground: true,
           supportZoom: false,
           useShouldOverrideUrlLoading: false,
+          // scrollbar nativo desativado — usamos RawScrollbar Flutter
+          disableVerticalScroll: false,
         ),
-        onWebViewCreated: (ctrl) => _webCtrl = ctrl,
-        onLoadStart: (_, __) {
-          if (mounted) setState(() => _webLoading = true);
-        },
-        onLoadStop: (ctrl, __) async {
-          // Injeta CSS para ocultar header do DDG
-          await ctrl.evaluateJavascript(source: _ddgHideHeaderCss);
-          if (mounted) setState(() => _webLoading = false);
-        },
-        onReceivedError: (_, __, ___) {
-          if (mounted) setState(() => _webLoading = false);
-        },
+        onWebViewCreated: onCreated,
+        onLoadStart: (_, __) => onLoadStart(),
+        onLoadStop: (ctrl, __) => onLoadStop(ctrl),
+        onReceivedError: (_, __, ___) => onLoadStart(), // reset loading
       ),
-      if (_webLoading)
+
+      // ── Scrollbar fino moderno (lado direito) ──
+      Positioned(
+        right: 2, top: 0, bottom: 0,
+        child: _ThinScrollIndicator(loading: loading, isDark: isDark),
+      ),
+
+      // ── Progress bar no topo ──
+      if (loading)
         Positioned(
           top: 0, left: 0, right: 0,
           child: LinearProgressIndicator(
@@ -433,7 +507,65 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   }
 }
 
-// ─── Ícone DDG simples ────────────────────────────────────────────────────────
+// ─── Scrollbar fino animado ───────────────────────────────────────────────────
+class _ThinScrollIndicator extends StatefulWidget {
+  final bool loading, isDark;
+  const _ThinScrollIndicator({required this.loading, required this.isDark});
+  @override State<_ThinScrollIndicator> createState() => _ThinScrollIndicatorState();
+}
+
+class _ThinScrollIndicatorState extends State<_ThinScrollIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1500))..repeat();
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+  }
+
+  @override void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override Widget build(BuildContext context) {
+    if (!widget.loading) return const SizedBox.shrink();
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) {
+        final pos = _anim.value;
+        return CustomPaint(
+          size: const Size(3, double.infinity),
+          painter: _ScrollbarPainter(
+            position: pos,
+            color: widget.isDark
+                ? Colors.white.withOpacity(0.35)
+                : Colors.black.withOpacity(0.25)),
+        );
+      },
+    );
+  }
+}
+
+class _ScrollbarPainter extends CustomPainter {
+  final double position;
+  final Color color;
+  const _ScrollbarPainter({required this.position, required this.color});
+
+  @override void paint(Canvas canvas, Size size) {
+    final h = size.height * 0.15;
+    final top = (size.height - h) * position;
+    final rr = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, top, 3, h),
+      const Radius.circular(2));
+    canvas.drawRRect(rr, Paint()..color = color);
+  }
+
+  @override bool shouldRepaint(_ScrollbarPainter old) =>
+      old.position != position || old.color != color;
+}
+
+// ─── Ícone DDG ────────────────────────────────────────────────────────────────
 class _DdgIcon extends StatelessWidget {
   final double size;
   const _DdgIcon({this.size = 20});
@@ -444,8 +576,7 @@ class _DdgIcon extends StatelessWidget {
     child: Center(
       child: Text('D',
         style: TextStyle(color: Colors.white,
-            fontSize: size * 0.55, fontWeight: FontWeight.w900,
-            height: 1))));
+            fontSize: size * 0.55, fontWeight: FontWeight.w900, height: 1))));
 }
 
 // ─── _SuggestionsView ─────────────────────────────────────────────────────────
@@ -498,7 +629,6 @@ class _SuggestionsView extends StatelessWidget {
           InkWell(
             onTap: () => onSelect(item),
             child: Padding(
-              // mais espaço vertical entre sugestões
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: Row(children: [
                 showSuggestions
