@@ -139,7 +139,7 @@ class _ExplorePageState extends State<ExplorePage>
   }
 
   void _scrollToTop() => _scroll.animateTo(0,
-    duration: const Duration(milliseconds: 500), curve: Curves.easeOutCubic);
+      duration: const Duration(milliseconds: 500), curve: Curves.easeOutCubic);
 
   void _openVideo(FeedVideo video) {
     Navigator.of(context).push(PageRouteBuilder(
@@ -166,8 +166,8 @@ class _ExplorePageState extends State<ExplorePage>
     final topPad = MediaQuery.of(context).padding.top;
     final isDark = t.statusBar == Brightness.light;
 
-    // Chips pinnados: altura = topPad (statusbar) + 40 (pills) + 8 (margin)
-    final double chipsH = topPad + 48;
+    // chips: topPad + 28px altura pill + 8px padding bottom
+    final double chipsH = topPad + 36;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -189,18 +189,22 @@ class _ExplorePageState extends State<ExplorePage>
         body: NestedScrollView(
           controller: _scroll,
           headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
-            // ── Título compacto: SliverToBoxAdapter sem expansão ──
+            // Título — ocupa exactamente topPad + 8 + 22(text) + 8 = topPad + 38
             SliverToBoxAdapter(
               child: Container(
                 color: t.bg,
-                padding: EdgeInsets.only(top: topPad + 10, left: 16, bottom: 10),
+                padding: EdgeInsets.only(
+                  top: topPad + 8,
+                  left: 16,
+                  bottom: 8,
+                ),
                 child: Text('Explorar',
                   style: TextStyle(color: t.text, fontSize: 22,
                       fontWeight: FontWeight.w800, letterSpacing: -0.5)),
               ),
             ),
 
-            // ── Chips pill — pinnados, ficam ACIMA da statusbar ──
+            // Chips pinnados — ficam acima da statusbar
             SliverPersistentHeader(
               pinned: true,
               delegate: _ChipDelegate(
@@ -234,8 +238,7 @@ class _ExplorePageState extends State<ExplorePage>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(
-              color: AppTheme.ytRed,
-              borderRadius: BorderRadius.circular(100)),
+              color: AppTheme.ytRed, borderRadius: BorderRadius.circular(100)),
           child: const Text('Tentar novamente',
               style: TextStyle(color: Colors.white, fontSize: 13,
                   fontWeight: FontWeight.w600)))),
@@ -288,7 +291,7 @@ class _ExplorePageState extends State<ExplorePage>
   }
 }
 
-// ─── Chips pill delegate ───────────────────────────────────────────────────────
+// ─── Chip delegate ────────────────────────────────────────────────────────────
 class _ChipDelegate extends SliverPersistentHeaderDelegate {
   final double height;
   final double topPad;
@@ -309,17 +312,16 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
       old.selected != selected || old.isDark != isDark || old.bg != bg;
 
   @override Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    final selBg   = isDark ? Colors.white        : Colors.black;
-    final selText = isDark ? Colors.black        : Colors.white;
-    final unBg    = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF0F0F0);
-    final unText  = isDark ? Colors.white70      : Colors.black54;
+    final selBg   = isDark ? Colors.white            : Colors.black;
+    final selText = isDark ? Colors.black            : Colors.white;
+    final unBg    = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE);
+    final unText  = isDark ? Colors.white70          : Colors.black54;
 
     return Container(
       color: bg,
-      // topPad garante que os chips não ficam atrás da statusbar quando pinnados
-      padding: EdgeInsets.only(top: topPad, bottom: 8),
+      padding: EdgeInsets.only(top: topPad, bottom: 6),
       child: SizedBox(
-        height: 40,
+        height: 28,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -331,18 +333,17 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
             return GestureDetector(
               onTap: () => onChanged(chip),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 11),
                 decoration: BoxDecoration(
                   color: sel ? selBg : unBg,
-                  borderRadius: BorderRadius.circular(100)),
+                  borderRadius: BorderRadius.circular(6)),
                 alignment: Alignment.center,
                 child: AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
+                  duration: const Duration(milliseconds: 180),
                   style: TextStyle(
                     color: sel ? selText : unText,
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: sel ? FontWeight.w700 : FontWeight.w500),
                   child: Text(_kChipLabels[chip]!))));
           }),
@@ -351,7 +352,7 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-// ─── VideoTile estilo TikTok ──────────────────────────────────────────────────
+// ─── VideoTile ────────────────────────────────────────────────────────────────
 class _VideoTile extends StatelessWidget {
   final FeedVideo video;
   final double ratio;
@@ -404,7 +405,7 @@ class _VideoTile extends StatelessWidget {
       onTap: onTap,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
           child: AspectRatio(
             aspectRatio: ratio,
             child: _ThumbImg(url: video.thumb, headers: _headers))),
@@ -502,7 +503,7 @@ class _SkeletonTileState extends State<_SkeletonTile>
   @override Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      ClipRRect(borderRadius: BorderRadius.circular(8),
+      ClipRRect(borderRadius: BorderRadius.circular(6),
         child: _box(w: double.infinity, h: widget.height)),
       const SizedBox(height: 6),
       _box(w: double.infinity, h: 11, r: 4),
