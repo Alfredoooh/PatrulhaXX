@@ -85,7 +85,7 @@ class _SearchTrigger extends StatelessWidget {
           ]),
         ),
       ),
-      openBuilder: (_, __) => const SearchPage(),
+      openBuilder: (_, __) => SearchPage(),
     );
   }
 }
