@@ -147,7 +147,7 @@ class _ExplorePageState extends State<ExplorePage>
       reverseTransitionDuration: const Duration(milliseconds: 280),
       pageBuilder: (_, __, ___) => ExibicaoPage(
         embedUrl: video.embedUrl, currentVideo: video,
-        onVideoTap: widget.onVideoTap, isActive: true),
+        onVideoTap: onVideoTap, isActive: true),
       transitionsBuilder: (_, anim, secAnim, child) {
         final enter = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
             .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
@@ -166,8 +166,8 @@ class _ExplorePageState extends State<ExplorePage>
     final topPad = MediaQuery.of(context).padding.top;
     final isDark = t.statusBar == Brightness.light;
 
-    // chips: topPad + 28px altura pill + 8px padding bottom
-    final double chipsH = topPad + 36;
+    // chips: topPad + 28px altura + 6px bottom
+    final double chipsH = topPad + 34;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -189,22 +189,17 @@ class _ExplorePageState extends State<ExplorePage>
         body: NestedScrollView(
           controller: _scroll,
           headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
-            // Título — ocupa exactamente topPad + 8 + 22(text) + 8 = topPad + 38
+            // Título — topPad + 6 top + texto + 6 bottom
             SliverToBoxAdapter(
               child: Container(
                 color: t.bg,
-                padding: EdgeInsets.only(
-                  top: topPad + 8,
-                  left: 16,
-                  bottom: 8,
-                ),
+                padding: EdgeInsets.only(top: topPad + 6, left: 16, bottom: 6),
                 child: Text('Explorar',
                   style: TextStyle(color: t.text, fontSize: 22,
                       fontWeight: FontWeight.w800, letterSpacing: -0.5)),
               ),
             ),
 
-            // Chips pinnados — ficam acima da statusbar
             SliverPersistentHeader(
               pinned: true,
               delegate: _ChipDelegate(
@@ -293,8 +288,7 @@ class _ExplorePageState extends State<ExplorePage>
 
 // ─── Chip delegate ────────────────────────────────────────────────────────────
 class _ChipDelegate extends SliverPersistentHeaderDelegate {
-  final double height;
-  final double topPad;
+  final double height, topPad;
   final _ChipFilter selected;
   final void Function(_ChipFilter) onChanged;
   final bool isDark;
@@ -408,7 +402,20 @@ class _VideoTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(6),
           child: AspectRatio(
             aspectRatio: ratio,
-            child: _ThumbImg(url: video.thumb, headers: _headers))),
+            child: CachedNetworkImage(
+              imageUrl: video.thumb,
+              httpHeaders: _headers,
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.medium,
+              width: double.infinity,
+              height: double.infinity,
+              placeholder: (_, __) => const _Shimmer(),
+              errorWidget: (_, __, ___) => Container(
+                color: t.thumbBg,
+                child: Center(child: Icon(Icons.play_circle_outline_rounded,
+                    color: t.iconSub, size: 28))),
+              fadeInDuration: const Duration(milliseconds: 200),
+            ))),
         const SizedBox(height: 5),
         Text(video.title,
           maxLines: 2, overflow: TextOverflow.ellipsis,
@@ -423,31 +430,6 @@ class _VideoTile extends StatelessWidget {
       ]),
     );
   }
-}
-
-// ─── Thumbnail ────────────────────────────────────────────────────────────────
-class _ThumbImg extends StatelessWidget {
-  final String url;
-  final Map<String, String> headers;
-  const _ThumbImg({required this.url, required this.headers});
-
-  @override Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    if (url.isEmpty) return _fallback(t);
-    return CachedNetworkImage(
-      imageUrl: url, httpHeaders: headers,
-      fit: BoxFit.cover,
-      width: double.infinity, height: double.infinity,
-      placeholder: (_, __) => const _Shimmer(),
-      errorWidget: (_, __, ___) => _fallback(t),
-      fadeInDuration: const Duration(milliseconds: 280),
-      fadeOutDuration: const Duration(milliseconds: 120));
-  }
-
-  Widget _fallback(AppTheme t) => Container(
-    color: t.thumbBg,
-    child: Center(child: Icon(Icons.play_circle_outline_rounded,
-        color: t.iconSub, size: 28)));
 }
 
 // ─── Shimmer ──────────────────────────────────────────────────────────────────
@@ -504,7 +486,7 @@ class _SkeletonTileState extends State<_SkeletonTile>
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       ClipRRect(borderRadius: BorderRadius.circular(6),
-        child: _box(w: double.infinity, h: widget.height)),
+        child: _box(w: double.infinity, h: height)),
       const SizedBox(height: 6),
       _box(w: double.infinity, h: 11, r: 4),
       const SizedBox(height: 4),
