@@ -1,6 +1,7 @@
 // search_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../services/theme_service.dart';
@@ -43,13 +44,11 @@ class _SearchPageState extends State<SearchPage> {
     await p.remove(_kHistory);
   }
 
-  void _goSearch(String q) {
-    Navigator.push(context, iosRoute(SearchResultsPage(query: q)));
-  }
+  void _goSearch(String q) =>
+      Navigator.push(context, iosRoute(SearchResultsPage(query: q)));
 
-  void _goToInput() {
-    Navigator.push(context, iosRoute(SearchResultsPage(query: '')));
-  }
+  void _goToInput() =>
+      Navigator.push(context, iosRoute(SearchResultsPage(query: '')));
 
   @override Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -58,6 +57,10 @@ class _SearchPageState extends State<SearchPage> {
         final t      = AppTheme.current;
         final topPad = MediaQuery.of(context).padding.top;
         final isDark = t.statusBar == Brightness.light;
+
+        final subColor  = isDark ? Colors.white38 : Colors.black38;
+        final rowBg     = isDark ? const Color(0xFF161616) : const Color(0xFFF5F5F5);
+        final divColor  = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE8E8E8);
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle(
@@ -70,13 +73,16 @@ class _SearchPageState extends State<SearchPage> {
 
               // ── Título ──
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                 child: Text('Pesquisa',
-                  style: TextStyle(color: t.text, fontSize: 22,
-                      fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                  style: TextStyle(
+                    color: t.text,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5)),
               ),
 
-              // ── Input falso — ao tocar vai para SearchResultsPage ──
+              // ── Input falso (intocável) ──
               GestureDetector(
                 onTap: _goToInput,
                 child: Container(
@@ -89,120 +95,103 @@ class _SearchPageState extends State<SearchPage> {
                     borderRadius: BorderRadius.circular(10)),
                   child: Row(children: [
                     const SizedBox(width: 12),
-                    Icon(Icons.search_rounded, size: 18,
-                        color: isDark ? Colors.white38 : Colors.black38),
+                    Icon(LucideIcons.search, size: 16, color: subColor),
                     const SizedBox(width: 8),
                     Text('Pesquisar...',
                       style: TextStyle(
-                        color: isDark ? Colors.white30 : Colors.black38,
+                        color: subColor,
                         fontSize: 15)),
                   ]),
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: EdgeInsets.zero,
                   children: [
 
                     // ── Histórico ──
                     if (_history.isNotEmpty) ...[
-                      Row(children: [
-                        Text('Recentes',
-                          style: TextStyle(color: t.textSecondary, fontSize: 12,
-                              fontWeight: FontWeight.w600, letterSpacing: 0.3)),
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: _clearHistory,
-                          child: Text('Limpar',
-                            style: TextStyle(color: AppTheme.ytRed, fontSize: 12,
-                                fontWeight: FontWeight.w600))),
-                      ]),
-                      const SizedBox(height: 8),
-                      ..._history.asMap().entries.map((e) {
-                        final i     = e.key;
-                        final s     = e.value;
-                        final first = i == 0;
-                        final last  = i == _history.length - 1;
-                        return GestureDetector(
-                          onTap: () => _goSearch(s),
-                          child: Container(
-                            margin: EdgeInsets.only(bottom: last ? 0 : 1),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 13),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF1E1E1E)
-                                  : const Color(0xFFF7F7F7),
-                              borderRadius: BorderRadius.only(
-                                topLeft:     Radius.circular(first ? 12 : 4),
-                                topRight:    Radius.circular(first ? 12 : 4),
-                                bottomLeft:  Radius.circular(last  ? 12 : 4),
-                                bottomRight: Radius.circular(last  ? 12 : 4)),
-                              border: Border(bottom: last
-                                  ? BorderSide.none
-                                  : BorderSide(color: t.divider, width: 0.5))),
-                            child: Row(children: [
-                              Icon(Icons.history_rounded, size: 16,
-                                  color: isDark ? Colors.white38 : Colors.black38),
-                              const SizedBox(width: 10),
-                              Expanded(child: Text(s,
-                                style: TextStyle(color: t.text, fontSize: 14))),
-                              GestureDetector(
-                                onTap: () => _removeHistory(s),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                        child: Row(children: [
+                          Text('Recentes',
+                            style: TextStyle(
+                              color: t.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.6)),
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: _clearHistory,
+                            child: Text('Limpar tudo',
+                              style: TextStyle(
+                                color: AppTheme.ytRed,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500))),
+                        ]),
+                      ),
+
+                      Container(
+                        color: rowBg,
+                        child: Column(
+                          children: _history.asMap().entries.map((e) {
+                            final isLast = e.key == _history.length - 1;
+                            return _RowItem(
+                              label: e.value,
+                              leading: Icon(LucideIcons.clock3, size: 15, color: subColor),
+                              trailing: GestureDetector(
+                                onTap: () => _removeHistory(e.value),
                                 behavior: HitTestBehavior.opaque,
-                                child: Icon(Icons.close_rounded, size: 14,
-                                    color: isDark ? Colors.white30 : Colors.black26)),
-                            ]),
-                          ),
-                        );
-                      }),
-                      const SizedBox(height: 24),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(4),
+                                  child: Icon(LucideIcons.x, size: 13, color: subColor),
+                                ),
+                              ),
+                              divColor: isLast ? Colors.transparent : divColor,
+                              textColor: t.text,
+                              onTap: () => _goSearch(e.value),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+
+                      const SizedBox(height: 28),
                     ],
 
                     // ── Tendências ──
-                    Text('Tendências',
-                      style: TextStyle(color: t.textSecondary, fontSize: 12,
-                          fontWeight: FontWeight.w600, letterSpacing: 0.3)),
-                    const SizedBox(height: 8),
-                    ..._trending.asMap().entries.map((e) {
-                      final i     = e.key;
-                      final s     = e.value;
-                      final first = i == 0;
-                      final last  = i == _trending.length - 1;
-                      return GestureDetector(
-                        onTap: () => _goSearch(s),
-                        child: Container(
-                          margin: EdgeInsets.only(bottom: last ? 0 : 1),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 13),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF1E1E1E)
-                                : const Color(0xFFF7F7F7),
-                            borderRadius: BorderRadius.only(
-                              topLeft:     Radius.circular(first ? 12 : 4),
-                              topRight:    Radius.circular(first ? 12 : 4),
-                              bottomLeft:  Radius.circular(last  ? 12 : 4),
-                              bottomRight: Radius.circular(last  ? 12 : 4)),
-                            border: Border(bottom: last
-                                ? BorderSide.none
-                                : BorderSide(color: t.divider, width: 0.5))),
-                          child: Row(children: [
-                            Icon(Icons.local_fire_department_rounded, size: 16,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                      child: Text('Tendências',
+                        style: TextStyle(
+                          color: t.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.6)),
+                    ),
+
+                    Container(
+                      color: rowBg,
+                      child: Column(
+                        children: _trending.asMap().entries.map((e) {
+                          final isLast = e.key == _trending.length - 1;
+                          return _RowItem(
+                            label: e.value,
+                            leading: Icon(LucideIcons.trendingUp, size: 15,
                                 color: AppTheme.ytRed),
-                            const SizedBox(width: 10),
-                            Expanded(child: Text(s,
-                              style: TextStyle(color: t.text, fontSize: 14))),
-                            Icon(Icons.north_west_rounded, size: 14,
-                                color: isDark ? Colors.white24 : Colors.black26),
-                          ]),
-                        ),
-                      );
-                    }),
-                    const SizedBox(height: 32),
+                            trailing: Icon(LucideIcons.arrowUpLeft, size: 13,
+                                color: subColor),
+                            divColor: isLast ? Colors.transparent : divColor,
+                            textColor: t.text,
+                            onTap: () => _goSearch(e.value),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
@@ -210,6 +199,58 @@ class _SearchPageState extends State<SearchPage> {
           ),
         );
       },
+    );
+  }
+}
+
+// ─── Row reutilizável ─────────────────────────────────────────────────────────
+
+class _RowItem extends StatelessWidget {
+  final String label;
+  final Widget leading;
+  final Widget trailing;
+  final Color divColor;
+  final Color textColor;
+  final VoidCallback onTap;
+
+  const _RowItem({
+    required this.label,
+    required this.leading,
+    required this.trailing,
+    required this.divColor,
+    required this.textColor,
+    required this.onTap,
+  });
+
+  @override Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            child: Row(children: [
+              leading,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(label,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400)),
+              ),
+              trailing,
+            ]),
+          ),
+          if (divColor != Colors.transparent)
+            Divider(
+              height: 0,
+              thickness: 0.5,
+              indent: 16 + 15 + 12, // alinha com o texto
+              color: divColor),
+        ],
+      ),
     );
   }
 }
