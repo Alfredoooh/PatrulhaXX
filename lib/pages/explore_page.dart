@@ -147,7 +147,7 @@ class _ExplorePageState extends State<ExplorePage>
       reverseTransitionDuration: const Duration(milliseconds: 280),
       pageBuilder: (_, __, ___) => ExibicaoPage(
         embedUrl: video.embedUrl, currentVideo: video,
-        onVideoTap: onVideoTap, isActive: true),
+        onVideoTap: widget.onVideoTap, isActive: true),
       transitionsBuilder: (_, anim, secAnim, child) {
         final enter = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
             .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
@@ -165,8 +165,6 @@ class _ExplorePageState extends State<ExplorePage>
     final t      = AppTheme.current;
     final topPad = MediaQuery.of(context).padding.top;
     final isDark = t.statusBar == Brightness.light;
-
-    // chips: topPad + 28px altura + 6px bottom
     final double chipsH = topPad + 34;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -189,7 +187,6 @@ class _ExplorePageState extends State<ExplorePage>
         body: NestedScrollView(
           controller: _scroll,
           headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
-            // Título — topPad + 6 top + texto + 6 bottom
             SliverToBoxAdapter(
               child: Container(
                 color: t.bg,
@@ -199,7 +196,6 @@ class _ExplorePageState extends State<ExplorePage>
                       fontWeight: FontWeight.w800, letterSpacing: -0.5)),
               ),
             ),
-
             SliverPersistentHeader(
               pinned: true,
               delegate: _ChipDelegate(
@@ -286,7 +282,6 @@ class _ExplorePageState extends State<ExplorePage>
   }
 }
 
-// ─── Chip delegate ────────────────────────────────────────────────────────────
 class _ChipDelegate extends SliverPersistentHeaderDelegate {
   final double height, topPad;
   final _ChipFilter selected;
@@ -346,7 +341,6 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-// ─── VideoTile ────────────────────────────────────────────────────────────────
 class _VideoTile extends StatelessWidget {
   final FeedVideo video;
   final double ratio;
@@ -432,7 +426,6 @@ class _VideoTile extends StatelessWidget {
   }
 }
 
-// ─── Shimmer ──────────────────────────────────────────────────────────────────
 class _Shimmer extends StatefulWidget {
   const _Shimmer();
   @override State<_Shimmer> createState() => _ShimmerState();
@@ -454,7 +447,6 @@ class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin 
       colors: AppTheme.current.shimmer))));
 }
 
-// ─── Skeleton tile ────────────────────────────────────────────────────────────
 class _SkeletonTile extends StatefulWidget {
   final double height;
   const _SkeletonTile({required this.height});
@@ -486,7 +478,7 @@ class _SkeletonTileState extends State<_SkeletonTile>
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       ClipRRect(borderRadius: BorderRadius.circular(6),
-        child: _box(w: double.infinity, h: height)),
+        child: _box(w: double.infinity, h: widget.height)),
       const SizedBox(height: 6),
       _box(w: double.infinity, h: 11, r: 4),
       const SizedBox(height: 4),
