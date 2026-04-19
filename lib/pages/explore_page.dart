@@ -165,12 +165,15 @@ class _ExplorePageState extends State<ExplorePage>
     final t      = AppTheme.current;
     final topPad = MediaQuery.of(context).padding.top;
     final isDark = t.statusBar == Brightness.light;
-    final double chipsH = topPad + 34;
+
+    // Chips height: apenas a row dos chips, SEM incluir o status bar
+    const double chipsH = 28 + 12; // chip height + padding vertical
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: t.statusBar),
+        statusBarColor: t.bg,           // sólido, cor do tema
+        statusBarIconBrightness: t.statusBar,
+      ),
       child: Scaffold(
         backgroundColor: t.bg,
         floatingActionButton: AnimatedScale(
@@ -187,20 +190,28 @@ class _ExplorePageState extends State<ExplorePage>
         body: NestedScrollView(
           controller: _scroll,
           headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
+            // "Explorar" — scrollável, desaparece sob a status bar sólida
             SliverToBoxAdapter(
-              child: Container(
-                color: t.bg,
-                padding: EdgeInsets.only(top: topPad + 6, left: 16, bottom: 6),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  top: topPad + 8,
+                  left: 16,
+                  bottom: 8,
+                ),
                 child: Text('Explorar',
-                  style: TextStyle(color: t.text, fontSize: 22,
-                      fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                  style: TextStyle(
+                    color: t.text,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  )),
               ),
             ),
+            // Chips — pregados ao topo, logo abaixo da status bar
             SliverPersistentHeader(
               pinned: true,
               delegate: _ChipDelegate(
                 height: chipsH,
-                topPad: topPad,
                 selected: _chip,
                 isDark: isDark,
                 onChanged: (c) => setState(() => _chip = c),
@@ -282,16 +293,21 @@ class _ExplorePageState extends State<ExplorePage>
   }
 }
 
+// ─── Chip delegate — sem topPad, fica pregado mesmo sob a status bar sólida ───
+
 class _ChipDelegate extends SliverPersistentHeaderDelegate {
-  final double height, topPad;
+  final double height;
   final _ChipFilter selected;
   final void Function(_ChipFilter) onChanged;
   final bool isDark;
   final Color bg;
 
   const _ChipDelegate({
-    required this.height, required this.topPad, required this.selected,
-    required this.onChanged, required this.isDark, required this.bg,
+    required this.height,
+    required this.selected,
+    required this.onChanged,
+    required this.isDark,
+    required this.bg,
   });
 
   @override double get minExtent => height;
@@ -308,7 +324,7 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
 
     return Container(
       color: bg,
-      padding: EdgeInsets.only(top: topPad, bottom: 6),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: SizedBox(
         height: 28,
         child: ListView.separated(
@@ -340,6 +356,8 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
     );
   }
 }
+
+// ─── Video tile — dimensões reais da imagem, sem AspectRatio forçado ──────────
 
 class _VideoTile extends StatelessWidget {
   final FeedVideo video;
@@ -394,22 +412,31 @@ class _VideoTile extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(6),
-          child: AspectRatio(
-            aspectRatio: ratio,
-            child: CachedNetworkImage(
-              imageUrl: video.thumb,
-              httpHeaders: _headers,
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.medium,
-              width: double.infinity,
-              height: double.infinity,
-              placeholder: (_, __) => const _Shimmer(),
-              errorWidget: (_, __, ___) => Container(
-                color: t.thumbBg,
-                child: Center(child: Icon(Icons.play_circle_outline_rounded,
-                    color: t.iconSub, size: 28))),
-              fadeInDuration: const Duration(milliseconds: 200),
-            ))),
+          child: LayoutBuilder(
+            builder: (_, constraints) {
+              // Altura calculada pelo ratio real — sem forçar fill nem crop excessivo
+              final h = constraints.maxWidth / ratio;
+              return SizedBox(
+                width: constraints.maxWidth,
+                height: h,
+                child: CachedNetworkImage(
+                  imageUrl: video.thumb,
+                  httpHeaders: _headers,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.medium,
+                  width: constraints.maxWidth,
+                  height: h,
+                  placeholder: (_, __) => const _Shimmer(),
+                  errorWidget: (_, __, ___) => Container(
+                    color: t.thumbBg,
+                    child: Center(child: Icon(Icons.play_circle_outline_rounded,
+                        color: t.iconSub, size: 28))),
+                  fadeInDuration: const Duration(milliseconds: 200),
+                ),
+              );
+            },
+          ),
+        ),
         const SizedBox(height: 5),
         Text(video.title,
           maxLines: 2, overflow: TextOverflow.ellipsis,
@@ -425,6 +452,8 @@ class _VideoTile extends StatelessWidget {
     );
   }
 }
+
+// ─── Shimmer ──────────────────────────────────────────────────────────────────
 
 class _Shimmer extends StatefulWidget {
   const _Shimmer();
@@ -446,6 +475,8 @@ class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin 
       begin: Alignment(_a.value - 1, 0), end: Alignment(_a.value + 1, 0),
       colors: AppTheme.current.shimmer))));
 }
+
+// ─── Skeleton tile ────────────────────────────────────────────────────────────
 
 class _SkeletonTile extends StatefulWidget {
   final double height;
