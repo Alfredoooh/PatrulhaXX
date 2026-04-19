@@ -28,25 +28,24 @@ const _iHistory =
     's224,100.3,224,224S379.7,480,256,480z"/>'
     '</svg>';
 
-// ─── DDG URLs por tab ─────────────────────────────────────────────────────────
-const _ddgHideCss = '''
+// CSS injected — oculta header DDG e scrollbar nativo
+// NÃO faz scroll to top, apenas esconde elementos
+const _ddgCss = '''
 (function() {
+  if (window.__ddgCssInjected) return;
+  window.__ddgCssInjected = true;
   const s = document.createElement('style');
   s.textContent = `
-    #header, .header, .nav-bar, #duckbar,
-    .header--aside, .js-header-wrapper,
-    [class*="header"], [id*="header"],
-    #logo_homepage_link, .logo-wrap,
-    .search-form--adv, .search-form__input-wrap,
-    .js-search-form, #search_form_homepage,
-    .search-wrap--home { display: none !important; }
-    ::-webkit-scrollbar { width: 0px !important; }
+    #header_wrapper, #header, .header--aside,
+    .js-header-wrapper, .nav-menu, #duckbar,
+    [class*="Header"], [id*="header"] { display: none !important; }
+    ::-webkit-scrollbar { display: none !important; width: 0 !important; }
   `;
   document.head.appendChild(s);
 })();
 ''';
 
-enum _WebTab { tudo, imagens, videos, noticias }
+enum _WebTab { tudo, imagens, videos, noticias, mapas }
 
 extension _WebTabX on _WebTab {
   String get label {
@@ -55,6 +54,7 @@ extension _WebTabX on _WebTab {
       case _WebTab.imagens:  return 'Imagens';
       case _WebTab.videos:   return 'Vídeos';
       case _WebTab.noticias: return 'Notícias';
+      case _WebTab.mapas:    return 'Mapas';
     }
   }
 
@@ -69,11 +69,12 @@ extension _WebTabX on _WebTab {
         return 'https://duckduckgo.com/?q=$enc&kp=-2&kav=1&ia=videos&iax=videos&kaj=m';
       case _WebTab.noticias:
         return 'https://duckduckgo.com/?q=$enc&kp=-2&kav=1&ia=news&iax=news&kaj=m';
+      case _WebTab.mapas:
+        return 'https://www.google.com/maps/search/$enc';
     }
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 class SearchResultsPage extends StatefulWidget {
   final void Function(FeedVideo)? onVideoTap;
   final String? query;
@@ -97,20 +98,15 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
   _WebTab _activeTab = _WebTab.tudo;
 
-  // Um controller por tab para não perder posição
-  final Map<_WebTab, InAppWebViewController> _webCtrls = {};
-  final Map<_WebTab, bool> _webLoading = {
-    _WebTab.tudo:     false,
-    _WebTab.imagens:  false,
-    _WebTab.videos:   false,
-    _WebTab.noticias: false,
+  // Um controller por tab — nunca recriados, posição preservada
+  final Map<_WebTab, InAppWebViewController?> _webCtrls = {
+    for (final t in _WebTab.values) t: null,
   };
-  // Guarda se cada tab já foi inicializada (evita reload ao mudar tab)
-  final Map<_WebTab, bool> _tabReady = {
-    _WebTab.tudo:     false,
-    _WebTab.imagens:  false,
-    _WebTab.videos:   false,
-    _WebTab.noticias: false,
+  final Map<_WebTab, bool> _webLoading = {
+    for (final t in _WebTab.values) t: false,
+  };
+  final Map<_WebTab, bool> _tabLoaded = {
+    for (final t in _WebTab.values) t: false,
   };
 
   @override void initState() {
@@ -181,20 +177,24 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     _q.text = q;
     _q.selection = TextSelection.collapsed(offset: q.length);
     await _saveHistory(q);
-    // Reset: todas as tabs vão recarregar com nova query
-    _tabReady.updateAll((_, __) => false);
+
     setState(() {
       _searching    = true;
       _editingQuery = false;
       _suggestions  = [];
       _activeTab    = _WebTab.tudo;
-      _webLoading.updateAll((_, __) => false);
     });
-    // Carrega a tab activa
-    final ctrl = _webCtrls[_activeTab];
+
+    // Carrega/recarrega só a tab activa
+    final ctrl = _webCtrls[_WebTab.tudo];
     if (ctrl != null) {
+      _tabLoaded[_WebTab.tudo] = false;
       await ctrl.loadUrl(
-          urlRequest: URLRequest(url: WebUri(_activeTab.url(q))));
+          urlRequest: URLRequest(url: WebUri(_WebTab.tudo.url(q))));
+    }
+    // Marca as outras como não carregadas para recarregarem quando activadas
+    for (final t in _WebTab.values) {
+      if (t != _WebTab.tudo) _tabLoaded[t] = false;
     }
   }
 
@@ -226,17 +226,16 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     return true;
   }
 
-  void _backToSearch() {
-    Navigator.pushReplacement(context, iosRoute(SearchPage()));
-  }
+  void _backToSearch() =>
+      Navigator.pushReplacement(context, iosRoute(SearchPage()));
 
   void _switchTab(_WebTab tab) {
     if (_activeTab == tab) return;
     setState(() => _activeTab = tab);
-    // Se a tab ainda não foi carregada, carrega agora
-    if (!(_tabReady[tab] ?? false) && _searching) {
+    if (!(_tabLoaded[tab] ?? false) && _searching) {
       final ctrl = _webCtrls[tab];
       if (ctrl != null) {
+        _tabLoaded[tab] = true;
         ctrl.loadUrl(urlRequest: URLRequest(url: WebUri(tab.url(_q.text.trim()))));
       }
     }
@@ -245,7 +244,6 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   @override Widget build(BuildContext context) {
     super.build(context);
     final topPad = MediaQuery.of(context).padding.top;
-    final showEditable = !_searching || _editingQuery;
 
     return WillPopScope(
       onWillPop: _onWillPop,
@@ -254,6 +252,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
         builder: (_, __) {
           final t      = AppTheme.current;
           final isDark = t.statusBar == Brightness.light;
+          final showEditable = !_searching || _editingQuery;
 
           return AnnotatedRegion<SystemUiOverlayStyle>(
             value: SystemUiOverlayStyle(
@@ -264,7 +263,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
               resizeToAvoidBottomInset: false,
               body: Column(children: [
 
-                // ── AppBar ────────────────────────────────────────────────────
+                // ── AppBar ──────────────────────────────────────────────────
                 Container(
                   color: t.appBar,
                   child: Column(children: [
@@ -277,43 +276,49 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                           onTap: _backToSearch,
                           behavior: HitTestBehavior.opaque,
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            child: SvgPicture.string(_iBack, width: 20, height: 20,
-                                colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
+                            child: SvgPicture.string(_iBack,
+                                width: 20, height: 20,
+                                colorFilter: ColorFilter.mode(
+                                    t.icon, BlendMode.srcIn)),
                           ),
                         ),
 
-                        // Input
+                        // Input — estilo Instagram
                         Expanded(
                           child: GestureDetector(
                             onTap: !showEditable ? _activateEditing : null,
                             child: Container(
-                              height: 42,
+                              height: 38,
                               decoration: BoxDecoration(
                                 color: isDark
                                     ? const Color(0xFF2A2A2A)
-                                    : const Color(0xFFF2F2F2),
+                                    : const Color(0xFFEFEFEF),
                                 borderRadius: BorderRadius.circular(10)),
                               child: Row(children: [
                                 const SizedBox(width: 10),
-                                if (!showEditable) ...[
-                                  _DdgIcon(size: 18),
-                                  const SizedBox(width: 8),
+                                Icon(Icons.search_rounded, size: 17,
+                                    color: isDark
+                                        ? Colors.white38
+                                        : Colors.black38),
+                                const SizedBox(width: 7),
+                                if (!showEditable)
                                   Expanded(
                                     child: Text(_q.text,
-                                      style: TextStyle(color: t.inputText, fontSize: 14.5),
-                                      maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                  const SizedBox(width: 10),
-                                ] else ...[
-                                  Icon(Icons.search_rounded, size: 18,
-                                      color: isDark ? Colors.white38 : Colors.black38),
-                                  const SizedBox(width: 8),
+                                      style: TextStyle(
+                                          color: t.inputText,
+                                          fontSize: 14),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis))
+                                else
                                   Expanded(
                                     child: TextField(
                                       controller: _q,
                                       focusNode: _focus,
                                       autofocus: !_searching,
-                                      style: TextStyle(color: t.inputText, fontSize: 14.5),
+                                      style: TextStyle(
+                                          color: t.inputText, fontSize: 14),
                                       textInputAction: TextInputAction.search,
                                       cursorColor: AppTheme.ytRed,
                                       cursorWidth: 1.5,
@@ -322,21 +327,28 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                                         border: InputBorder.none,
                                         hintText: 'Pesquisar...',
                                         hintStyle: TextStyle(
-                                            color: isDark ? Colors.white30 : Colors.black38,
-                                            fontSize: 14.5),
+                                            color: isDark
+                                                ? Colors.white30
+                                                : Colors.black38,
+                                            fontSize: 14),
                                         isDense: true,
                                         contentPadding:
-                                            const EdgeInsets.symmetric(vertical: 11)),
+                                            const EdgeInsets.symmetric(
+                                                vertical: 10)),
                                     )),
-                                  if (_q.text.isNotEmpty)
-                                    GestureDetector(
-                                      onTap: _clearSearch,
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(right: 8),
-                                        child: Icon(Icons.close_rounded,
-                                            color: isDark ? Colors.white54 : Colors.black38,
-                                            size: 17))),
-                                ],
+                                if (_q.text.isNotEmpty && showEditable)
+                                  GestureDetector(
+                                    onTap: _clearSearch,
+                                    child: Padding(
+                                      padding:
+                                          const EdgeInsets.only(right: 8),
+                                      child: Icon(Icons.close_rounded,
+                                          size: 16,
+                                          color: isDark
+                                              ? Colors.white54
+                                              : Colors.black38)))
+                                else
+                                  const SizedBox(width: 8),
                               ]),
                             ),
                           ),
@@ -344,35 +356,46 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                       ]),
                     ),
 
-                    // ── Tabs (só visíveis quando há pesquisa activa) ──
+                    // Tabs
                     if (_searching && !_editingQuery)
                       SizedBox(
-                        height: 36,
+                        height: 34,
                         child: ListView(
                           scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
                           children: _WebTab.values.map((tab) {
                             final active = _activeTab == tab;
                             return GestureDetector(
                               onTap: () => _switchTab(tab),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 180),
-                                margin: const EdgeInsets.only(right: 6, bottom: 6),
-                                padding: const EdgeInsets.symmetric(horizontal: 14),
+                                margin: const EdgeInsets.only(right: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12),
                                 decoration: BoxDecoration(
                                   color: active
-                                      ? (isDark ? Colors.white : Colors.black)
-                                      : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE)),
+                                      ? (isDark
+                                          ? Colors.white
+                                          : Colors.black)
+                                      : (isDark
+                                          ? const Color(0xFF2A2A2A)
+                                          : const Color(0xFFEEEEEE)),
                                   borderRadius: BorderRadius.circular(6)),
                                 alignment: Alignment.center,
                                 child: AnimatedDefaultTextStyle(
                                   duration: const Duration(milliseconds: 180),
                                   style: TextStyle(
                                     color: active
-                                        ? (isDark ? Colors.black : Colors.white)
-                                        : (isDark ? Colors.white70 : Colors.black54),
+                                        ? (isDark
+                                            ? Colors.black
+                                            : Colors.white)
+                                        : (isDark
+                                            ? Colors.white70
+                                            : Colors.black54),
                                     fontSize: 12,
-                                    fontWeight: active ? FontWeight.w700 : FontWeight.w500),
+                                    fontWeight: active
+                                        ? FontWeight.w700
+                                        : FontWeight.w500),
                                   child: Text(tab.label))));
                           }).toList(),
                         ),
@@ -382,7 +405,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                   ]),
                 ),
 
-                // ── Corpo ─────────────────────────────────────────────────────
+                // ── Corpo ────────────────────────────────────────────────────
                 Expanded(
                   child: showEditable
                       ? _SuggestionsView(
@@ -395,7 +418,8 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                           onSelect: _doSearch,
                           onFill: (q) {
                             _q.text = q;
-                            _q.selection = TextSelection.collapsed(offset: q.length);
+                            _q.selection = TextSelection.collapsed(
+                                offset: q.length);
                           },
                           onRemoveHistory: _removeHistory,
                           onClearHistory: _clearHistory,
@@ -410,47 +434,40 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     );
   }
 
-  // Constrói todos os WebViews em stack (Offstage) para não perder posição
   Widget _buildWebViews(bool isDark) {
     return Stack(
-      children: _WebTab.values.map((tab) {
-        final isActive = tab == _activeTab;
-        return Offstage(
-          offstage: !isActive,
-          child: _WebPane(
-            key: ValueKey(tab),
-            tab: tab,
-            query: _q.text.trim(),
-            isDark: isDark,
-            isActive: isActive,
-            loading: _webLoading[tab] ?? false,
-            onCreated: (ctrl) {
-              _webCtrls[tab] = ctrl;
-              // Se é a tab activa e ainda não foi carregada, carrega agora
-              if (isActive && !(_tabReady[tab] ?? false)) {
-                _tabReady[tab] = true;
-              }
-            },
-            onLoadStart: () {
-              if (mounted) setState(() => _webLoading[tab] = true);
-            },
-            onLoadStop: (ctrl) async {
-              await ctrl.evaluateJavascript(source: _ddgHideCss);
-              _tabReady[tab] = true;
-              if (mounted) setState(() => _webLoading[tab] = false);
-            },
-          ),
-        );
-      }).toList(),
+      children: _WebTab.values.map((tab) => Offstage(
+        offstage: tab != _activeTab,
+        child: _WebPane(
+          key: ValueKey(tab),
+          tab: tab,
+          query: _q.text.trim(),
+          isDark: isDark,
+          loading: _webLoading[tab] ?? false,
+          onCreated: (ctrl) {
+            _webCtrls[tab] = ctrl;
+            if (tab == _WebTab.tudo) _tabLoaded[tab] = true;
+          },
+          onLoadStart: () {
+            if (mounted) setState(() => _webLoading[tab] = true);
+          },
+          onLoadStop: (ctrl) async {
+            // Injeta CSS sem fazer scroll to top
+            await ctrl.evaluateJavascript(source: _ddgCss);
+            _tabLoaded[tab] = true;
+            if (mounted) setState(() => _webLoading[tab] = false);
+          },
+        ),
+      )).toList(),
     );
   }
 }
 
-// ─── WebPane individual por tab ───────────────────────────────────────────────
+// ─── WebPane ──────────────────────────────────────────────────────────────────
 class _WebPane extends StatelessWidget {
   final _WebTab tab;
   final String query;
-  final bool isDark, isActive, loading;
+  final bool isDark, loading;
   final void Function(InAppWebViewController) onCreated;
   final VoidCallback onLoadStart;
   final void Function(InAppWebViewController) onLoadStop;
@@ -460,7 +477,6 @@ class _WebPane extends StatelessWidget {
     required this.tab,
     required this.query,
     required this.isDark,
-    required this.isActive,
     required this.loading,
     required this.onCreated,
     required this.onLoadStart,
@@ -468,7 +484,6 @@ class _WebPane extends StatelessWidget {
   });
 
   @override Widget build(BuildContext context) {
-    final t = AppTheme.current;
     return Stack(children: [
       InAppWebView(
         initialUrlRequest: URLRequest(url: WebUri(tab.url(query))),
@@ -479,23 +494,19 @@ class _WebPane extends StatelessWidget {
               'Chrome/124.0.0.0 Mobile Safari/537.36',
           transparentBackground: true,
           supportZoom: false,
-          useShouldOverrideUrlLoading: false,
-          // scrollbar nativo desativado — usamos RawScrollbar Flutter
-          disableVerticalScroll: false,
+          // scrollbar nativo do webview desativado
+          verticalScrollBarEnabled: false,
+          horizontalScrollBarEnabled: false,
         ),
         onWebViewCreated: onCreated,
         onLoadStart: (_, __) => onLoadStart(),
         onLoadStop: (ctrl, __) => onLoadStop(ctrl),
-        onReceivedError: (_, __, ___) => onLoadStart(), // reset loading
+        onReceivedError: (_, __, ___) {
+          if (loading) onLoadStart();
+        },
       ),
 
-      // ── Scrollbar fino moderno (lado direito) ──
-      Positioned(
-        right: 2, top: 0, bottom: 0,
-        child: _ThinScrollIndicator(loading: loading, isDark: isDark),
-      ),
-
-      // ── Progress bar no topo ──
+      // Progress bar
       if (loading)
         Positioned(
           top: 0, left: 0, right: 0,
@@ -505,78 +516,6 @@ class _WebPane extends StatelessWidget {
             minHeight: 2)),
     ]);
   }
-}
-
-// ─── Scrollbar fino animado ───────────────────────────────────────────────────
-class _ThinScrollIndicator extends StatefulWidget {
-  final bool loading, isDark;
-  const _ThinScrollIndicator({required this.loading, required this.isDark});
-  @override State<_ThinScrollIndicator> createState() => _ThinScrollIndicatorState();
-}
-
-class _ThinScrollIndicatorState extends State<_ThinScrollIndicator>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _anim;
-
-  @override void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1500))..repeat();
-    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
-  }
-
-  @override void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  @override Widget build(BuildContext context) {
-    if (!widget.loading) return const SizedBox.shrink();
-    return AnimatedBuilder(
-      animation: _anim,
-      builder: (_, __) {
-        final pos = _anim.value;
-        return CustomPaint(
-          size: const Size(3, double.infinity),
-          painter: _ScrollbarPainter(
-            position: pos,
-            color: widget.isDark
-                ? Colors.white.withOpacity(0.35)
-                : Colors.black.withOpacity(0.25)),
-        );
-      },
-    );
-  }
-}
-
-class _ScrollbarPainter extends CustomPainter {
-  final double position;
-  final Color color;
-  const _ScrollbarPainter({required this.position, required this.color});
-
-  @override void paint(Canvas canvas, Size size) {
-    final h = size.height * 0.15;
-    final top = (size.height - h) * position;
-    final rr = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, top, 3, h),
-      const Radius.circular(2));
-    canvas.drawRRect(rr, Paint()..color = color);
-  }
-
-  @override bool shouldRepaint(_ScrollbarPainter old) =>
-      old.position != position || old.color != color;
-}
-
-// ─── Ícone DDG ────────────────────────────────────────────────────────────────
-class _DdgIcon extends StatelessWidget {
-  final double size;
-  const _DdgIcon({this.size = 20});
-  @override Widget build(BuildContext context) => Container(
-    width: size, height: size,
-    decoration: const BoxDecoration(
-      color: Color(0xFFDE5833), shape: BoxShape.circle),
-    child: Center(
-      child: Text('D',
-        style: TextStyle(color: Colors.white,
-            fontSize: size * 0.55, fontWeight: FontWeight.w900, height: 1))));
 }
 
 // ─── _SuggestionsView ─────────────────────────────────────────────────────────
@@ -600,9 +539,11 @@ class _SuggestionsView extends StatelessWidget {
 
     if (items.isEmpty) {
       return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.search_rounded, color: subColor.withOpacity(0.25), size: 52),
+        Icon(Icons.search_rounded,
+            color: subColor.withOpacity(0.25), size: 52),
         const SizedBox(height: 14),
-        Text('Pesquisa algo', style: TextStyle(color: subColor, fontSize: 14)),
+        Text('Pesquisa algo',
+            style: TextStyle(color: subColor, fontSize: 14)),
       ]));
     }
 
@@ -629,15 +570,20 @@ class _SuggestionsView extends StatelessWidget {
           InkWell(
             onTap: () => onSelect(item),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 16),
               child: Row(children: [
                 showSuggestions
-                    ? Icon(Icons.search_rounded, color: subColor, size: 20)
-                    : SvgPicture.string(_iHistory, width: 20, height: 20,
-                        colorFilter: ColorFilter.mode(subColor, BlendMode.srcIn)),
+                    ? Icon(Icons.search_rounded,
+                        color: subColor, size: 20)
+                    : SvgPicture.string(_iHistory,
+                        width: 20, height: 20,
+                        colorFilter: ColorFilter.mode(
+                            subColor, BlendMode.srcIn)),
                 const SizedBox(width: 14),
                 Expanded(child: Text(item,
-                    style: TextStyle(color: textColor, fontSize: 14.5))),
+                    style: TextStyle(
+                        color: textColor, fontSize: 14.5))),
                 GestureDetector(
                   onTap: () => showSuggestions
                       ? onFill(item) : onRemoveHistory(item),
@@ -646,7 +592,8 @@ class _SuggestionsView extends StatelessWidget {
                     padding: const EdgeInsets.only(left: 12),
                     child: Icon(
                       showSuggestions
-                          ? Icons.north_west_rounded : Icons.close_rounded,
+                          ? Icons.north_west_rounded
+                          : Icons.close_rounded,
                       color: subColor, size: 18)),
                 ),
               ]),
