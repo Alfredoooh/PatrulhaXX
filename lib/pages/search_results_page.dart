@@ -17,7 +17,6 @@ const _iBack =
     'a1,1,0,0,0,1-1h0a1,1,0,0,0-1-1H2.55L6.17,7.38A1,1,0,0,0,6.17,6h0A1,1,0,0,0,'
     '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/></svg>';
 
-// CSS injected — oculta header DDG e scrollbar nativo
 const _ddgCss = '''
 (function() {
   if (window.__ddgCssInjected) return;
@@ -33,7 +32,6 @@ const _ddgCss = '''
 })();
 ''';
 
-// Apenas 3 tabs — sem notícias nem mapas
 enum _WebTab { tudo, imagens, videos }
 
 extension _WebTabX on _WebTab {
@@ -45,8 +43,6 @@ extension _WebTabX on _WebTab {
     }
   }
 
-  // kp=-2 = safe search off, &t=h_ = sem tracking
-  // Para vídeos: força pesquisa em sites adultos conhecidos
   String url(String q) {
     final enc = Uri.encodeComponent(q);
     switch (this) {
@@ -55,8 +51,7 @@ extension _WebTabX on _WebTab {
       case _WebTab.imagens:
         return 'https://duckduckgo.com/?q=$enc&kp=-2&kav=1&iax=images&ia=images&kaj=m';
       case _WebTab.videos:
-        // Pesquisa no xvideos directamente para resultados garantidamente adultos
-        return 'https://www.xvideos.com/?k=${Uri.encodeComponent(q)}';
+        return 'https://www.xvideos.com/?k=$enc';
     }
   }
 }
@@ -167,7 +162,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
       _activeTab    = _WebTab.tudo;
     });
 
-    // Carrega TODOS os tabs de uma vez — sem lazy loading
+    // Carrega todos os tabs de uma vez
     for (final tab in _WebTab.values) {
       final ctrl = _webCtrls[tab];
       if (ctrl != null) {
@@ -221,8 +216,8 @@ class _SearchResultsPageState extends State<SearchResultsPage>
       child: ListenableBuilder(
         listenable: ThemeService.instance,
         builder: (_, __) {
-          final t      = AppTheme.current;
-          final isDark = t.statusBar == Brightness.light;
+          final t          = AppTheme.current;
+          final isDark     = t.statusBar == Brightness.light;
           final showEditable = !_searching || _editingQuery;
 
           return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -242,7 +237,8 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                     Padding(
                       padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
                       child: Row(children: [
-                        // Back — vai à tela anterior
+
+                        // Back
                         GestureDetector(
                           onTap: _goBack,
                           behavior: HitTestBehavior.opaque,
@@ -278,8 +274,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                                   Expanded(
                                     child: Text(_q.text,
                                       style: TextStyle(
-                                          color: t.inputText,
-                                          fontSize: 14),
+                                          color: t.inputText, fontSize: 14),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis))
                                 else
@@ -326,7 +321,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                       ]),
                     ),
 
-                    // ── Tabs ─────────────────────────────────────────────────
+                    // ── Tabs ──────────────────────────────────────────────────
                     if (_searching && !_editingQuery)
                       SizedBox(
                         height: 34,
@@ -344,9 +339,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                                     horizontal: 12),
                                 decoration: BoxDecoration(
                                   color: active
-                                      ? (isDark
-                                          ? Colors.white
-                                          : Colors.black)
+                                      ? (isDark ? Colors.white : Colors.black)
                                       : (isDark
                                           ? const Color(0xFF2A2A2A)
                                           : const Color(0xFFEEEEEE)),
@@ -356,9 +349,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                                   duration: const Duration(milliseconds: 180),
                                   style: TextStyle(
                                     color: active
-                                        ? (isDark
-                                            ? Colors.black
-                                            : Colors.white)
+                                        ? (isDark ? Colors.black : Colors.white)
                                         : (isDark
                                             ? Colors.white70
                                             : Colors.black54),
@@ -394,7 +385,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                           onRemoveHistory: _removeHistory,
                           onClearHistory: _clearHistory,
                         )
-                      : _buildWebViews(isDark, t.bg),
+                      : _buildWebViews(isDark),
                 ),
               ]),
             ),
@@ -404,7 +395,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     );
   }
 
-  Widget _buildWebViews(bool isDark, Color bg) {
+  Widget _buildWebViews(bool isDark) {
     return Stack(
       children: _WebTab.values.map((tab) => Offstage(
         offstage: tab != _activeTab,
@@ -413,7 +404,6 @@ class _SearchResultsPageState extends State<SearchResultsPage>
           tab: tab,
           query: _q.text.trim(),
           isDark: isDark,
-          bg: bg,
           loading: _webLoading[tab] ?? false,
           onCreated: (ctrl) => _webCtrls[tab] = ctrl,
           onLoadStart: () {
@@ -435,7 +425,6 @@ class _WebPane extends StatelessWidget {
   final _WebTab tab;
   final String query;
   final bool isDark, loading;
-  final Color bg;
   final void Function(InAppWebViewController) onCreated;
   final VoidCallback onLoadStart;
   final void Function(InAppWebViewController) onLoadStop;
@@ -446,7 +435,6 @@ class _WebPane extends StatelessWidget {
     required this.query,
     required this.isDark,
     required this.loading,
-    required this.bg,
     required this.onCreated,
     required this.onLoadStart,
     required this.onLoadStop,
@@ -461,14 +449,11 @@ class _WebPane extends StatelessWidget {
           userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
               'AppleWebKit/537.36 (KHTML, like Gecko) '
               'Chrome/124.0.0.0 Mobile Safari/537.36',
-          // Fundo explícito — elimina linha branca lateral e inferior
           transparentBackground: false,
           supportZoom: false,
           verticalScrollBarEnabled: false,
           horizontalScrollBarEnabled: false,
         ),
-        // Cor de fundo do WebView igual ao tema — sem bordas brancas
-        backgroundColor: bg,
         onWebViewCreated: onCreated,
         onLoadStart: (_, __) => onLoadStart(),
         onLoadStop: (ctrl, __) => onLoadStop(ctrl),
