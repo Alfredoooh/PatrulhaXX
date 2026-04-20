@@ -24,7 +24,6 @@ const _kChipLabels = <_ChipFilter, String>{
   _ChipFilter.loira:       'Loira',
 };
 
-// Ratios reais de thumbs de vídeo — maioria 16:9, alguns 4:3
 const List<double> _kRatios = [
   16/9, 4/3, 16/9, 16/9, 4/3,
   16/9, 16/9, 4/3, 16/9, 16/9,
@@ -161,18 +160,63 @@ class _ExplorePageState extends State<ExplorePage>
     ));
   }
 
+  // ── Popup menu clássico Android 9 ──
+  void _showPopup(BuildContext context) async {
+    final t      = AppTheme.current;
+    final isDark = t.statusBar == Brightness.light;
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Navigator.of(context).overlay!.context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    final chosen = await showMenu<String>(
+      context: context,
+      position: position,
+      color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      elevation: 4,
+      items: [
+        _popupItem('filmes',      'Filmes',       isDark, t),
+        _popupItem('meus_videos', 'Meus vídeos',  isDark, t),
+        _popupItem('shows',       'Shows',        isDark, t),
+      ],
+    );
+
+    if (chosen != null && mounted) {
+      // acção futura — por agora só fecha
+    }
+  }
+
+  PopupMenuItem<String> _popupItem(String value, String label, bool isDark, dynamic t) {
+    return PopupMenuItem<String>(
+      value: value,
+      height: 44,
+      child: Text(label,
+        style: TextStyle(
+          color: isDark ? Colors.white : Colors.black87,
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+        )),
+    );
+  }
+
   @override Widget build(BuildContext context) {
     super.build(context);
     final t      = AppTheme.current;
     final topPad = MediaQuery.of(context).padding.top;
     final isDark = t.statusBar == Brightness.light;
 
-    // Altura total do delegate = status bar + chips + padding vertical
-    final double chipsH = topPad + 28 + 12;
+    // Chips delegate height — apenas chips, sem topPad (o SliverAppBar já trata do espaço)
+    final double chipsH = 28 + 12;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: t.bg,  // sólido — conteúdo passa por baixo
+        statusBarColor: t.bg,
         statusBarIconBrightness: t.statusBar,
       ),
       child: Scaffold(
@@ -191,15 +235,21 @@ class _ExplorePageState extends State<ExplorePage>
         body: NestedScrollView(
           controller: _scroll,
           headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
-            // "Explorar" — scrollável, desaparece sob a status bar sólida
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  top: topPad + 8,
-                  left: 16,
-                  bottom: 8,
-                ),
-                child: Text('Explorar',
+
+            // ── "Explorar" — sobe e desaparece sob a status bar sólida ──
+            SliverAppBar(
+              backgroundColor: t.bg,
+              surfaceTintColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              elevation: 0,
+              pinned: false,       // não fica pregado — sobe e some
+              floating: false,
+              expandedHeight: 44,  // pequeno: só o título
+              automaticallyImplyLeading: false,
+              flexibleSpace: FlexibleSpaceBar(
+                titlePadding: const EdgeInsets.only(left: 16, bottom: 10),
+                centerTitle: false,
+                title: Text('Explorar',
                   style: TextStyle(
                     color: t.text,
                     fontSize: 22,
@@ -207,13 +257,24 @@ class _ExplorePageState extends State<ExplorePage>
                     letterSpacing: -0.5,
                   )),
               ),
+              actions: [
+                Builder(builder: (btnCtx) => GestureDetector(
+                  onTap: () => _showPopup(btnCtx),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 14),
+                    child: Icon(Icons.more_vert,
+                        color: t.text, size: 22),
+                  ),
+                )),
+              ],
             ),
-            // Chips — pregados ao topo COM topPad interno para não ir atrás da status bar
+
+            // ── Chips — pregados ao topo sem topPad (SliverAppBar já gere o offset) ──
             SliverPersistentHeader(
               pinned: true,
               delegate: _ChipDelegate(
-                height: chipsH,   // inclui topPad
-                topPad: topPad,   // padding interno para compensar status bar
+                height: chipsH,
+                topPad: 0,         // sem topPad extra aqui
                 selected: _chip,
                 isDark: isDark,
                 onChanged: (c) => setState(() => _chip = c),
@@ -295,7 +356,7 @@ class _ExplorePageState extends State<ExplorePage>
   }
 }
 
-// ─── Chip delegate — COM topPad para parar exactamente sob a status bar ───────
+// ─── Chip delegate ────────────────────────────────────────────────────────────
 
 class _ChipDelegate extends SliverPersistentHeaderDelegate {
   final double height;
@@ -329,7 +390,6 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
 
     return Container(
       color: bg,
-      // topPad garante que os chips ficam ABAIXO da status bar, não atrás dela
       padding: EdgeInsets.only(top: topPad + 6, bottom: 6),
       child: SizedBox(
         height: 28,
@@ -363,7 +423,7 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-// ─── Video tile — dimensões correctas sem esticar ─────────────────────────────
+// ─── Video tile ───────────────────────────────────────────────────────────────
 
 class _VideoTile extends StatelessWidget {
   final FeedVideo video;
@@ -424,9 +484,8 @@ class _VideoTile extends StatelessWidget {
               imageUrl: video.thumb,
               httpHeaders: _headers,
               fit: BoxFit.cover,
-              // Alta qualidade — não reduz a resolução do thumb
               filterQuality: FilterQuality.high,
-              memCacheWidth: 480,   // limita o decode ao dobro da col (~240px)
+              memCacheWidth: 480,
               width: double.infinity,
               height: double.infinity,
               placeholder: (_, __) => const _Shimmer(),
