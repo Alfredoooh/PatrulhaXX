@@ -24,9 +24,10 @@ const _kChipLabels = <_ChipFilter, String>{
   _ChipFilter.loira:       'Loira',
 };
 
+// Ratios reais de thumbs de vídeo — maioria 16:9, alguns 4:3
 const List<double> _kRatios = [
-  9/16, 3/4, 2/3, 9/16, 4/5,
-  2/3, 9/16, 3/4, 4/5, 9/16,
+  16/9, 4/3, 16/9, 16/9, 4/3,
+  16/9, 16/9, 4/3, 16/9, 16/9,
 ];
 
 class ExplorePage extends StatefulWidget {
@@ -166,12 +167,12 @@ class _ExplorePageState extends State<ExplorePage>
     final topPad = MediaQuery.of(context).padding.top;
     final isDark = t.statusBar == Brightness.light;
 
-    // Chips height: apenas a row dos chips, SEM incluir o status bar
-    const double chipsH = 28 + 12; // chip height + padding vertical
+    // Altura total do delegate = status bar + chips + padding vertical
+    final double chipsH = topPad + 28 + 12;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: t.bg,           // sólido, cor do tema
+        statusBarColor: t.bg,  // sólido — conteúdo passa por baixo
         statusBarIconBrightness: t.statusBar,
       ),
       child: Scaffold(
@@ -207,11 +208,12 @@ class _ExplorePageState extends State<ExplorePage>
                   )),
               ),
             ),
-            // Chips — pregados ao topo, logo abaixo da status bar
+            // Chips — pregados ao topo COM topPad interno para não ir atrás da status bar
             SliverPersistentHeader(
               pinned: true,
               delegate: _ChipDelegate(
-                height: chipsH,
+                height: chipsH,   // inclui topPad
+                topPad: topPad,   // padding interno para compensar status bar
                 selected: _chip,
                 isDark: isDark,
                 onChanged: (c) => setState(() => _chip = c),
@@ -253,8 +255,8 @@ class _ExplorePageState extends State<ExplorePage>
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 32),
       crossAxisCount: 2,
-      mainAxisSpacing: 14,
-      crossAxisSpacing: 10,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 8,
       itemCount: 8,
       itemBuilder: (_, i) =>
           _SkeletonTile(height: colW / _kRatios[i % _kRatios.length]));
@@ -275,8 +277,8 @@ class _ExplorePageState extends State<ExplorePage>
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 32),
         crossAxisCount: 2,
-        mainAxisSpacing: 14,
-        crossAxisSpacing: 10,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 8,
         itemCount: list.length + (_fetching ? 2 : 0),
         itemBuilder: (_, i) {
           if (i >= list.length) {
@@ -293,10 +295,11 @@ class _ExplorePageState extends State<ExplorePage>
   }
 }
 
-// ─── Chip delegate — sem topPad, fica pregado mesmo sob a status bar sólida ───
+// ─── Chip delegate — COM topPad para parar exactamente sob a status bar ───────
 
 class _ChipDelegate extends SliverPersistentHeaderDelegate {
   final double height;
+  final double topPad;
   final _ChipFilter selected;
   final void Function(_ChipFilter) onChanged;
   final bool isDark;
@@ -304,6 +307,7 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
 
   const _ChipDelegate({
     required this.height,
+    required this.topPad,
     required this.selected,
     required this.onChanged,
     required this.isDark,
@@ -314,7 +318,8 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
   @override double get maxExtent => height;
 
   @override bool shouldRebuild(_ChipDelegate old) =>
-      old.selected != selected || old.isDark != isDark || old.bg != bg;
+      old.selected != selected || old.isDark != isDark ||
+      old.bg != bg || old.topPad != topPad;
 
   @override Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     final selBg   = isDark ? Colors.white            : Colors.black;
@@ -324,7 +329,8 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
 
     return Container(
       color: bg,
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      // topPad garante que os chips ficam ABAIXO da status bar, não atrás dela
+      padding: EdgeInsets.only(top: topPad + 6, bottom: 6),
       child: SizedBox(
         height: 28,
         child: ListView.separated(
@@ -357,7 +363,7 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-// ─── Video tile — dimensões reais da imagem, sem AspectRatio forçado ──────────
+// ─── Video tile — dimensões correctas sem esticar ─────────────────────────────
 
 class _VideoTile extends StatelessWidget {
   final FeedVideo video;
@@ -412,30 +418,24 @@ class _VideoTile extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(6),
-          child: LayoutBuilder(
-            builder: (_, constraints) {
-              // Altura calculada pelo ratio real — sem forçar fill nem crop excessivo
-              final h = constraints.maxWidth / ratio;
-              return SizedBox(
-                width: constraints.maxWidth,
-                height: h,
-                child: CachedNetworkImage(
-                  imageUrl: video.thumb,
-                  httpHeaders: _headers,
-                  fit: BoxFit.cover,
-                  filterQuality: FilterQuality.medium,
-                  width: constraints.maxWidth,
-                  height: h,
-                  placeholder: (_, __) => const _Shimmer(),
-                  errorWidget: (_, __, ___) => Container(
-                    color: t.thumbBg,
-                    child: Center(child: Icon(Icons.play_circle_outline_rounded,
-                        color: t.iconSub, size: 28))),
-                  fadeInDuration: const Duration(milliseconds: 200),
-                ),
-              );
-            },
-          ),
+          child: AspectRatio(
+            aspectRatio: ratio,
+            child: CachedNetworkImage(
+              imageUrl: video.thumb,
+              httpHeaders: _headers,
+              fit: BoxFit.cover,
+              // Alta qualidade — não reduz a resolução do thumb
+              filterQuality: FilterQuality.high,
+              memCacheWidth: 480,   // limita o decode ao dobro da col (~240px)
+              width: double.infinity,
+              height: double.infinity,
+              placeholder: (_, __) => const _Shimmer(),
+              errorWidget: (_, __, ___) => Container(
+                color: t.thumbBg,
+                child: Center(child: Icon(Icons.play_circle_outline_rounded,
+                    color: t.iconSub, size: 28))),
+              fadeInDuration: const Duration(milliseconds: 200),
+            )),
         ),
         const SizedBox(height: 5),
         Text(video.title,
