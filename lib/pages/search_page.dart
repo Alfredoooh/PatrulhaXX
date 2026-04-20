@@ -17,12 +17,6 @@ class _SearchPageState extends State<SearchPage> {
   List<String> _history = [];
   static const _kHistory = 'search_history_v3';
 
-  static const _trending = [
-    'milf', 'latina', 'amador', 'teen', 'loira',
-    'lésbicas', 'asiática', 'boquete', 'caseiro', 'anal',
-  ];
-
-  // Categorias com cor de fundo fallback e label
   static const _categories = [
     _Category(label: 'Heterossexual', color: Color(0xFF1a1a2e)),
     _Category(label: 'Homossexual',   color: Color(0xFF16213e)),
@@ -30,6 +24,14 @@ class _SearchPageState extends State<SearchPage> {
     _Category(label: 'Anal',          color: Color(0xFF533483)),
     _Category(label: 'Amador',        color: Color(0xFF2d6a4f)),
     _Category(label: 'MILF',          color: Color(0xFF1b4332)),
+  ];
+
+  // Chips circulares: (cor outer fraca, cor inner forte)
+  static const _colorChips = [
+    (outer: Color(0xFFFFCDD2), inner: Color(0xFFE53935)),
+    (outer: Color(0xFFFFF9C4), inner: Color(0xFFFDD835)),
+    (outer: Color(0xFFE8EAF6), inner: Color(0xFF3949AB)),
+    (outer: Color(0xFF424242), inner: Color(0xFF212121)),
   ];
 
   @override void initState() {
@@ -124,18 +126,33 @@ class _SearchPageState extends State<SearchPage> {
 
                 const SizedBox(height: 20),
 
-                // ── Chips de cor ──
+                // ── Chips circulares de cor ──
                 SizedBox(
-                  height: 56,
-                  child: ListView(
+                  height: 52,
+                  child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     clipBehavior: Clip.none,
-                    children: const [
-                      _ColorChip(accent: Color(0xFFE53935), bg: Color(0xFFFFEBEE)),
-                      _ColorChip(accent: Color(0xFFFDD835), bg: Color(0xFFFFFDE7)),
-                      _ColorChip(accent: Color(0xFF3949AB), bg: Color(0xFFE8EAF6)),
-                      _ColorChip(accent: Color(0xFF212121), bg: Color(0xFF424242)),
-                    ],
+                    itemCount: _colorChips.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (_, i) {
+                      final chip = _colorChips[i];
+                      return Container(
+                        width: 52, height: 52,
+                        decoration: BoxDecoration(
+                          color: chip.outer,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Container(
+                            width: 28, height: 28,
+                            decoration: BoxDecoration(
+                              color: chip.inner,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
 
@@ -147,7 +164,7 @@ class _SearchPageState extends State<SearchPage> {
                     color: t.text, fontSize: 17,
                     fontWeight: FontWeight.w700)),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 GridView.builder(
                   shrinkWrap: true,
@@ -168,9 +185,7 @@ class _SearchPageState extends State<SearchPage> {
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            // fundo de cor sólida (substitui imagem)
                             Container(color: cat.color),
-                            // gradiente escuro em baixo para o texto
                             Align(
                               alignment: Alignment.bottomCenter,
                               child: Container(
@@ -186,7 +201,6 @@ class _SearchPageState extends State<SearchPage> {
                                 ),
                               ),
                             ),
-                            // label
                             Positioned(
                               left: 8, right: 8, bottom: 7,
                               child: Text(cat.label,
@@ -208,69 +222,134 @@ class _SearchPageState extends State<SearchPage> {
 
                 const SizedBox(height: 28),
 
-                // ══ HISTÓRICO ══
+                // ══ HISTÓRICO (iOS-style grouped rows) ══
                 if (_history.isNotEmpty) ...[
-                  _SectionHeader(
-                    label: 'Histórico',
-                    isDark: isDark,
-                    textColor: t.textSecondary,
-                    action: GestureDetector(
-                      onTap: _clearHistory,
-                      child: Text('Limpar',
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Histórico',
                         style: TextStyle(
-                          color: AppTheme.ytRed,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500))),
+                          color: t.text, fontSize: 17,
+                          fontWeight: FontWeight.w700)),
+                      GestureDetector(
+                        onTap: _clearHistory,
+                        child: Text('Limpar',
+                          style: TextStyle(
+                            color: AppTheme.ytRed,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500))),
+                    ],
                   ),
-                  const SizedBox(height: 6),
-                  _GroupedCard(
+                  const SizedBox(height: 8),
+                  _IosGroupedList(
                     bg: cardBg,
                     divColor: divCol,
-                    items: _history.asMap().entries.map((e) {
-                      return _CardRow(
-                        leading: Icon(LucideIcons.clock3, size: 15, color: mutedIc),
-                        label: e.value,
-                        labelColor: t.text,
-                        trailing: GestureDetector(
-                          onTap: () => _removeHistory(e.value),
-                          behavior: HitTestBehavior.opaque,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(10, 10, 0, 10),
-                            child: Icon(LucideIcons.x, size: 13, color: mutedIc))),
-                        onTap: () => _goSearch(e.value),
-                      );
-                    }).toList(),
+                    mutedColor: mutedIc,
+                    textColor: t.text,
+                    items: _history,
+                    onTap: _goSearch,
+                    onRemove: _removeHistory,
                   ),
-                  const SizedBox(height: 24),
                 ],
-
-                // ══ TENDÊNCIAS ══
-                _SectionHeader(
-                  label: 'Tendências',
-                  isDark: isDark,
-                  textColor: t.textSecondary,
-                ),
-                const SizedBox(height: 6),
-                _GroupedCard(
-                  bg: cardBg,
-                  divColor: divCol,
-                  items: _trending.asMap().entries.map((e) {
-                    return _CardRow(
-                      leading: Icon(LucideIcons.trendingUp, size: 15,
-                          color: AppTheme.ytRed),
-                      label: e.value,
-                      labelColor: t.text,
-                      trailing: Icon(LucideIcons.arrowUpLeft, size: 13,
-                          color: mutedIc),
-                      onTap: () => _goSearch(e.value),
-                    );
-                  }).toList(),
-                ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+// ─── Lista iOS-style com bordas por posição ───────────────────────────────────
+
+class _IosGroupedList extends StatelessWidget {
+  final Color bg;
+  final Color divColor;
+  final Color mutedColor;
+  final Color textColor;
+  final List<String> items;
+  final ValueChanged<String> onTap;
+  final ValueChanged<String> onRemove;
+
+  const _IosGroupedList({
+    required this.bg,
+    required this.divColor,
+    required this.mutedColor,
+    required this.textColor,
+    required this.items,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  @override Widget build(BuildContext context) {
+    return Column(
+      children: items.asMap().entries.map((e) {
+        final i      = e.key;
+        final label  = e.value;
+        final total  = items.length;
+        final isOnly = total == 1;
+
+        // raios por posição
+        const full  = Radius.circular(12);
+        const small = Radius.circular(4);
+        const zero  = Radius.zero;
+
+        BorderRadius radius;
+        if (isOnly) {
+          radius = BorderRadius.all(full);
+        } else if (i == 0) {
+          radius = BorderRadius.only(topLeft: full, topRight: full,
+              bottomLeft: small, bottomRight: small);
+        } else if (i == total - 1) {
+          radius = BorderRadius.only(topLeft: small, topRight: small,
+              bottomLeft: full, bottomRight: full);
+        } else {
+          radius = BorderRadius.all(small);
+        }
+
+        final isLast = i == total - 1;
+
+        return Column(
+          children: [
+            ClipRRect(
+              borderRadius: radius,
+              child: Container(
+                color: bg,
+                child: GestureDetector(
+                  onTap: () => onTap(label),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 13),
+                    child: Row(children: [
+                      Icon(LucideIcons.clock3, size: 15, color: mutedColor),
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: Text(label,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400))),
+                      GestureDetector(
+                        onTap: () => onRemove(label),
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 6, 0, 6),
+                          child: Icon(LucideIcons.x,
+                              size: 13, color: mutedColor))),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+            if (!isLast)
+              Padding(
+                padding: const EdgeInsets.only(left: 40),
+                child: Divider(
+                    height: 0, thickness: 0.4, color: divColor)),
+          ],
+        );
+      }).toList(),
     );
   }
 }
@@ -281,145 +360,4 @@ class _Category {
   final String label;
   final Color color;
   const _Category({required this.label, required this.color});
-}
-
-// ─── Chip de cor (filtros horizontais) ───────────────────────────────────────
-
-class _ColorChip extends StatelessWidget {
-  final Color accent;
-  final Color bg;
-  const _ColorChip({required this.accent, required this.bg});
-
-  @override Widget build(BuildContext context) {
-    return Container(
-      width: 72,
-      margin: const EdgeInsets.only(right: 10),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(10)),
-      child: Center(
-        child: Container(
-          width: 26, height: 26,
-          decoration: BoxDecoration(
-            color: accent,
-            borderRadius: BorderRadius.circular(6)),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Cabeçalho de secção ──────────────────────────────────────────────────────
-
-class _SectionHeader extends StatelessWidget {
-  final String label;
-  final bool isDark;
-  final Color textColor;
-  final Widget? action;
-
-  const _SectionHeader({
-    required this.label,
-    required this.isDark,
-    required this.textColor,
-    this.action,
-  });
-
-  @override Widget build(BuildContext context) => Row(
-    children: [
-      Text(label.toUpperCase(),
-        style: TextStyle(
-          color: textColor,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.9)),
-      const Spacer(),
-      if (action != null) action!,
-    ],
-  );
-}
-
-// ─── Card agrupado com cantos redondos ────────────────────────────────────────
-
-class _GroupedCard extends StatelessWidget {
-  final Color bg;
-  final Color divColor;
-  final List<_CardRow> items;
-
-  const _GroupedCard({
-    required this.bg,
-    required this.divColor,
-    required this.items,
-  });
-
-  @override Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        color: bg,
-        child: Column(
-          children: items.asMap().entries.map((e) {
-            final isLast = e.key == items.length - 1;
-            final row = e.value;
-            return Column(
-              children: [
-                _RowTile(row: row),
-                if (!isLast)
-                  Divider(
-                    height: 0,
-                    thickness: 0.4,
-                    indent: 42,
-                    color: divColor),
-              ],
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Modelo de row ────────────────────────────────────────────────────────────
-
-class _CardRow {
-  final Widget leading;
-  final String label;
-  final Color labelColor;
-  final Widget trailing;
-  final VoidCallback onTap;
-
-  const _CardRow({
-    required this.leading,
-    required this.label,
-    required this.labelColor,
-    required this.trailing,
-    required this.onTap,
-  });
-}
-
-// ─── Row tile ─────────────────────────────────────────────────────────────────
-
-class _RowTile extends StatelessWidget {
-  final _CardRow row;
-  const _RowTile({required this.row});
-
-  @override Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: row.onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(children: [
-          row.leading,
-          const SizedBox(width: 11),
-          Expanded(
-            child: Text(row.label,
-              style: TextStyle(
-                color: row.labelColor,
-                fontSize: 14,
-                fontWeight: FontWeight.w400))),
-          row.trailing,
-        ]),
-      ),
-    );
-  }
 }
