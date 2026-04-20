@@ -58,9 +58,10 @@ class _SearchPageState extends State<SearchPage> {
         final topPad = MediaQuery.of(context).padding.top;
         final isDark = t.statusBar == Brightness.light;
 
-        final subColor  = isDark ? Colors.white38 : Colors.black38;
-        final rowBg     = isDark ? const Color(0xFF161616) : const Color(0xFFF5F5F5);
-        final divColor  = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE8E8E8);
+        // Superfície ligeiramente diferente do fundo para os cards agrupados
+        final cardBg  = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF0F0F0);
+        final divCol  = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0);
+        final mutedIc = isDark ? Colors.white30          : Colors.black26;
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle(
@@ -68,134 +69,106 @@ class _SearchPageState extends State<SearchPage> {
             statusBarIconBrightness: t.statusBar),
           child: Scaffold(
             backgroundColor: t.bg,
-            body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              SizedBox(height: topPad + 8),
+            body: ListView(
+              padding: EdgeInsets.only(
+                top: topPad + 8,
+                left: 16, right: 16,
+                bottom: 40),
+              children: [
 
-              // ── Título ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                child: Text('Pesquisa',
+                // ── Título ──
+                Text('Pesquisa',
                   style: TextStyle(
-                    color: t.text,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5)),
-              ),
+                    color: t.text, fontSize: 22,
+                    fontWeight: FontWeight.w800, letterSpacing: -0.5)),
 
-              // ── Input falso (intocável) ──
-              GestureDetector(
-                onTap: _goToInput,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? const Color(0xFF2A2A2A)
-                        : const Color(0xFFF2F2F2),
-                    borderRadius: BorderRadius.circular(10)),
-                  child: Row(children: [
-                    const SizedBox(width: 12),
-                    Icon(LucideIcons.search, size: 16, color: subColor),
-                    const SizedBox(width: 8),
-                    Text('Pesquisar...',
-                      style: TextStyle(
-                        color: subColor,
-                        fontSize: 15)),
-                  ]),
-                ),
-              ),
+                const SizedBox(height: 14),
 
-              const SizedBox(height: 28),
-
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-
-                    // ── Histórico ──
-                    if (_history.isNotEmpty) ...[
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                        child: Row(children: [
-                          Text('Recentes',
-                            style: TextStyle(
-                              color: t.textSecondary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.6)),
-                          const Spacer(),
-                          GestureDetector(
-                            onTap: _clearHistory,
-                            child: Text('Limpar tudo',
-                              style: TextStyle(
-                                color: AppTheme.ytRed,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500))),
-                        ]),
-                      ),
-
-                      Container(
-                        color: rowBg,
-                        child: Column(
-                          children: _history.asMap().entries.map((e) {
-                            final isLast = e.key == _history.length - 1;
-                            return _RowItem(
-                              label: e.value,
-                              leading: Icon(LucideIcons.clock3, size: 15, color: subColor),
-                              trailing: GestureDetector(
-                                onTap: () => _removeHistory(e.value),
-                                behavior: HitTestBehavior.opaque,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(4),
-                                  child: Icon(LucideIcons.x, size: 13, color: subColor),
-                                ),
-                              ),
-                              divColor: isLast ? Colors.transparent : divColor,
-                              textColor: t.text,
-                              onTap: () => _goSearch(e.value),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-
-                      const SizedBox(height: 28),
-                    ],
-
-                    // ── Tendências ──
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                      child: Text('Tendências',
+                // ── Input falso ──
+                GestureDetector(
+                  onTap: _goToInput,
+                  child: Container(
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF2A2A2A)
+                          : const Color(0xFFF2F2F2),
+                      borderRadius: BorderRadius.circular(10)),
+                    child: Row(children: [
+                      const SizedBox(width: 12),
+                      Icon(LucideIcons.search, size: 16,
+                          color: isDark ? Colors.white38 : Colors.black38),
+                      const SizedBox(width: 8),
+                      Text('Pesquisar...',
                         style: TextStyle(
-                          color: t.textSecondary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.6)),
-                    ),
-
-                    Container(
-                      color: rowBg,
-                      child: Column(
-                        children: _trending.asMap().entries.map((e) {
-                          final isLast = e.key == _trending.length - 1;
-                          return _RowItem(
-                            label: e.value,
-                            leading: Icon(LucideIcons.trendingUp, size: 15,
-                                color: AppTheme.ytRed),
-                            trailing: Icon(LucideIcons.arrowUpLeft, size: 13,
-                                color: subColor),
-                            divColor: isLast ? Colors.transparent : divColor,
-                            textColor: t.text,
-                            onTap: () => _goSearch(e.value),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 40),
-                  ],
+                          color: isDark ? Colors.white30 : Colors.black38,
+                          fontSize: 15)),
+                    ]),
+                  ),
                 ),
-              ),
-            ]),
+
+                const SizedBox(height: 28),
+
+                // ══ HISTÓRICO ══
+                if (_history.isNotEmpty) ...[
+                  _SectionHeader(
+                    label: 'Recentes',
+                    isDark: isDark,
+                    textColor: t.textSecondary,
+                    action: GestureDetector(
+                      onTap: _clearHistory,
+                      child: Text('Limpar',
+                        style: TextStyle(
+                          color: AppTheme.ytRed,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500))),
+                  ),
+                  const SizedBox(height: 6),
+                  _GroupedCard(
+                    bg: cardBg,
+                    divColor: divCol,
+                    items: _history.asMap().entries.map((e) {
+                      return _CardRow(
+                        leading: Icon(LucideIcons.clock3, size: 15, color: mutedIc),
+                        label: e.value,
+                        labelColor: t.text,
+                        trailing: GestureDetector(
+                          onTap: () => _removeHistory(e.value),
+                          behavior: HitTestBehavior.opaque,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 10, 0, 10),
+                            child: Icon(LucideIcons.x, size: 13, color: mutedIc))),
+                        onTap: () => _goSearch(e.value),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
+                // ══ TENDÊNCIAS ══
+                _SectionHeader(
+                  label: 'Tendências',
+                  isDark: isDark,
+                  textColor: t.textSecondary,
+                ),
+                const SizedBox(height: 6),
+                _GroupedCard(
+                  bg: cardBg,
+                  divColor: divCol,
+                  items: _trending.asMap().entries.map((e) {
+                    return _CardRow(
+                      leading: Icon(LucideIcons.trendingUp, size: 15,
+                          color: AppTheme.ytRed),
+                      label: e.value,
+                      labelColor: t.text,
+                      trailing: Icon(LucideIcons.arrowUpLeft, size: 13,
+                          color: mutedIc),
+                      onTap: () => _goSearch(e.value),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -203,53 +176,117 @@ class _SearchPageState extends State<SearchPage> {
   }
 }
 
-// ─── Row reutilizável ─────────────────────────────────────────────────────────
+// ─── Cabeçalho de secção ──────────────────────────────────────────────────────
 
-class _RowItem extends StatelessWidget {
+class _SectionHeader extends StatelessWidget {
   final String label;
-  final Widget leading;
-  final Widget trailing;
-  final Color divColor;
+  final bool isDark;
   final Color textColor;
-  final VoidCallback onTap;
+  final Widget? action;
 
-  const _RowItem({
+  const _SectionHeader({
     required this.label,
-    required this.leading,
-    required this.trailing,
-    required this.divColor,
+    required this.isDark,
     required this.textColor,
-    required this.onTap,
+    this.action,
+  });
+
+  @override Widget build(BuildContext context) => Row(
+    children: [
+      Text(label.toUpperCase(),
+        style: TextStyle(
+          color: textColor,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.9)),
+      const Spacer(),
+      if (action != null) action!,
+    ],
+  );
+}
+
+// ─── Card agrupado com cantos redondos ────────────────────────────────────────
+
+class _GroupedCard extends StatelessWidget {
+  final Color bg;
+  final Color divColor;
+  final List<_CardRow> items;
+
+  const _GroupedCard({
+    required this.bg,
+    required this.divColor,
+    required this.items,
   });
 
   @override Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        color: bg,
+        child: Column(
+          children: items.asMap().entries.map((e) {
+            final isLast = e.key == items.length - 1;
+            final row = e.value;
+            return Column(
+              children: [
+                _RowTile(row: row),
+                if (!isLast)
+                  Divider(
+                    height: 0,
+                    thickness: 0.4,
+                    // indent alinha com o texto (16 padding + 15 icon + 11 gap)
+                    indent: 42,
+                    color: divColor),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Modelo de row ────────────────────────────────────────────────────────────
+
+class _CardRow {
+  final Widget leading;
+  final String label;
+  final Color labelColor;
+  final Widget trailing;
+  final VoidCallback onTap;
+
+  const _CardRow({
+    required this.leading,
+    required this.label,
+    required this.labelColor,
+    required this.trailing,
+    required this.onTap,
+  });
+}
+
+// ─── Row tile ─────────────────────────────────────────────────────────────────
+
+class _RowTile extends StatelessWidget {
+  final _CardRow row;
+  const _RowTile({required this.row});
+
+  @override Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: row.onTap,
       behavior: HitTestBehavior.opaque,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-            child: Row(children: [
-              leading,
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(label,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400)),
-              ),
-              trailing,
-            ]),
-          ),
-          if (divColor != Colors.transparent)
-            Divider(
-              height: 0,
-              thickness: 0.5,
-              indent: 16 + 15 + 12, // alinha com o texto
-              color: divColor),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(children: [
+          row.leading,
+          const SizedBox(width: 11),
+          Expanded(
+            child: Text(row.label,
+              style: TextStyle(
+                color: row.labelColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w400))),
+          row.trailing,
+        ]),
       ),
     );
   }
