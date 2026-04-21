@@ -26,7 +26,6 @@ class _SearchPageState extends State<SearchPage> {
     _Category(label: 'MILF',          color: Color(0xFF1b4332)),
   ];
 
-  // Chips circulares: (cor outer fraca, cor inner forte)
   static const _colorChips = [
     (outer: Color(0xFFFFCDD2), inner: Color(0xFFE53935)),
     (outer: Color(0xFFFFF9C4), inner: Color(0xFFFDD835)),
@@ -95,7 +94,10 @@ class _SearchPageState extends State<SearchPage> {
                       style: TextStyle(
                         color: t.text, fontSize: 22,
                         fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                    Icon(LucideIcons.ellipsisVertical, color: t.text, size: 20),
+                    Builder(builder: (btnCtx) => GestureDetector(
+                      onTap: () => _showPopup(btnCtx, t, isDark),
+                      child: Icon(Icons.more_vert, color: t.text, size: 22),
+                    )),
                   ],
                 ),
 
@@ -140,18 +142,13 @@ class _SearchPageState extends State<SearchPage> {
                         width: 52, height: 52,
                         decoration: BoxDecoration(
                           color: chip.outer,
-                          shape: BoxShape.circle,
-                        ),
+                          shape: BoxShape.circle),
                         child: Center(
                           child: Container(
                             width: 28, height: 28,
                             decoration: BoxDecoration(
                               color: chip.inner,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      );
+                              shape: BoxShape.circle))));
                     },
                   ),
                 ),
@@ -174,8 +171,7 @@ class _SearchPageState extends State<SearchPage> {
                     crossAxisCount: 2,
                     crossAxisSpacing: 8,
                     mainAxisSpacing: 8,
-                    childAspectRatio: 1.45,
-                  ),
+                    childAspectRatio: 1.45),
                   itemBuilder: (_, i) {
                     final cat = _categories[i];
                     return GestureDetector(
@@ -196,9 +192,7 @@ class _SearchPageState extends State<SearchPage> {
                                     end: Alignment.topCenter,
                                     colors: [
                                       Colors.black.withOpacity(0.82),
-                                      Colors.transparent,
-                                    ]),
-                                ),
+                                      Colors.transparent])),
                               ),
                             ),
                             Positioned(
@@ -208,11 +202,8 @@ class _SearchPageState extends State<SearchPage> {
                                   color: Colors.white,
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w700,
-                                  shadows: [
-                                    Shadow(blurRadius: 4, color: Colors.black54)
-                                  ]),
-                              ),
-                            ),
+                                  shadows: [Shadow(blurRadius: 4,
+                                      color: Colors.black54)]))),
                           ],
                         ),
                       ),
@@ -222,7 +213,7 @@ class _SearchPageState extends State<SearchPage> {
 
                 const SizedBox(height: 28),
 
-                // ══ HISTÓRICO (iOS-style grouped rows) ══
+                // ══ HISTÓRICO ══
                 if (_history.isNotEmpty) ...[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -258,6 +249,39 @@ class _SearchPageState extends State<SearchPage> {
       },
     );
   }
+
+  void _showPopup(BuildContext btnCtx, dynamic t, bool isDark) async {
+    final popupBg = isDark ? const Color(0xFF2A2A2A) : Colors.white;
+    final textCol = isDark ? Colors.white : Colors.black87;
+
+    final RenderBox box     = btnCtx.findRenderObject() as RenderBox;
+    final RenderBox overlay = Navigator.of(btnCtx).overlay!.context
+        .findRenderObject() as RenderBox;
+    final RelativeRect pos  = RelativeRect.fromRect(
+      Rect.fromPoints(
+        box.localToGlobal(Offset.zero, ancestor: overlay),
+        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay)),
+      Offset.zero & overlay.size);
+
+    await showMenu<String>(
+      context: btnCtx,
+      position: pos,
+      color: popupBg,
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      items: [
+        PopupMenuItem(value: 'filmes',
+          height: 46,
+          child: Text('Filmes', style: TextStyle(color: textCol, fontSize: 14))),
+        PopupMenuItem(value: 'meus_videos',
+          height: 46,
+          child: Text('Meus vídeos', style: TextStyle(color: textCol, fontSize: 14))),
+        PopupMenuItem(value: 'shows',
+          height: 46,
+          child: Text('Shows', style: TextStyle(color: textCol, fontSize: 14))),
+      ],
+    );
+  }
 }
 
 // ─── Lista iOS-style com bordas por posição ───────────────────────────────────
@@ -284,30 +308,27 @@ class _IosGroupedList extends StatelessWidget {
   @override Widget build(BuildContext context) {
     return Column(
       children: items.asMap().entries.map((e) {
-        final i      = e.key;
-        final label  = e.value;
-        final total  = items.length;
-        final isOnly = total == 1;
+        final i       = e.key;
+        final label   = e.value;
+        final total   = items.length;
+        final isOnly  = total == 1;
+        final isFirst = i == 0;
+        final isLast  = i == total - 1;
 
-        // raios por posição
-        const full  = Radius.circular(12);
-        const small = Radius.circular(4);
-        const zero  = Radius.zero;
+        const big   = Radius.circular(12);
+        const small = Radius.circular(6);
 
-        BorderRadius radius;
-        if (isOnly) {
-          radius = BorderRadius.all(full);
-        } else if (i == 0) {
-          radius = BorderRadius.only(topLeft: full, topRight: full,
-              bottomLeft: small, bottomRight: small);
-        } else if (i == total - 1) {
-          radius = BorderRadius.only(topLeft: small, topRight: small,
-              bottomLeft: full, bottomRight: full);
-        } else {
-          radius = BorderRadius.all(small);
-        }
-
-        final isLast = i == total - 1;
+        final BorderRadius radius = isOnly
+            ? const BorderRadius.all(big)
+            : isFirst
+                ? const BorderRadius.only(
+                    topLeft: big,    topRight: big,
+                    bottomLeft: small, bottomRight: small)
+                : isLast
+                    ? const BorderRadius.only(
+                        topLeft: small,  topRight: small,
+                        bottomLeft: big, bottomRight: big)
+                    : const BorderRadius.all(small);
 
         return Column(
           children: [
@@ -345,8 +366,7 @@ class _IosGroupedList extends StatelessWidget {
             if (!isLast)
               Padding(
                 padding: const EdgeInsets.only(left: 40),
-                child: Divider(
-                    height: 0, thickness: 0.4, color: divColor)),
+                child: Divider(height: 0, thickness: 0.4, color: divColor)),
           ],
         );
       }).toList(),
