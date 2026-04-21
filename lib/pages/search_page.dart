@@ -1,15 +1,14 @@
-// search_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/site_model.dart';
+import '../widgets/site_icon_widget.dart';
 import '../theme/app_theme.dart';
 import '../services/theme_service.dart';
-import 'search_results_page.dart';
 import 'browser_page.dart';
-import '../models/site_model.dart';
+import 'search_results_page.dart';
 
 const kPrimaryColor = Color(0xFFFF9000);
 
@@ -24,7 +23,14 @@ class FreeBrowserPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BrowserPage(
-      site: SiteModel(id: 'free', name: title, baseUrl: url, allowedDomain: '', searchUrl: url, primaryColor: kPrimaryColor),
+      site: SiteModel(
+        id: 'free',
+        name: title,
+        baseUrl: url,
+        allowedDomain: '',
+        searchUrl: url,
+        primaryColor: kPrimaryColor,
+      ),
       freeNavigation: true,
     );
   }
@@ -41,12 +47,14 @@ class _SearchPageState extends State<SearchPage> {
   static const _kHistory = 'search_history_v3';
 
   static const _categories = [
-    _Category(label: 'Heterossexual', color: Color(0xFF1a1a2e)),
-    _Category(label: 'Homossexual', color: Color(0xFF16213e)),
-    _Category(label: 'Lésbicas', color: Color(0xFF0f3460)),
-    _Category(label: 'Anal', color: Color(0xFF533483)),
-    _Category(label: 'Amador', color: Color(0xFF2d6a4f)),
-    _Category(label: 'MILF', color: Color(0xFF1b4332)),
+    _Category(label: 'Heterossexual'),
+    _Category(label: 'Homossexual'),
+    _Category(label: 'Lésbicas'),
+    _Category(label: 'Anal'),
+    _Category(label: 'Amador'),
+    _Category(label: 'MILF'),
+    _Category(label: 'Teen'),
+    _Category(label: 'Hentai'),
   ];
 
   @override
@@ -74,172 +82,282 @@ class _SearchPageState extends State<SearchPage> {
     await p.remove(_kHistory);
   }
 
-  void _goSearch(String q) => Navigator.push(context, iosRoute(SearchResultsPage(query: q)));
+  void _goSearch(String q) {
+    Navigator.push(context, iosRoute(SearchResultsPage(query: q)));
+  }
+
+  void _goSearchPage() {
+    Navigator.push(context, iosRoute(const SearchResultsPage()));
+  }
 
   @override
   Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    final cardBg = ThemeService.instance.isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF0F0F0);
-    final mutedIc = ThemeService.instance.isDark ? Colors.white30 : Colors.black26;
+    final topPad = MediaQuery.of(context).padding.top;
 
-    return Scaffold(
-      backgroundColor: t.bg,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: t.bg,
-            elevation: 0,
-            title: GestureDetector(
-              onTap: () {},
-              child: Container(
-                height: 42,
-                decoration: BoxDecoration(
-                  color: ThemeService.instance.isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 12),
-                    Icon(LucideIcons.search, size: 16, color: ThemeService.instance.isDark ? Colors.white38 : Colors.black38),
-                    const SizedBox(width: 8),
-                    Text('Pesquisar...', style: TextStyle(color: ThemeService.instance.isDark ? Colors.white30 : Colors.black38, fontSize: 15)),
-                  ],
-                ),
-              ),
-            ),
+    return ListenableBuilder(
+      listenable: ThemeService.instance,
+      builder: (_, __) {
+        final t = AppTheme.current;
+        final isDark = ThemeService.instance.isDark;
+        final cardBg = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF0F0F0);
+        final mutedIc = isDark ? Colors.white30 : Colors.black26;
+
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: t.statusBar,
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 14),
-              child: SizedBox(
-                height: 90,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: kSites.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (_, i) {
-                    final site = kSites[i];
-                    return GestureDetector(
-                      onTap: () => Navigator.push(context, iosRoute(FreeBrowserPage(url: site.baseUrl, title: site.name))),
-                      child: Column(
+          child: Scaffold(
+            backgroundColor: t.bg,
+            body: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                // ── Status bar space + AppBar manual ──────────────────────────
+                Container(
+                  color: t.appBar,
+                  padding: EdgeInsets.only(
+                    top: topPad + 8,
+                    left: 12,
+                    right: 12,
+                    bottom: 10,
+                  ),
+                  child: GestureDetector(
+                    onTap: _goSearchPage,
+                    child: Container(
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF2A2A2A)
+                            : const Color(0xFFE8E8E8),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
                         children: [
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color: site.primaryColor,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(child: Text(site.name[0], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                          const SizedBox(width: 12),
+                          Icon(
+                            Icons.search,
+                            size: 18,
+                            color: isDark ? Colors.white38 : Colors.black38,
                           ),
-                          const SizedBox(height: 6),
-                          SizedBox(
-                            width: 52,
-                            child: Text(site.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: t.text, fontSize: 12, fontWeight: FontWeight.w500)),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Pesquisar...',
+                            style: TextStyle(
+                              color: isDark ? Colors.white30 : Colors.black38,
+                              fontSize: 15,
+                            ),
                           ),
                         ],
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 22, 16, 8),
-              child: Text('Categorias', style: TextStyle(color: t.text, fontSize: 17, fontWeight: FontWeight.w700)),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverGrid.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 1.45,
-              ),
-              itemCount: _categories.length,
-              itemBuilder: (_, i) {
-                final cat = _categories[i];
-                final imageUrl = [
-                  'https://picsum.photos/id/1015/200/200',
-                  'https://picsum.photos/id/1020/200/200',
-                  'https://picsum.photos/id/1033/200/200',
-                  'https://picsum.photos/id/1041/200/200',
-                  'https://picsum.photos/id/1050/200/200',
-                  'https://picsum.photos/id/1062/200/200',
-                ][i % 6];
 
-                return GestureDetector(
-                  onTap: () => _goSearch(cat.label),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.network(imageUrl, fit: BoxFit.cover),
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                const SizedBox(height: 16),
+
+                // ── Sites ─────────────────────────────────────────────────────
+                SizedBox(
+                  height: 88,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: kSites.length,
+                    itemBuilder: (_, i) => _SiteCell(
+                      site: kSites[i],
+                      onTap: () => Navigator.push(
+                        context,
+                        iosRoute(FreeBrowserPage(
+                          url: kSites[i].baseUrl,
+                          title: kSites[i].name,
+                        )),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 22),
+
+                // ── Categorias ────────────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: Text(
+                    'Categorias',
+                    style: TextStyle(
+                      color: t.text,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                      childAspectRatio: 1.55,
+                    ),
+                    itemCount: _categories.length,
+                    itemBuilder: (_, i) {
+                      final cat = _categories[i];
+                      return GestureDetector(
+                        onTap: () => _goSearch(cat.label),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            color: isDark
+                                ? const Color(0xFF1E1E1E)
+                                : const Color(0xFFEEEEEE),
+                            child: Center(
+                              child: Text(
+                                cat.label,
+                                style: TextStyle(
+                                  color: t.text,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                        Center(
-                          child: Text(cat.label,
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700, shadows: [Shadow(blurRadius: 4, color: Colors.black54)])),
+                      );
+                    },
+                  ),
+                ),
+
+                // ── Histórico ─────────────────────────────────────────────────
+                if (_history.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 28, 16, 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Histórico',
+                          style: TextStyle(
+                            color: t.text,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _clearHistory,
+                          child: Text(
+                            'Limpar',
+                            style: TextStyle(
+                              color: AppTheme.ytRed,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                );
-              },
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _IosGroupedList(
+                      bg: cardBg,
+                      mutedColor: mutedIc,
+                      textColor: t.text,
+                      items: _history,
+                      onTap: _goSearch,
+                      onRemove: _removeHistory,
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 24),
+              ],
             ),
           ),
-          if (_history.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 28, 16, 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Histórico', style: TextStyle(color: t.text, fontSize: 17, fontWeight: FontWeight.w700)),
-                    GestureDetector(onTap: _clearHistory, child: Text('Limpar', style: TextStyle(color: AppTheme.ytRed, fontSize: 14, fontWeight: FontWeight.w500))),
-                  ],
+        );
+      },
+    );
+  }
+}
+
+// ─── _SiteCell (idêntico ao home_page.dart) ───────────────────────────────────
+class _SiteCell extends StatefulWidget {
+  final SiteModel site;
+  final VoidCallback onTap;
+  const _SiteCell({required this.site, required this.onTap});
+
+  @override
+  State<_SiteCell> createState() => _SiteCellState();
+}
+
+class _SiteCellState extends State<_SiteCell>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _s;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 90),
+      reverseDuration: const Duration(milliseconds: 200),
+      lowerBound: 0,
+      upperBound: 1,
+    );
+    _s = Tween<double>(begin: 1.0, end: 0.86)
+        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const double iconSize = 52;
+    return GestureDetector(
+      onTapDown: (_) => _c.forward(),
+      onTapUp: (_) {
+        _c.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _c.reverse(),
+      child: AnimatedBuilder(
+        animation: _s,
+        builder: (_, child) => Transform.scale(scale: _s.value, child: child),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            SiteIconWidget(site: widget.site, size: iconSize, showShadow: true),
+            const SizedBox(height: 5),
+            SizedBox(
+              width: iconSize + 10,
+              child: Text(
+                widget.site.name,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppTheme.current.iconSub,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-          if (_history.isNotEmpty)
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverToBoxAdapter(
-                child: _IosGroupedList(
-                  bg: cardBg,
-                  mutedColor: mutedIc,
-                  textColor: t.text,
-                  items: _history,
-                  onTap: _goSearch,
-                  onRemove: _removeHistory,
-                ),
-              ),
-            ),
-        ],
+          ]),
+        ),
       ),
     );
   }
 }
 
+// ─── _IosGroupedList ──────────────────────────────────────────────────────────
 class _IosGroupedList extends StatelessWidget {
   final Color bg;
   final Color textColor;
@@ -275,9 +393,19 @@ class _IosGroupedList extends StatelessWidget {
         final BorderRadius radius = isOnly
             ? const BorderRadius.all(big)
             : isFirst
-                ? const BorderRadius.only(topLeft: big, topRight: big, bottomLeft: small, bottomRight: small)
+                ? const BorderRadius.only(
+                    topLeft: big,
+                    topRight: big,
+                    bottomLeft: small,
+                    bottomRight: small,
+                  )
                 : isLast
-                    ? const BorderRadius.only(topLeft: small, topRight: small, bottomLeft: big, bottomRight: big)
+                    ? const BorderRadius.only(
+                        topLeft: small,
+                        topRight: small,
+                        bottomLeft: big,
+                        bottomRight: big,
+                      )
                     : const BorderRadius.all(small);
 
         return Dismissible(
@@ -291,7 +419,7 @@ class _IosGroupedList extends StatelessWidget {
             child: const Icon(Icons.delete, color: Colors.white, size: 20),
           ),
           child: Padding(
-            padding: EdgeInsets.only(bottom: isLast ? 0 : 2), // CORRIGIDO: removido const
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 2),
             child: ClipRRect(
               borderRadius: radius,
               child: Container(
@@ -304,10 +432,17 @@ class _IosGroupedList extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     child: Row(
                       children: [
-                        Icon(LucideIcons.clock3, size: 16, color: mutedColor),
+                        Icon(Icons.access_time, size: 16, color: mutedColor),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Text(label, style: TextStyle(color: textColor, fontSize: 15, fontWeight: FontWeight.w400)),
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -322,8 +457,8 @@ class _IosGroupedList extends StatelessWidget {
   }
 }
 
+// ─── _Category ────────────────────────────────────────────────────────────────
 class _Category {
   final String label;
-  final Color color;
-  const _Category({required this.label, required this.color});
+  const _Category({required this.label});
 }
