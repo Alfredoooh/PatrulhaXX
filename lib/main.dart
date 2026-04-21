@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:lottie/lottie.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,7 +17,8 @@ const _ch = MethodChannel('com.patrulhaxx/secure');
 const _betaUrl = 'https://alfredoooh.github.io/database/beta.json';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -32,6 +34,8 @@ void main() async {
   FaviconService.instance.preloadAll();
 
   _applySecure(ThemeService.instance.noScreenshot);
+
+  FlutterNativeSplash.remove();
 
   runApp(const PatrulhaXXApp());
 }
@@ -76,6 +80,60 @@ class _BetaStatus {
   });
   factory _BetaStatus.expired() =>
       const _BetaStatus(expired: true, expiresAt: null, daysLeft: null);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _DotsLoader — três pontinhos pulsantes
+// ─────────────────────────────────────────────────────────────────────────────
+class _DotsLoader extends StatefulWidget {
+  const _DotsLoader();
+  @override
+  State<_DotsLoader> createState() => _DotsLoaderState();
+}
+
+class _DotsLoaderState extends State<_DotsLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            final delay = i * 0.25;
+            final t = ((_c.value - delay) % 1.0 + 1.0) % 1.0;
+            final opacity = t < 0.5
+                ? 0.2 + (t / 0.5) * 0.8
+                : 1.0 - ((t - 0.5) / 0.5) * 0.8;
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(opacity.clamp(0.2, 1.0)),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -137,7 +195,6 @@ class _AppTopToastState extends State<AppTopToast>
       top: topPad + 10 + _dragOffset.clamp(-200.0, 40.0),
       left: 16, right: 16,
       child: GestureDetector(
-        // Deslizar para cima dispensa o card
         onVerticalDragUpdate: (d) {
           if (d.delta.dy < 0) {
             setState(() => _dragOffset += d.delta.dy);
@@ -155,7 +212,6 @@ class _AppTopToastState extends State<AppTopToast>
           child: FadeTransition(
             opacity: _fade,
             child: Material(
-              // Material transparent elimina as linhas de divisão
               type: MaterialType.transparency,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(100),
@@ -178,7 +234,6 @@ class _AppTopToastState extends State<AppTopToast>
                       ],
                     ),
                     child: Row(children: [
-                      // Lottie — APENAS para password (sucesso/erro)
                       Container(
                         width: 38, height: 38,
                         decoration: const BoxDecoration(
@@ -336,16 +391,14 @@ class _BetaWarningToastState extends State<_BetaWarningToast>
                       ],
                     ),
                     child: Row(children: [
-                      // Ícone simples — sem Lottie
                       Container(
                         width: 38, height: 38,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF3E0),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFFF3E0),
                           shape: BoxShape.circle,
                         ),
                         child: const Center(
-                          child: Text('⏱',
-                              style: TextStyle(fontSize: 18)),
+                          child: Text('⏱', style: TextStyle(fontSize: 18)),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -435,8 +488,7 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
   bool _betaChecked = false;
   _BetaStatus? _beta;
 
-  // Toast beta de dias restantes (só ≤ 9 dias)
-  bool _showBetaToast    = false;
+  bool _showBetaToast      = false;
   bool _betaToastDismissed = false;
 
   DateTime? _pausedAt;
@@ -481,7 +533,6 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
     if (mounted) setState(() => _unlocked = false);
   }
 
-  // Só mostra aviso se ≤ 9 dias restantes
   bool get _shouldShowBetaWarning {
     if (_beta == null) return false;
     if (_beta!.expired) return false;
@@ -505,7 +556,6 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
         _unlocked = !lockEnabled;
         _checking = false;
       });
-      // Mostra aviso apenas se ≤ 9 dias e não foi dispensado
       if (!beta.expired &&
           beta.expiresAt != null &&
           !_betaToastDismissed &&
@@ -522,28 +572,21 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     if (_checking) {
       return const Scaffold(
-        backgroundColor: Color(0xFF0C0C0C),
-        body: Center(
-            child: SizedBox(
-                width: 24, height: 24,
-                child: CircularProgressIndicator(
-                    strokeWidth: 1.5, color: Colors.white24))),
+        backgroundColor: Color(0xFF0D0D0D),
+        body: Center(child: _DotsLoader()),
       );
     }
 
-    // Beta expirado
     if (_betaChecked && (_beta?.expired ?? false)) {
       return const _ExpiredScreen();
     }
 
-    // Lock screen
     if (!_unlocked) {
       return LockScreen(
         mode: LockMode.unlock,
         onUnlocked: () => setState(() {
           _unlocked = true;
           _lockEnabled = true;
-          // Mostra aviso beta após unlock se ≤ 9 dias e não foi dispensado
           if (_betaChecked &&
               !(_beta?.expired ?? true) &&
               _beta?.expiresAt != null &&
@@ -555,7 +598,6 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
       );
     }
 
-    // App com toast beta sobreposto (só se ≤ 9 dias)
     return Stack(children: [
       const HomePage(),
       if (_showBetaToast && !_betaToastDismissed && _shouldShowBetaWarning)
@@ -572,7 +614,7 @@ class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _ExpiredScreen — sem ícones, apenas texto + botão atualizar
+// _ExpiredScreen
 // ─────────────────────────────────────────────────────────────────────────────
 class _ExpiredScreen extends StatelessWidget {
   const _ExpiredScreen();
@@ -618,10 +660,7 @@ class _ExpiredScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: () {
-                        // Abre loja / link de actualização
-                        // url_launcher: launchUrl(Uri.parse('...'))
-                      },
+                      onPressed: () {},
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF111111),
                         foregroundColor: Colors.white,
