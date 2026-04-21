@@ -1,32 +1,65 @@
-// search_results_page.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:http/http.dart' as http;
 import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/feed_video_model.dart';
 import '../theme/app_theme.dart';
 import '../services/theme_service.dart';
 import 'home_page.dart' show iosRoute;
-import '../models/site_model.dart';
-import '../models/feed_video_model.dart';
 import 'browser_page.dart';
+import '../models/site_model.dart';
+import 'search_page.dart' show kSites, FreeBrowserPage;
 
-// Ícone back
-const _iBack = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23a1,1,0,0,0,1-1h0a1,1,0,0,0-1-1H2.55L6.17,7.38A1,1,0,0,0,6.17,6h0A1,1,0,0,0,4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/></svg>';
+const _iBack =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<path d="M.88,14.09,4.75,18a1,1,0,0,0,1.42,0h0a1,1,0,0,0,0-1.42L2.61,13H23'
+    'a1,1,0,0,0,1-1h0a1,1,0,0,0-1-1H2.55L6.17,7.38A1,1,0,0,0,6.17,6h0A1,1,0,0,0,'
+    '4.75,6L.88,9.85A3,3,0,0,0,.88,14.09Z"/></svg>';
 
-// Enum tabs
+const _ddgCss = '''
+(function() {
+  if (window.__ddgCssInjected) return;
+  window.__ddgCssInjected = true;
+  const s = document.createElement('style');
+  s.textContent = `
+    #header_wrapper, #header, .header--aside,
+    .js-header-wrapper, .nav-menu, #duckbar,
+    [class*="Header"], [id*="header"] { display: none !important; }
+    ::-webkit-scrollbar { display: none !important; width: 0 !important; }
+  `;
+  document.head.appendChild(s);
+})();
+''';
+
 enum _WebTab { tudo, imagens, videos }
 
-// Plataformas multi-vídeo (excluindo Xvideos)
-final kVideoSites = <SiteModel>[
-  SiteModel(id: 'pornhub', name: 'Pornhub', baseUrl: 'https://www.pornhub.com', allowedDomain: 'pornhub.com', searchUrl: 'https://www.pornhub.com/video/search?search=', primaryColor: const Color(0xFFFF9000)),
-  SiteModel(id: 'redtube', name: 'RedTube', baseUrl: 'https://www.redtube.com', allowedDomain: 'redtube.com', searchUrl: 'https://www.redtube.com/?search=', primaryColor: const Color(0xFFD40000)),
-  SiteModel(id: 'youporn', name: 'YouPorn', baseUrl: 'https://www.youporn.com', allowedDomain: 'youporn.com', searchUrl: 'https://www.youporn.com/search/video/?query=', primaryColor: const Color(0xFF0D0D0D)),
-];
+extension _WebTabX on _WebTab {
+  String get label {
+    switch (this) {
+      case _WebTab.tudo:    return 'Tudo';
+      case _WebTab.imagens: return 'Imagens';
+      case _WebTab.videos:  return 'Vídeos';
+    }
+  }
 
-// Página principal de resultados de pesquisa
+  String url(String q) {
+    final enc = Uri.encodeComponent(q);
+    switch (this) {
+      case _WebTab.tudo:
+        return 'https://duckduckgo.com/?q=$enc&kp=-2&kav=1&ia=web&kaj=m';
+      case _WebTab.imagens:
+        return 'https://duckduckgo.com/?q=$enc&kp=-2&kav=1&iax=images&ia=images&kaj=m';
+      case _WebTab.videos:
+        // não usado directamente — o tab de vídeos mostra cards nativos
+        return '';
+    }
+  }
+}
+
 class SearchResultsPage extends StatefulWidget {
   final void Function(FeedVideo)? onVideoTap;
   final String? query;
@@ -41,20 +74,23 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   late final TextEditingController _q;
   final _focus = FocusNode();
 
-  bool _searching = false;
+  bool _searching    = false;
   bool _editingQuery = false;
 
   List<String> _suggestions = [];
-  List<String> _history = [];
+  List<String> _history     = [];
   static const _kHistory = 'search_history_v3';
 
   _WebTab _activeTab = _WebTab.tudo;
 
-  final Map<_WebTab, InAppWebViewController?> _webCtrls = {for (final t in _WebTab.values) t: null};
-  final Map<_WebTab, bool> _webLoading = {for (final t in _WebTab.values) t: false};
+  final Map<_WebTab, InAppWebViewController?> _webCtrls = {
+    for (final t in _WebTab.values) t: null,
+  };
+  final Map<_WebTab, bool> _webLoading = {
+    for (final t in _WebTab.values) t: false,
+  };
 
-  @override
-  void initState() {
+  @override void initState() {
     super.initState();
     _q = TextEditingController(text: widget.query ?? '');
     _q.addListener(_onTyping);
@@ -64,8 +100,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     }
   }
 
-  @override
-  void dispose() {
+  @override void dispose() {
     _q.removeListener(_onTyping);
     _q.dispose();
     _focus.dispose();
@@ -79,8 +114,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
   Future<void> _saveHistory(String q) async {
     if (q.isEmpty) return;
-    _history.remove(q);
-    _history.insert(0, q);
+    _history.remove(q); _history.insert(0, q);
     if (_history.length > 20) _history = _history.sublist(0, 20);
     setState(() {});
     final p = await SharedPreferences.getInstance();
@@ -88,15 +122,13 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   }
 
   Future<void> _removeHistory(String q) async {
-    _history.remove(q);
-    setState(() {});
+    _history.remove(q); setState(() {});
     final p = await SharedPreferences.getInstance();
     await p.setStringList(_kHistory, _history);
   }
 
   Future<void> _clearHistory() async {
-    _history.clear();
-    setState(() {});
+    _history.clear(); setState(() {});
     final p = await SharedPreferences.getInstance();
     await p.remove(_kHistory);
   }
@@ -110,11 +142,13 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
   Future<void> _fetchSuggestions(String q) async {
     try {
-      final uri = Uri.parse('https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${Uri.encodeComponent(q)}');
+      final uri = Uri.parse(
+          'https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${Uri.encodeComponent(q)}');
       final r = await http.get(uri).timeout(const Duration(seconds: 4));
       if (!mounted) return;
       final data = jsonDecode(r.body);
-      setState(() => _suggestions = (data[1] as List).map((e) => e.toString()).take(7).toList());
+      setState(() => _suggestions =
+          (data[1] as List).map((e) => e.toString()).take(7).toList());
     } catch (_) {}
   }
 
@@ -126,11 +160,19 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     await _saveHistory(q);
 
     setState(() {
-      _searching = true;
+      _searching    = true;
       _editingQuery = false;
-      _suggestions = [];
-      _activeTab = _WebTab.tudo;
+      _suggestions  = [];
+      _activeTab    = _WebTab.tudo;
     });
+
+    // Carrega tudo e imagens via WebView; vídeos são cards nativos
+    for (final tab in [_WebTab.tudo, _WebTab.imagens]) {
+      final ctrl = _webCtrls[tab];
+      if (ctrl != null) {
+        ctrl.loadUrl(urlRequest: URLRequest(url: WebUri(tab.url(q))));
+      }
+    }
   }
 
   void _activateEditing() {
@@ -143,145 +185,371 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   void _clearSearch() {
     _q.clear();
     setState(() {
-      _searching = false;
+      _searching    = false;
       _editingQuery = false;
-      _suggestions = [];
+      _suggestions  = [];
     });
     _focus.requestFocus();
   }
 
   Future<bool> _onWillPop() async {
+    if (_searching && _activeTab != _WebTab.videos) {
+      final ctrl = _webCtrls[_activeTab];
+      if (ctrl != null && await ctrl.canGoBack()) {
+        await ctrl.goBack();
+        return false;
+      }
+    }
     return true;
   }
 
   void _goBack() => Navigator.pop(context);
 
-  @override
-  Widget build(BuildContext context) {
+  void _switchTab(_WebTab tab) {
+    if (_activeTab == tab) return;
+    setState(() => _activeTab = tab);
+  }
+
+  @override Widget build(BuildContext context) {
     super.build(context);
-    final t = AppTheme.current;
     final topPad = MediaQuery.of(context).padding.top;
-    final isDark = t.statusBar == Brightness.light;
-    final showEditable = !_searching || _editingQuery;
 
     return WillPopScope(
       onWillPop: _onWillPop,
-      child: Scaffold(
-        backgroundColor: t.bg,
-        body: Column(
-          children: [
+      child: ListenableBuilder(
+        listenable: ThemeService.instance,
+        builder: (_, __) {
+          final t          = AppTheme.current;
+          final isDark     = t.statusBar == Brightness.light;
+          final showEditable = !_searching || _editingQuery;
 
-            // AppBar fixo
-            Container(
-              color: t.appBar,
-              child: Column(children: [
-                SizedBox(height: topPad),
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Row(children: [
-                    GestureDetector(
-                      onTap: _goBack,
-                      behavior: HitTestBehavior.opaque,
-                      child: SvgPicture.string(_iBack, width: 20, height: 20, colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn)),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: !showEditable ? _activateEditing : null,
-                        child: Container(
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEFEFEF),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+          return AnnotatedRegion<SystemUiOverlayStyle>(
+            value: SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: t.statusBar),
+            child: Scaffold(
+              backgroundColor: t.bg,
+              // Sem border implícita no Scaffold
+              resizeToAvoidBottomInset: false,
+              body: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+
+                  // ── AppBar ────────────────────────────────────────────────────
+                  Container(
+                    color: t.appBar,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(height: topPad),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
                           child: Row(children: [
-                            const SizedBox(width: 10),
-                            Icon(LucideIcons.search, size: 16, color: isDark ? Colors.white38 : Colors.black38),
-                            const SizedBox(width: 7),
-                            if (!showEditable)
-                              Text(_q.text, style: TextStyle(color: t.inputText, fontSize: 14))
-                            else
-                              Expanded(
-                                child: TextField(
-                                  controller: _q,
-                                  focusNode: _focus,
-                                  autofocus: !_searching,
-                                  style: TextStyle(color: t.inputText, fontSize: 14),
-                                  textInputAction: TextInputAction.search,
-                                  cursorColor: AppTheme.ytRed,
-                                  onSubmitted: (_) {},
-                                  decoration: const InputDecoration(border: InputBorder.none, hintText: 'Pesquisar...', isDense: true, contentPadding: EdgeInsets.symmetric(vertical: 10)),
+
+                            // Back
+                            GestureDetector(
+                              onTap: _goBack,
+                              behavior: HitTestBehavior.opaque,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 8),
+                                child: SvgPicture.string(_iBack,
+                                    width: 20, height: 20,
+                                    colorFilter: ColorFilter.mode(
+                                        t.icon, BlendMode.srcIn)),
+                              ),
+                            ),
+
+                            // Input
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: !showEditable ? _activateEditing : null,
+                                child: Container(
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? const Color(0xFF2A2A2A)
+                                        : const Color(0xFFEFEFEF),
+                                    borderRadius: BorderRadius.circular(10)),
+                                  child: Row(children: [
+                                    const SizedBox(width: 10),
+                                    Icon(LucideIcons.search, size: 16,
+                                        color: isDark
+                                            ? Colors.white38
+                                            : Colors.black38),
+                                    const SizedBox(width: 7),
+                                    if (!showEditable)
+                                      Expanded(
+                                        child: Text(_q.text,
+                                          style: TextStyle(
+                                              color: t.inputText, fontSize: 14),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis))
+                                    else
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _q,
+                                          focusNode: _focus,
+                                          autofocus: !_searching,
+                                          style: TextStyle(
+                                              color: t.inputText, fontSize: 14),
+                                          textInputAction: TextInputAction.search,
+                                          cursorColor: AppTheme.ytRed,
+                                          cursorWidth: 1.5,
+                                          onSubmitted: _doSearch,
+                                          decoration: InputDecoration(
+                                            border: InputBorder.none,
+                                            hintText: 'Pesquisar...',
+                                            hintStyle: TextStyle(
+                                                color: isDark
+                                                    ? Colors.white30
+                                                    : Colors.black38,
+                                                fontSize: 14),
+                                            isDense: true,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    vertical: 10)),
+                                        )),
+                                    if (_q.text.isNotEmpty && showEditable)
+                                      GestureDetector(
+                                        onTap: _clearSearch,
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(right: 8),
+                                          child: Icon(LucideIcons.x,
+                                              size: 15,
+                                              color: isDark
+                                                  ? Colors.white54
+                                                  : Colors.black38)))
+                                    else
+                                      const SizedBox(width: 8),
+                                  ]),
                                 ),
                               ),
+                            ),
                           ]),
                         ),
-                      ),
-                    ),
-                  ]),
-                ),
-                Divider(height: 1, color: t.divider),
-              ]),
-            ),
 
-            // Corpo
-            Expanded(
-              child: showEditable
-                  ? _HistorySuggestionsView(
-                      history: _history,
-                      onSelect: (q) => Navigator.push(context, iosRoute(FreeBrowserPage(url: 'https://duckduckgo.com/?q=$q', title: q))),
-                      onRemove: _removeHistory,
-                      onClear: _clearHistory,
-                    )
-                  : _VideoCardsView(
-                      sites: kVideoSites,
-                      onTap: (site) => Navigator.push(context, iosRoute(FreeBrowserPage(url: site.baseUrl, title: site.name))),
+                        // ── Tabs ──────────────────────────────────────────────────
+                        if (_searching && !_editingQuery)
+                          SizedBox(
+                            height: 34,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                              children: _WebTab.values.map((tab) {
+                                final active = _activeTab == tab;
+                                return GestureDetector(
+                                  onTap: () => _switchTab(tab),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    margin: const EdgeInsets.only(right: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12),
+                                    decoration: BoxDecoration(
+                                      color: active
+                                          ? (isDark ? Colors.white : Colors.black)
+                                          : (isDark
+                                              ? const Color(0xFF2A2A2A)
+                                              : const Color(0xFFEEEEEE)),
+                                      borderRadius: BorderRadius.circular(6)),
+                                    alignment: Alignment.center,
+                                    child: AnimatedDefaultTextStyle(
+                                      duration: const Duration(milliseconds: 180),
+                                      style: TextStyle(
+                                        color: active
+                                            ? (isDark ? Colors.black : Colors.white)
+                                            : (isDark
+                                                ? Colors.white70
+                                                : Colors.black54),
+                                        fontSize: 12,
+                                        fontWeight: active
+                                            ? FontWeight.w700
+                                            : FontWeight.w500),
+                                      child: Text(tab.label))));
+                              }).toList(),
+                            ),
+                          ),
+
+                        Divider(height: 1, thickness: 1, color: t.divider),
+                      ],
                     ),
+                  ),
+
+                  // ── Corpo ─────────────────────────────────────────────────────
+                  Expanded(
+                    child: showEditable
+                        ? _SuggestionsView(
+                            query: _q.text.trim(),
+                            history: _history,
+                            suggestions: _suggestions,
+                            textColor: t.text,
+                            subColor: t.textSecondary,
+                            divColor: t.divider,
+                            onSelect: _doSearch,
+                            onFill: (q) {
+                              _q.text = q;
+                              _q.selection = TextSelection.collapsed(
+                                  offset: q.length);
+                            },
+                            onRemoveHistory: _removeHistory,
+                            onClearHistory: _clearHistory,
+                          )
+                        : _buildBody(isDark, t),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          );
+        },
       ),
+    );
+  }
+
+  Widget _buildBody(bool isDark, dynamic t) {
+    if (_activeTab == _WebTab.videos) {
+      return _VideoPlatformsView(
+        query: _q.text.trim(),
+        isDark: isDark,
+        textColor: t.text,
+        subColor: t.textSecondary,
+        cardBg: isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF0F0F0),
+      );
+    }
+    return _buildWebViews(isDark);
+  }
+
+  Widget _buildWebViews(bool isDark) {
+    return Stack(
+      children: [_WebTab.tudo, _WebTab.imagens].map((tab) => Offstage(
+        offstage: tab != _activeTab,
+        child: _WebPane(
+          key: ValueKey(tab),
+          tab: tab,
+          query: _q.text.trim(),
+          isDark: isDark,
+          loading: _webLoading[tab] ?? false,
+          onCreated: (ctrl) => _webCtrls[tab] = ctrl,
+          onLoadStart: () {
+            if (mounted) setState(() => _webLoading[tab] = true);
+          },
+          onLoadStop: (ctrl) async {
+            await ctrl.evaluateJavascript(source: _ddgCss);
+            if (mounted) setState(() => _webLoading[tab] = false);
+          },
+        ),
+      )).toList(),
     );
   }
 }
 
-// Histórico com cards maiores, swipe para remover
-class _HistorySuggestionsView extends StatelessWidget {
-  final List<String> history;
-  final void Function(String) onSelect;
-  final void Function(String) onRemove;
-  final VoidCallback onClear;
-  const _HistorySuggestionsView({required this.history, required this.onSelect, required this.onRemove, required this.onClear});
+// ─── Tab Vídeos — cards nativos por plataforma ────────────────────────────────
+
+class _VideoPlatformsView extends StatelessWidget {
+  final String query;
+  final bool isDark;
+  final Color textColor;
+  final Color subColor;
+  final Color cardBg;
+
+  const _VideoPlatformsView({
+    required this.query,
+    required this.isDark,
+    required this.textColor,
+    required this.subColor,
+    required this.cardBg,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (history.isEmpty) return const SizedBox.shrink();
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: history.length,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      itemCount: kSites.length,
       itemBuilder: (_, i) {
-        final item = history[i];
-        return Dismissible(
-          key: ValueKey(item),
-          direction: DismissDirection.endToStart,
-          onDismissed: (_) => onRemove(item),
-          background: Container(color: Colors.red, alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 16), child: const Icon(Icons.delete, color: Colors.white)),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Container(
-              height: 56,
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: AppTheme.current.cardBg),
-              child: InkWell(
-                onTap: () => onSelect(item),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Row(
-                    children: [
-                      Icon(LucideIcons.clock3, size: 16, color: AppTheme.current.iconSub),
-                      const SizedBox(width: 12),
-                      Expanded(child: Text(item, style: TextStyle(color: AppTheme.current.text, fontSize: 15))),
-                    ],
-                  ),
+        final site = kSites[i];
+        final searchUrl = query.isNotEmpty
+            ? '${site.searchUrl}${Uri.encodeComponent(query)}'
+            : site.baseUrl;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              iosRoute(BrowserPage(
+                site: SiteModel(
+                  id: site.id,
+                  name: site.name,
+                  baseUrl: searchUrl,
+                  allowedDomain: site.allowedDomain,
+                  searchUrl: site.searchUrl,
+                  primaryColor: site.primaryColor,
                 ),
+                freeNavigation: true,
+              )),
+            ),
+            child: Container(
+              height: 62,
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                children: [
+                  // Ícone da plataforma
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: site.primaryColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      site.name[0],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  // Nome + descrição
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          site.name,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          query.isNotEmpty
+                              ? 'Pesquisar "$query"'
+                              : 'Abrir ${site.name}',
+                          style: TextStyle(
+                            color: subColor,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    LucideIcons.externalLink,
+                    size: 16,
+                    color: subColor,
+                  ),
+                ],
               ),
             ),
           ),
@@ -291,43 +559,233 @@ class _HistorySuggestionsView extends StatelessWidget {
   }
 }
 
-// Grid de vídeos multi-plataforma
-class _VideoCardsView extends StatelessWidget {
-  final List<SiteModel> sites;
-  final void Function(SiteModel) onTap;
-  const _VideoCardsView({required this.sites, required this.onTap});
+// ─── WebPane ──────────────────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: sites.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 8, crossAxisSpacing: 8, childAspectRatio: 1.1),
-      itemBuilder: (_, i) {
-        final site = sites[i];
-        return InkWell(
-          onTap: () => onTap(site),
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            decoration: BoxDecoration(color: site.primaryColor, borderRadius: BorderRadius.circular(10)),
-            child: Center(child: Text(site.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+class _WebPane extends StatelessWidget {
+  final _WebTab tab;
+  final String query;
+  final bool isDark, loading;
+  final void Function(InAppWebViewController) onCreated;
+  final VoidCallback onLoadStart;
+  final void Function(InAppWebViewController) onLoadStop;
+
+  const _WebPane({
+    super.key,
+    required this.tab,
+    required this.query,
+    required this.isDark,
+    required this.loading,
+    required this.onCreated,
+    required this.onLoadStart,
+    required this.onLoadStop,
+  });
+
+  @override Widget build(BuildContext context) {
+    return Stack(children: [
+      InAppWebView(
+        initialUrlRequest: URLRequest(url: WebUri(tab.url(query))),
+        initialSettings: InAppWebViewSettings(
+          javaScriptEnabled: true,
+          userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
+              'AppleWebKit/537.36 (KHTML, like Gecko) '
+              'Chrome/124.0.0.0 Mobile Safari/537.36',
+          transparentBackground: false,
+          supportZoom: false,
+          verticalScrollBarEnabled: false,
+          horizontalScrollBarEnabled: false,
+        ),
+        onWebViewCreated: onCreated,
+        onLoadStart: (_, __) => onLoadStart(),
+        onLoadStop: (ctrl, __) => onLoadStop(ctrl),
+        onReceivedError: (_, __, ___) {
+          if (loading) onLoadStart();
+        },
+        // Abre todos os links dentro do próprio WebView (browser interno)
+        shouldOverrideUrlLoading: (ctrl, action) async {
+          await ctrl.loadUrl(urlRequest: action.request);
+          return NavigationActionPolicy.CANCEL;
+        },
+      ),
+
+      if (loading)
+        Positioned(
+          top: 0, left: 0, right: 0,
+          child: LinearProgressIndicator(
+            backgroundColor: Colors.transparent,
+            color: AppTheme.ytRed,
+            minHeight: 2)),
+    ]);
+  }
+}
+
+// ─── SuggestionsView ──────────────────────────────────────────────────────────
+
+class _SuggestionsView extends StatelessWidget {
+  final String query;
+  final List<String> history, suggestions;
+  final Color textColor, subColor, divColor;
+  final void Function(String) onSelect, onFill, onRemoveHistory;
+  final VoidCallback onClearHistory;
+
+  const _SuggestionsView({
+    required this.query, required this.history, required this.suggestions,
+    required this.textColor, required this.subColor, required this.divColor,
+    required this.onSelect, required this.onFill,
+    required this.onRemoveHistory, required this.onClearHistory,
+  });
+
+  @override Widget build(BuildContext context) {
+    final showSuggestions = query.length >= 2 && suggestions.isNotEmpty;
+    final items = showSuggestions ? suggestions : history;
+
+    if (items.isEmpty) {
+      return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(LucideIcons.search,
+            color: subColor.withOpacity(0.25), size: 48),
+        const SizedBox(height: 14),
+        Text('Pesquisa algo',
+            style: TextStyle(color: subColor, fontSize: 14)),
+      ]));
+    }
+
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        if (!showSuggestions && history.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 8, 4),
+            child: Row(children: [
+              Text('Pesquisas recentes',
+                  style: TextStyle(color: subColor,
+                      fontSize: 12, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              TextButton(
+                onPressed: onClearHistory,
+                child: Text('Limpar tudo',
+                    style: TextStyle(color: AppTheme.ytRed,
+                        fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+            ]),
           ),
-        );
-      },
+        ...items.map((item) => Column(children: [
+          InkWell(
+            onTap: () => onSelect(item),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 14),
+              child: Row(children: [
+                Icon(
+                  showSuggestions ? LucideIcons.search : LucideIcons.clock3,
+                  color: subColor, size: 17),
+                const SizedBox(width: 14),
+                Expanded(child: Text(item,
+                    style: TextStyle(color: textColor, fontSize: 14.5))),
+                GestureDetector(
+                  onTap: () => showSuggestions
+                      ? onFill(item) : onRemoveHistory(item),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: Icon(
+                      showSuggestions
+                          ? LucideIcons.arrowUpLeft
+                          : LucideIcons.x,
+                      color: subColor, size: 16)),
+                ),
+              ]),
+            ),
+          ),
+          Divider(height: 1, color: divColor, indent: 47),
+        ])),
+      ],
     );
   }
 }
 
-// Navegador interno do app
-class FreeBrowserPage extends StatelessWidget {
-  final String url, title;
-  const FreeBrowserPage({super.key, required this.url, required this.title});
+// ─── Histórico iOS-style (igual ao search_page.dart) ─────────────────────────
+
+class _IosGroupedList extends StatelessWidget {
+  final Color bg;
+  final Color textColor;
+  final Color mutedColor;
+  final List<String> items;
+  final ValueChanged<String> onTap;
+  final ValueChanged<String> onRemove;
+
+  const _IosGroupedList({
+    required this.bg,
+    required this.textColor,
+    required this.mutedColor,
+    required this.items,
+    required this.onTap,
+    required this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return BrowserPage(
-      site: SiteModel(id: 'free', name: title, baseUrl: url, allowedDomain: '', searchUrl: url, primaryColor: AppTheme.ytRed),
-      freeNavigation: true,
+    final total = items.length;
+
+    return Column(
+      children: items.asMap().entries.map((e) {
+        final i = e.key;
+        final label = e.value;
+        final isOnly = total == 1;
+        final isFirst = i == 0;
+        final isLast = i == total - 1;
+
+        const big = Radius.circular(12);
+        const small = Radius.circular(6);
+
+        final BorderRadius radius = isOnly
+            ? const BorderRadius.all(big)
+            : isFirst
+                ? const BorderRadius.only(topLeft: big, topRight: big, bottomLeft: small, bottomRight: small)
+                : isLast
+                    ? const BorderRadius.only(topLeft: small, topRight: small, bottomLeft: big, bottomRight: big)
+                    : const BorderRadius.all(small);
+
+        return Dismissible(
+          key: ValueKey(label),
+          direction: DismissDirection.endToStart,
+          onDismissed: (_) => onRemove(label),
+          background: Container(
+            color: Colors.red,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 16),
+            child: const Icon(Icons.delete, color: Colors.white, size: 20),
+          ),
+          child: Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 2),
+            child: ClipRRect(
+              borderRadius: radius,
+              child: Container(
+                color: bg,
+                height: 58,
+                child: GestureDetector(
+                  onTap: () => onTap(label),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Row(
+                      children: [
+                        Icon(LucideIcons.clock3, size: 16, color: mutedColor),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(label, style: TextStyle(
+                            color: textColor,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
+                          )),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
