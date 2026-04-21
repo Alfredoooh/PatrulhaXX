@@ -17,17 +17,6 @@ Route<T> iosRoute<T>(Widget page) {
   return CupertinoPageRoute<T>(builder: (_) => page);
 }
 
-// Sites web
-final kSites = <SiteModel>[
-  SiteModel(id: 'pornhub', name: 'Pornhub', baseUrl: 'https://www.pornhub.com', allowedDomain: 'pornhub.com', searchUrl: 'https://www.pornhub.com/video/search?search=', primaryColor: const Color(0xFFFF9000)),
-  SiteModel(id: 'xvideos', name: 'XVideos', baseUrl: 'https://www.xvideos.com', allowedDomain: 'xvideos.com', searchUrl: 'https://www.xvideos.com/?k=', primaryColor: const Color(0xFF1A1A1A)),
-  SiteModel(id: 'xhamster', name: 'xHamster', baseUrl: 'https://xhamster.com', allowedDomain: 'xhamster.com', searchUrl: 'https://xhamster.com/search/', primaryColor: const Color(0xFFE8630A)),
-  SiteModel(id: 'redtube', name: 'RedTube', baseUrl: 'https://www.redtube.com', allowedDomain: 'redtube.com', searchUrl: 'https://www.redtube.com/?search=', primaryColor: const Color(0xFFD40000)),
-  SiteModel(id: 'youporn', name: 'YouPorn', baseUrl: 'https://www.youporn.com', allowedDomain: 'youporn.com', searchUrl: 'https://www.youporn.com/search/video/?query=', primaryColor: const Color(0xFF0D0D0D)),
-  SiteModel(id: 'spankbang', name: 'SpankBang', baseUrl: 'https://spankbang.com', allowedDomain: 'spankbang.com', searchUrl: 'https://spankbang.com/s/', primaryColor: const Color(0xFFE3272D)),
-];
-
-// Página de browser genérica
 class FreeBrowserPage extends StatelessWidget {
   final String url, title;
   const FreeBrowserPage({super.key, required this.url, required this.title});
@@ -251,7 +240,6 @@ class _SearchPageState extends State<SearchPage> {
   }
 }
 
-// Histórico com swipe para remover, apenas ícone de relógio
 class _IosGroupedList extends StatelessWidget {
   final Color bg;
   final Color textColor;
@@ -296,9 +284,14 @@ class _IosGroupedList extends StatelessWidget {
           key: ValueKey(label),
           direction: DismissDirection.endToStart,
           onDismissed: (_) => onRemove(label),
-          background: Container(color: Colors.red, alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 16), child: const Icon(Icons.delete, color: Colors.white, size: 20)),
+          background: Container(
+            color: Colors.red,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 16),
+            child: const Icon(Icons.delete, color: Colors.white, size: 20),
+          ),
           child: Padding(
-            padding: const EdgeInsets.only(bottom: i == total - 1 ? 0 : 2),
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 2), // CORRIGIDO: removido const
             child: ClipRRect(
               borderRadius: radius,
               child: Container(
