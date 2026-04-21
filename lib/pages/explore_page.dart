@@ -160,21 +160,18 @@ class _ExplorePageState extends State<ExplorePage>
     ));
   }
 
-  void _showPopup(BuildContext btnCtx) async {
-    final t      = AppTheme.current;
-    final isDark = t.statusBar == Brightness.light;
-    final popupBg = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFFFFFFF);
-    final textCol = isDark ? Colors.white            : Colors.black87;
+  void _showPopup(BuildContext btnCtx, bool isDark) async {
+    final popupBg = isDark ? const Color(0xFF2A2A2A) : Colors.white;
+    final textCol = isDark ? Colors.white : Colors.black87;
 
     final RenderBox box     = btnCtx.findRenderObject() as RenderBox;
-    final RenderBox overlay = Navigator.of(btnCtx).overlay!.context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Navigator.of(btnCtx).overlay!.context
+        .findRenderObject() as RenderBox;
     final RelativeRect pos  = RelativeRect.fromRect(
       Rect.fromPoints(
         box.localToGlobal(Offset.zero, ancestor: overlay),
-        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay),
-      ),
-      Offset.zero & overlay.size,
-    );
+        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay)),
+      Offset.zero & overlay.size);
 
     await showMenu<String>(
       context: btnCtx,
@@ -183,9 +180,15 @@ class _ExplorePageState extends State<ExplorePage>
       elevation: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       items: [
-        PopupMenuItem(value: 'filmes',      height: 46, child: Text('Filmes',      style: TextStyle(color: textCol, fontSize: 14))),
-        PopupMenuItem(value: 'meus_videos', height: 46, child: Text('Meus vídeos', style: TextStyle(color: textCol, fontSize: 14))),
-        PopupMenuItem(value: 'shows',       height: 46, child: Text('Shows',       style: TextStyle(color: textCol, fontSize: 14))),
+        PopupMenuItem(value: 'filmes',
+          height: 46,
+          child: Text('Filmes', style: TextStyle(color: textCol, fontSize: 14))),
+        PopupMenuItem(value: 'meus_videos',
+          height: 46,
+          child: Text('Meus vídeos', style: TextStyle(color: textCol, fontSize: 14))),
+        PopupMenuItem(value: 'shows',
+          height: 46,
+          child: Text('Shows', style: TextStyle(color: textCol, fontSize: 14))),
       ],
     );
   }
@@ -193,14 +196,12 @@ class _ExplorePageState extends State<ExplorePage>
   @override Widget build(BuildContext context) {
     super.build(context);
     final t      = AppTheme.current;
-    final topPad = MediaQuery.of(context).padding.top;
     final isDark = t.statusBar == Brightness.light;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: t.bg,
-        statusBarIconBrightness: t.statusBar,
-      ),
+        statusBarColor: t.bg,          // sólido
+        statusBarIconBrightness: t.statusBar),
       child: Scaffold(
         backgroundColor: t.bg,
         floatingActionButton: AnimatedScale(
@@ -218,7 +219,7 @@ class _ExplorePageState extends State<ExplorePage>
           controller: _scroll,
           headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
 
-            // ── Título sobe e some atrás do status bar sólido ──
+            // Título sobe e some atrás do status bar sólido
             SliverAppBar(
               backgroundColor: t.bg,
               surfaceTintColor: Colors.transparent,
@@ -226,12 +227,11 @@ class _ExplorePageState extends State<ExplorePage>
               elevation: 0,
               pinned: true,
               floating: false,
-              expandedHeight: topPad + 44,
-              // quando colapsado ocupa zero — chips ficam no limite do status bar
-              toolbarHeight: 0,
+              expandedHeight: 44,   // só a altura do título, sem topPad
+              toolbarHeight: 0,     // colapsado = zero altura, chips ficam no limite
               automaticallyImplyLeading: false,
               flexibleSpace: FlexibleSpaceBar(
-                titlePadding: EdgeInsets.only(left: 16, bottom: 10),
+                titlePadding: const EdgeInsets.only(left: 16, bottom: 10),
                 centerTitle: false,
                 expandedTitleScale: 1.0,
                 title: Text('Explorar',
@@ -239,26 +239,23 @@ class _ExplorePageState extends State<ExplorePage>
                     color: t.text,
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  )),
+                    letterSpacing: -0.5)),
               ),
               actions: [
                 Builder(builder: (btnCtx) => GestureDetector(
-                  onTap: () => _showPopup(btnCtx),
+                  onTap: () => _showPopup(btnCtx, isDark),
                   child: Padding(
                     padding: const EdgeInsets.only(right: 14, bottom: 10),
-                    child: Icon(Icons.more_vert, color: t.text, size: 22),
-                  ),
+                    child: Icon(Icons.more_vert, color: t.text, size: 22)),
                 )),
               ],
             ),
 
-            // ── Chips pregados exactamente no limite do status bar ──
+            // Chips pregados no limite do status bar
             SliverPersistentHeader(
               pinned: true,
               delegate: _ChipDelegate(
-                height: 28 + 12,
-                topPad: 0,
+                height: 40,
                 selected: _chip,
                 isDark: isDark,
                 onChanged: (c) => setState(() => _chip = c),
@@ -344,7 +341,6 @@ class _ExplorePageState extends State<ExplorePage>
 
 class _ChipDelegate extends SliverPersistentHeaderDelegate {
   final double height;
-  final double topPad;
   final _ChipFilter selected;
   final void Function(_ChipFilter) onChanged;
   final bool isDark;
@@ -352,7 +348,6 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
 
   const _ChipDelegate({
     required this.height,
-    required this.topPad,
     required this.selected,
     required this.onChanged,
     required this.isDark,
@@ -363,8 +358,7 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
   @override double get maxExtent => height;
 
   @override bool shouldRebuild(_ChipDelegate old) =>
-      old.selected != selected || old.isDark != isDark ||
-      old.bg != bg || old.topPad != topPad;
+      old.selected != selected || old.isDark != isDark || old.bg != bg;
 
   @override Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     final selBg   = isDark ? Colors.white            : Colors.black;
@@ -374,7 +368,7 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
 
     return Container(
       color: bg,
-      padding: const EdgeInsets.only(top: 6, bottom: 6),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: SizedBox(
         height: 28,
         child: ListView.separated(
