@@ -52,15 +52,19 @@ dependencies:
   # ── QR Code ──────────────────────────────────────────────────────────────
   qr_flutter: any
 
+  # ── Splash ───────────────────────────────────────────────────────────────
+  flutter_native_splash: ^2.4.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
-  flutter_native_splash: ^2.4.1
 
 flutter_native_splash:
   color: "#0D0D0D"
   color_dark: "#0D0D0D"
+  image: assets/logo.png
+  image_dark: assets/logo.png
   android: true
   ios: true
   web: false
