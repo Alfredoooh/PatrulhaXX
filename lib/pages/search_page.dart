@@ -61,6 +61,39 @@ class _SearchPageState extends State<SearchPage> {
   void _goToInput() =>
       Navigator.push(context, iosRoute(SearchResultsPage(query: '')));
 
+  void _showPopup(BuildContext btnCtx, bool isDark) async {
+    final popupBg = isDark ? const Color(0xFF2A2A2A) : Colors.white;
+    final textCol = isDark ? Colors.white : Colors.black87;
+
+    final RenderBox box     = btnCtx.findRenderObject() as RenderBox;
+    final RenderBox overlay = Navigator.of(btnCtx).overlay!.context
+        .findRenderObject() as RenderBox;
+    final RelativeRect pos  = RelativeRect.fromRect(
+      Rect.fromPoints(
+        box.localToGlobal(Offset.zero, ancestor: overlay),
+        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay)),
+      Offset.zero & overlay.size);
+
+    await showMenu<String>(
+      context: btnCtx,
+      position: pos,
+      color: popupBg,
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      items: [
+        PopupMenuItem(value: 'filmes',
+          height: 46,
+          child: Text('Filmes', style: TextStyle(color: textCol, fontSize: 14))),
+        PopupMenuItem(value: 'meus_videos',
+          height: 46,
+          child: Text('Meus vídeos', style: TextStyle(color: textCol, fontSize: 14))),
+        PopupMenuItem(value: 'shows',
+          height: 46,
+          child: Text('Shows', style: TextStyle(color: textCol, fontSize: 14))),
+      ],
+    );
+  }
+
   @override Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: ThemeService.instance,
@@ -70,12 +103,12 @@ class _SearchPageState extends State<SearchPage> {
         final isDark = t.statusBar == Brightness.light;
 
         final cardBg  = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF0F0F0);
-        final divCol  = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0);
         final mutedIc = isDark ? Colors.white30          : Colors.black26;
+        final divCol  = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0);
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
+            statusBarColor: t.bg,
             statusBarIconBrightness: t.statusBar),
           child: Scaffold(
             backgroundColor: t.bg,
@@ -95,7 +128,7 @@ class _SearchPageState extends State<SearchPage> {
                         color: t.text, fontSize: 22,
                         fontWeight: FontWeight.w800, letterSpacing: -0.5)),
                     Builder(builder: (btnCtx) => GestureDetector(
-                      onTap: () => _showPopup(btnCtx, t, isDark),
+                      onTap: () => _showPopup(btnCtx, isDark),
                       child: Icon(Icons.more_vert, color: t.text, size: 22),
                     )),
                   ],
@@ -249,39 +282,6 @@ class _SearchPageState extends State<SearchPage> {
       },
     );
   }
-
-  void _showPopup(BuildContext btnCtx, dynamic t, bool isDark) async {
-    final popupBg = isDark ? const Color(0xFF2A2A2A) : Colors.white;
-    final textCol = isDark ? Colors.white : Colors.black87;
-
-    final RenderBox box     = btnCtx.findRenderObject() as RenderBox;
-    final RenderBox overlay = Navigator.of(btnCtx).overlay!.context
-        .findRenderObject() as RenderBox;
-    final RelativeRect pos  = RelativeRect.fromRect(
-      Rect.fromPoints(
-        box.localToGlobal(Offset.zero, ancestor: overlay),
-        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay)),
-      Offset.zero & overlay.size);
-
-    await showMenu<String>(
-      context: btnCtx,
-      position: pos,
-      color: popupBg,
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      items: [
-        PopupMenuItem(value: 'filmes',
-          height: 46,
-          child: Text('Filmes', style: TextStyle(color: textCol, fontSize: 14))),
-        PopupMenuItem(value: 'meus_videos',
-          height: 46,
-          child: Text('Meus vídeos', style: TextStyle(color: textCol, fontSize: 14))),
-        PopupMenuItem(value: 'shows',
-          height: 46,
-          child: Text('Shows', style: TextStyle(color: textCol, fontSize: 14))),
-      ],
-    );
-  }
 }
 
 // ─── Lista iOS-style com bordas por posição ───────────────────────────────────
@@ -306,11 +306,13 @@ class _IosGroupedList extends StatelessWidget {
   });
 
   @override Widget build(BuildContext context) {
+    final total = items.length;
+
     return Column(
+      spacing: 2,
       children: items.asMap().entries.map((e) {
         final i       = e.key;
         final label   = e.value;
-        final total   = items.length;
         final isOnly  = total == 1;
         final isFirst = i == 0;
         final isLast  = i == total - 1;
@@ -322,7 +324,7 @@ class _IosGroupedList extends StatelessWidget {
             ? const BorderRadius.all(big)
             : isFirst
                 ? const BorderRadius.only(
-                    topLeft: big,    topRight: big,
+                    topLeft: big,      topRight: big,
                     bottomLeft: small, bottomRight: small)
                 : isLast
                     ? const BorderRadius.only(
@@ -330,44 +332,36 @@ class _IosGroupedList extends StatelessWidget {
                         bottomLeft: big, bottomRight: big)
                     : const BorderRadius.all(small);
 
-        return Column(
-          children: [
-            ClipRRect(
-              borderRadius: radius,
-              child: Container(
-                color: bg,
-                child: GestureDetector(
-                  onTap: () => onTap(label),
-                  behavior: HitTestBehavior.opaque,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 13),
-                    child: Row(children: [
-                      Icon(LucideIcons.clock3, size: 15, color: mutedColor),
-                      const SizedBox(width: 11),
-                      Expanded(
-                        child: Text(label,
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400))),
-                      GestureDetector(
-                        onTap: () => onRemove(label),
-                        behavior: HitTestBehavior.opaque,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(10, 6, 0, 6),
-                          child: Icon(LucideIcons.x,
-                              size: 13, color: mutedColor))),
-                    ]),
-                  ),
-                ),
+        return ClipRRect(
+          borderRadius: radius,
+          child: Container(
+            color: bg,
+            child: GestureDetector(
+              onTap: () => onTap(label),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 13),
+                child: Row(children: [
+                  Icon(LucideIcons.clock3, size: 15, color: mutedColor),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Text(label,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400))),
+                  GestureDetector(
+                    onTap: () => onRemove(label),
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 6, 0, 6),
+                      child: Icon(LucideIcons.x,
+                          size: 13, color: mutedColor))),
+                ]),
               ),
             ),
-            if (!isLast)
-              Padding(
-                padding: const EdgeInsets.only(left: 40),
-                child: Divider(height: 0, thickness: 0.4, color: divColor)),
-          ],
+          ),
         );
       }).toList(),
     );
