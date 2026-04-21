@@ -160,48 +160,33 @@ class _ExplorePageState extends State<ExplorePage>
     ));
   }
 
-  // ── Popup menu clássico Android 9 ──
-  void _showPopup(BuildContext context) async {
+  void _showPopup(BuildContext btnCtx) async {
     final t      = AppTheme.current;
     final isDark = t.statusBar == Brightness.light;
-    final RenderBox button = context.findRenderObject() as RenderBox;
-    final RenderBox overlay = Navigator.of(context).overlay!.context.findRenderObject() as RenderBox;
-    final RelativeRect position = RelativeRect.fromRect(
+    final popupBg = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFFFFFFF);
+    final textCol = isDark ? Colors.white            : Colors.black87;
+
+    final RenderBox box     = btnCtx.findRenderObject() as RenderBox;
+    final RenderBox overlay = Navigator.of(btnCtx).overlay!.context.findRenderObject() as RenderBox;
+    final RelativeRect pos  = RelativeRect.fromRect(
       Rect.fromPoints(
-        button.localToGlobal(Offset.zero, ancestor: overlay),
-        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+        box.localToGlobal(Offset.zero, ancestor: overlay),
+        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay),
       ),
       Offset.zero & overlay.size,
     );
 
-    final chosen = await showMenu<String>(
-      context: context,
-      position: position,
-      color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+    await showMenu<String>(
+      context: btnCtx,
+      position: pos,
+      color: popupBg,
+      elevation: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      elevation: 4,
       items: [
-        _popupItem('filmes',      'Filmes',       isDark, t),
-        _popupItem('meus_videos', 'Meus vídeos',  isDark, t),
-        _popupItem('shows',       'Shows',        isDark, t),
+        PopupMenuItem(value: 'filmes',      height: 46, child: Text('Filmes',      style: TextStyle(color: textCol, fontSize: 14))),
+        PopupMenuItem(value: 'meus_videos', height: 46, child: Text('Meus vídeos', style: TextStyle(color: textCol, fontSize: 14))),
+        PopupMenuItem(value: 'shows',       height: 46, child: Text('Shows',       style: TextStyle(color: textCol, fontSize: 14))),
       ],
-    );
-
-    if (chosen != null && mounted) {
-      // acção futura — por agora só fecha
-    }
-  }
-
-  PopupMenuItem<String> _popupItem(String value, String label, bool isDark, dynamic t) {
-    return PopupMenuItem<String>(
-      value: value,
-      height: 44,
-      child: Text(label,
-        style: TextStyle(
-          color: isDark ? Colors.white : Colors.black87,
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-        )),
     );
   }
 
@@ -210,9 +195,6 @@ class _ExplorePageState extends State<ExplorePage>
     final t      = AppTheme.current;
     final topPad = MediaQuery.of(context).padding.top;
     final isDark = t.statusBar == Brightness.light;
-
-    // Chips delegate height — apenas chips, sem topPad (o SliverAppBar já trata do espaço)
-    final double chipsH = 28 + 12;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -236,19 +218,22 @@ class _ExplorePageState extends State<ExplorePage>
           controller: _scroll,
           headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
 
-            // ── "Explorar" — sobe e desaparece sob a status bar sólida ──
+            // ── Título sobe e some atrás do status bar sólido ──
             SliverAppBar(
               backgroundColor: t.bg,
               surfaceTintColor: Colors.transparent,
               shadowColor: Colors.transparent,
               elevation: 0,
-              pinned: false,       // não fica pregado — sobe e some
+              pinned: true,
               floating: false,
-              expandedHeight: 44,  // pequeno: só o título
+              expandedHeight: topPad + 44,
+              // quando colapsado ocupa zero — chips ficam no limite do status bar
+              toolbarHeight: 0,
               automaticallyImplyLeading: false,
               flexibleSpace: FlexibleSpaceBar(
-                titlePadding: const EdgeInsets.only(left: 16, bottom: 10),
+                titlePadding: EdgeInsets.only(left: 16, bottom: 10),
                 centerTitle: false,
+                expandedTitleScale: 1.0,
                 title: Text('Explorar',
                   style: TextStyle(
                     color: t.text,
@@ -261,20 +246,19 @@ class _ExplorePageState extends State<ExplorePage>
                 Builder(builder: (btnCtx) => GestureDetector(
                   onTap: () => _showPopup(btnCtx),
                   child: Padding(
-                    padding: const EdgeInsets.only(right: 14),
-                    child: Icon(Icons.more_vert,
-                        color: t.text, size: 22),
+                    padding: const EdgeInsets.only(right: 14, bottom: 10),
+                    child: Icon(Icons.more_vert, color: t.text, size: 22),
                   ),
                 )),
               ],
             ),
 
-            // ── Chips — pregados ao topo sem topPad (SliverAppBar já gere o offset) ──
+            // ── Chips pregados exactamente no limite do status bar ──
             SliverPersistentHeader(
               pinned: true,
               delegate: _ChipDelegate(
-                height: chipsH,
-                topPad: 0,         // sem topPad extra aqui
+                height: 28 + 12,
+                topPad: 0,
                 selected: _chip,
                 isDark: isDark,
                 onChanged: (c) => setState(() => _chip = c),
@@ -390,7 +374,7 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
 
     return Container(
       color: bg,
-      padding: EdgeInsets.only(top: topPad + 6, bottom: 6),
+      padding: const EdgeInsets.only(top: 6, bottom: 6),
       child: SizedBox(
         height: 28,
         child: ListView.separated(
