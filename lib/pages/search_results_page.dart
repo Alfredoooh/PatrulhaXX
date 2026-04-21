@@ -12,7 +12,7 @@ import '../services/theme_service.dart';
 import 'home_page.dart' show iosRoute;
 import 'browser_page.dart';
 import '../models/site_model.dart';
-import 'search_page.dart' show kSites, FreeBrowserPage;
+import 'search_page.dart' show FreeBrowserPage;
 
 const _iBack =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
