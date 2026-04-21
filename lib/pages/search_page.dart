@@ -33,7 +33,8 @@ class _SearchPageState extends State<SearchPage> {
     (outer: Color(0xFF424242), inner: Color(0xFF212121)),
   ];
 
-  @override void initState() {
+  @override
+  void initState() {
     super.initState();
     _loadHistory();
   }
@@ -44,13 +45,15 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _removeHistory(String q) async {
-    _history.remove(q); setState(() {});
+    _history.remove(q);
+    setState(() {});
     final p = await SharedPreferences.getInstance();
     await p.setStringList(_kHistory, _history);
   }
 
   Future<void> _clearHistory() async {
-    _history.clear(); setState(() {});
+    _history.clear();
+    setState(() {});
     final p = await SharedPreferences.getInstance();
     await p.remove(_kHistory);
   }
@@ -65,14 +68,16 @@ class _SearchPageState extends State<SearchPage> {
     final popupBg = isDark ? const Color(0xFF2A2A2A) : Colors.white;
     final textCol = isDark ? Colors.white : Colors.black87;
 
-    final RenderBox box     = btnCtx.findRenderObject() as RenderBox;
+    final RenderBox box = btnCtx.findRenderObject() as RenderBox;
     final RenderBox overlay = Navigator.of(btnCtx).overlay!.context
         .findRenderObject() as RenderBox;
-    final RelativeRect pos  = RelativeRect.fromRect(
+    final RelativeRect pos = RelativeRect.fromRect(
       Rect.fromPoints(
         box.localToGlobal(Offset.zero, ancestor: overlay),
-        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay)),
-      Offset.zero & overlay.size);
+        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
 
     await showMenu<String>(
       context: btnCtx,
@@ -81,87 +86,103 @@ class _SearchPageState extends State<SearchPage> {
       elevation: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       items: [
-        PopupMenuItem(value: 'filmes',
+        PopupMenuItem(
+          value: 'filmes',
           height: 46,
-          child: Text('Filmes', style: TextStyle(color: textCol, fontSize: 14))),
-        PopupMenuItem(value: 'meus_videos',
+          child: Text('Filmes', style: TextStyle(color: textCol, fontSize: 14)),
+        ),
+        PopupMenuItem(
+          value: 'meus_videos',
           height: 46,
-          child: Text('Meus vídeos', style: TextStyle(color: textCol, fontSize: 14))),
-        PopupMenuItem(value: 'shows',
+          child: Text('Meus vídeos', style: TextStyle(color: textCol, fontSize: 14)),
+        ),
+        PopupMenuItem(
+          value: 'shows',
           height: 46,
-          child: Text('Shows', style: TextStyle(color: textCol, fontSize: 14))),
+          child: Text('Shows', style: TextStyle(color: textCol, fontSize: 14)),
+        ),
       ],
     );
   }
 
-  @override Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: ThemeService.instance,
       builder: (_, __) {
-        final t      = AppTheme.current;
+        final t = AppTheme.current;
         final topPad = MediaQuery.of(context).padding.top;
         final isDark = t.statusBar == Brightness.light;
 
-        final cardBg  = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF0F0F0);
-        final mutedIc = isDark ? Colors.white30          : Colors.black26;
-        final divCol  = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0);
+        final cardBg = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF0F0F0);
+        final mutedIc = isDark ? Colors.white30 : Colors.black26;
+        final divCol = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0);
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle(
             statusBarColor: t.bg,
-            statusBarIconBrightness: t.statusBar),
+            statusBarIconBrightness: t.statusBar,
+          ),
           child: Scaffold(
             backgroundColor: t.bg,
             body: ListView(
               padding: EdgeInsets.only(
                 top: topPad + 8,
-                left: 16, right: 16,
-                bottom: 40),
+                left: 16,
+                right: 16,
+                bottom: 40,
+              ),
               children: [
-
-                // ── Título + menu ──
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Pesquisa',
+                    Text(
+                      'Pesquisa',
                       style: TextStyle(
-                        color: t.text, fontSize: 22,
-                        fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                    Builder(builder: (btnCtx) => GestureDetector(
-                      onTap: () => _showPopup(btnCtx, isDark),
-                      child: Icon(Icons.more_vert, color: t.text, size: 22),
-                    )),
+                        color: t.text,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    Builder(
+                      builder: (btnCtx) => GestureDetector(
+                        onTap: () => _showPopup(btnCtx, isDark),
+                        child: Icon(Icons.more_vert, color: t.text, size: 22),
+                      ),
+                    ),
                   ],
                 ),
-
                 const SizedBox(height: 14),
-
-                // ── Input falso ──
                 GestureDetector(
                   onTap: _goToInput,
                   child: Container(
                     height: 42,
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF2A2A2A)
-                          : const Color(0xFFF2F2F2),
-                      borderRadius: BorderRadius.circular(10)),
-                    child: Row(children: [
-                      const SizedBox(width: 12),
-                      Icon(LucideIcons.search, size: 16,
-                          color: isDark ? Colors.white38 : Colors.black38),
-                      const SizedBox(width: 8),
-                      Text('Pesquisar...',
-                        style: TextStyle(
-                          color: isDark ? Colors.white30 : Colors.black38,
-                          fontSize: 15)),
-                    ]),
+                      color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 12),
+                        Icon(
+                          LucideIcons.search,
+                          size: 16,
+                          color: isDark ? Colors.white38 : Colors.black38,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Pesquisar...',
+                          style: TextStyle(
+                            color: isDark ? Colors.white30 : Colors.black38,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
-                // ── Chips circulares de cor ──
                 SizedBox(
                   height: 52,
                   child: ListView.separated(
@@ -172,30 +193,36 @@ class _SearchPageState extends State<SearchPage> {
                     itemBuilder: (_, i) {
                       final chip = _colorChips[i];
                       return Container(
-                        width: 52, height: 52,
+                        width: 52,
+                        height: 52,
                         decoration: BoxDecoration(
                           color: chip.outer,
-                          shape: BoxShape.circle),
+                          shape: BoxShape.circle,
+                        ),
                         child: Center(
                           child: Container(
-                            width: 28, height: 28,
+                            width: 28,
+                            height: 28,
                             decoration: BoxDecoration(
                               color: chip.inner,
-                              shape: BoxShape.circle))));
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      );
                     },
                   ),
                 ),
-
                 const SizedBox(height: 22),
-
-                // ══ CATEGORIAS ══
-                Text('Categorias',
+                Text(
+                  'Categorias',
                   style: TextStyle(
-                    color: t.text, fontSize: 17,
-                    fontWeight: FontWeight.w700)),
-
+                    color: t.text,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 8),
-
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -204,7 +231,8 @@ class _SearchPageState extends State<SearchPage> {
                     crossAxisCount: 2,
                     crossAxisSpacing: 8,
                     mainAxisSpacing: 8,
-                    childAspectRatio: 1.45),
+                    childAspectRatio: 1.45,
+                  ),
                   itemBuilder: (_, i) {
                     final cat = _categories[i];
                     return GestureDetector(
@@ -225,43 +253,61 @@ class _SearchPageState extends State<SearchPage> {
                                     end: Alignment.topCenter,
                                     colors: [
                                       Colors.black.withOpacity(0.82),
-                                      Colors.transparent])),
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                             Positioned(
-                              left: 8, right: 8, bottom: 7,
-                              child: Text(cat.label,
+                              left: 8,
+                              right: 8,
+                              bottom: 7,
+                              child: Text(
+                                cat.label,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w700,
-                                  shadows: [Shadow(blurRadius: 4,
-                                      color: Colors.black54)]))),
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 4,
+                                      color: Colors.black54,
+                                    )
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     );
                   },
                 ),
-
                 const SizedBox(height: 28),
-
-                // ══ HISTÓRICO ══
                 if (_history.isNotEmpty) ...[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Histórico',
+                      Text(
+                        'Histórico',
                         style: TextStyle(
-                          color: t.text, fontSize: 17,
-                          fontWeight: FontWeight.w700)),
+                          color: t.text,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       GestureDetector(
                         onTap: _clearHistory,
-                        child: Text('Limpar',
+                        child: Text(
+                          'Limpar',
                           style: TextStyle(
                             color: AppTheme.ytRed,
                             fontSize: 14,
-                            fontWeight: FontWeight.w500))),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -284,8 +330,6 @@ class _SearchPageState extends State<SearchPage> {
   }
 }
 
-// ─── Lista iOS-style com bordas por posição ───────────────────────────────────
-
 class _IosGroupedList extends StatelessWidget {
   final Color bg;
   final Color divColor;
@@ -305,60 +349,75 @@ class _IosGroupedList extends StatelessWidget {
     required this.onRemove,
   });
 
-  @override Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     final total = items.length;
 
     return Column(
-      spacing: 2,
       children: items.asMap().entries.map((e) {
-        final i       = e.key;
-        final label   = e.value;
-        final isOnly  = total == 1;
+        final i = e.key;
+        final label = e.value;
+        final isOnly = total == 1;
         final isFirst = i == 0;
-        final isLast  = i == total - 1;
+        final isLast = i == total - 1;
 
-        const big   = Radius.circular(12);
+        const big = Radius.circular(12);
         const small = Radius.circular(6);
 
         final BorderRadius radius = isOnly
             ? const BorderRadius.all(big)
             : isFirst
                 ? const BorderRadius.only(
-                    topLeft: big,      topRight: big,
-                    bottomLeft: small, bottomRight: small)
+                    topLeft: big,
+                    topRight: big,
+                    bottomLeft: small,
+                    bottomRight: small,
+                  )
                 : isLast
                     ? const BorderRadius.only(
-                        topLeft: small,  topRight: small,
-                        bottomLeft: big, bottomRight: big)
+                        topLeft: small,
+                        topRight: small,
+                        bottomLeft: big,
+                        bottomRight: big,
+                      )
                     : const BorderRadius.all(small);
 
-        return ClipRRect(
-          borderRadius: radius,
-          child: Container(
-            color: bg,
-            child: GestureDetector(
-              onTap: () => onTap(label),
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 13),
-                child: Row(children: [
-                  Icon(LucideIcons.clock3, size: 15, color: mutedColor),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Text(label,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400))),
-                  GestureDetector(
-                    onTap: () => onRemove(label),
-                    behavior: HitTestBehavior.opaque,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 6, 0, 6),
-                      child: Icon(LucideIcons.x,
-                          size: 13, color: mutedColor))),
-                ]),
+        return Padding(
+          padding: EdgeInsets.only(bottom: i == total - 1 ? 0 : 2),
+          child: ClipRRect(
+            borderRadius: radius,
+            child: Container(
+              color: bg,
+              child: GestureDetector(
+                onTap: () => onTap(label),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                  child: Row(
+                    children: [
+                      Icon(LucideIcons.clock3, size: 15, color: mutedColor),
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => onRemove(label),
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 6, 0, 6),
+                          child: Icon(LucideIcons.x, size: 13, color: mutedColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -367,8 +426,6 @@ class _IosGroupedList extends StatelessWidget {
     );
   }
 }
-
-// ─── Modelo de categoria ──────────────────────────────────────────────────────
 
 class _Category {
   final String label;
