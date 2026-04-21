@@ -3,8 +3,6 @@ description: patrulhaXX - Navegação privada e segura.
 publish_to: "none"
 version: 1.0.0+1
 
-# Licença proprietária — ver ficheiro LICENSE na raiz do projecto.
-# Copyright (c) 2024 patrulhaXX. Todos os direitos reservados.
 license: "SEE LICENSE IN LICENSE"
 
 environment:
@@ -34,7 +32,7 @@ dependencies:
   palette_generator: 0.3.3+3
   image_picker: any
   lucide_flutter: any
-  photo_manager: ^3.3.0            # galeria rápida + modal
+  photo_manager: ^3.3.0
 
   # ── Rede & Dados ─────────────────────────────────────────────────────────
   http: ^1.2.2
@@ -44,7 +42,7 @@ dependencies:
   # ── Armazenamento & Preferências ─────────────────────────────────────────
   shared_preferences: ^2.3.2
   path_provider: ^2.1.4
-  path: ^1.9.0                     # manipulação de caminhos de ficheiro
+  path: ^1.9.0
 
   # ── Hardware & Permissões ────────────────────────────────────────────────
   permission_handler: 11.3.1
@@ -58,6 +56,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_native_splash: ^2.4.1
+
+flutter_native_splash:
+  color: "#0D0D0D"
+  color_dark: "#0D0D0D"
+  android: true
+  ios: true
+  web: false
 
 flutter:
   uses-material-design: true
