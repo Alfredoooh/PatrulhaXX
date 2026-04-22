@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
+import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/feed_video_model.dart';
 import '../theme/app_theme.dart';
@@ -103,7 +104,6 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
   bool _searching    = false;
   bool _editingQuery = false;
-  bool _webViewsReady = false;
 
   List<String> _suggestions = [];
   List<String> _history     = [];
@@ -114,10 +114,12 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   List<_ScrapedVideo> _scrapedVideos = [];
   bool _scrapingVideos = false;
 
-  InAppWebViewController? _ctrlTudo;
-  InAppWebViewController? _ctrlImagens;
-  bool _loadingTudo    = false;
-  bool _loadingImagens = false;
+  final Map<_WebTab, InAppWebViewController?> _webCtrls = {
+    for (final t in _WebTab.values) t: null,
+  };
+  final Map<_WebTab, bool> _webLoading = {
+    for (final t in _WebTab.values) t: false,
+  };
 
   @override
   void initState() {
@@ -135,8 +137,10 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     _q.removeListener(_onTyping);
     _q.dispose();
     _focus.dispose();
-    _ctrlTudo?.pauseTimers();
-    _ctrlImagens?.pauseTimers();
+    // Pausa timers para evitar congelamento ao sair
+    for (final ctrl in _webCtrls.values) {
+      ctrl?.pauseTimers();
+    }
     super.dispose();
   }
 
@@ -202,16 +206,19 @@ class _SearchResultsPageState extends State<SearchResultsPage>
       _suggestions   = [];
       _activeTab     = _WebTab.tudo;
       _scrapedVideos = [];
-      _webViewsReady = true;
     });
 
-    _ctrlTudo?.loadUrl(urlRequest: URLRequest(url: WebUri(_WebTab.tudo.url(q))));
-    _ctrlImagens?.loadUrl(urlRequest: URLRequest(url: WebUri(_WebTab.imagens.url(q))));
+    for (final tab in [_WebTab.tudo, _WebTab.imagens]) {
+      final ctrl = _webCtrls[tab];
+      if (ctrl != null) {
+        ctrl.loadUrl(urlRequest: URLRequest(url: WebUri(tab.url(q))));
+      }
+    }
 
     _scrapeVideos(q);
   }
 
-  // ── Scraping: HTTP direto + HeadlessInAppWebView para sites com proteção ────
+  // ── Scraping com regex específico por site ────────────────────────────────
   Future<void> _scrapeVideos(String query) async {
     if (!mounted) return;
     setState(() => _scrapingVideos = true);
@@ -219,81 +226,109 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     final results = <_ScrapedVideo>[];
     final enc = Uri.encodeComponent(query);
 
-    // Sites que respondem bem a HTTP direto
-    final httpTargets = [
+    final targets = [
       (
         site: kSites.firstWhere((s) => s.id == 'xvideos'),
-        searchUrl: 'https://www.xvideos.com/?k=$enc',
+        url: 'https://www.xvideos.com/?k=$enc',
+        thumbAttr: 'data-thumb',
+        thumbRe: RegExp(r'data-thumb="(https?://[^"]+)"'),
+        titleRe: RegExp(r'<strong[^>]*>(.*?)</strong>'),
+        linkRe:  RegExp(r'href="(/video[^"]+)"'),
       ),
       (
         site: kSites.firstWhere((s) => s.id == 'xnxx'),
-        searchUrl: 'https://www.xnxx.com/search/$enc/1',
+        url: 'https://www.xnxx.com/search/straight/$enc/1',
+        thumbAttr: 'data-thumb',
+        thumbRe: RegExp(r'data-thumb="(https?://[^"]+)"'),
+        titleRe: RegExp(r'<p[^>]*title="([^"]{10,100})"'),
+        linkRe:  RegExp(r'href="(/video-[^"]+)"'),
       ),
-      (
-        site: kSites.firstWhere((s) => s.id == 'redtube'),
-        searchUrl: 'https://www.redtube.com/?search=$enc',
-      ),
-      (
-        site: kSites.firstWhere((s) => s.id == 'youxxx'),
-        searchUrl: 'https://www.youx.xxx/search/$enc',
-      ),
-      (
-        site: kSites.firstWhere((s) => s.id == 'bangbros'),
-        searchUrl: 'https://bangbros.com/video?q=$enc',
-      ),
-      (
-        site: kSites.firstWhere((s) => s.id == 'tikporn'),
-        searchUrl: 'https://tik.porn/?s=$enc',
-      ),
-      (
-        site: kSites.firstWhere((s) => s.id == 'pornpics'),
-        searchUrl: 'https://www.pornpics.com/search/?q=$enc',
-      ),
-    ];
-
-    // Sites com proteção anti-bot — precisam de HeadlessInAppWebView
-    final webviewTargets = [
       (
         site: kSites.firstWhere((s) => s.id == 'pornhub'),
-        searchUrl: 'https://www.pornhub.com/video/search?search=$enc',
+        url: 'https://www.pornhub.com/video/search?search=$enc',
+        thumbAttr: 'data-mediumthumb',
+        thumbRe: RegExp(r'data-mediumthumb="(https?://[^"]+)"'),
+        titleRe: RegExp(r'<span[^>]*title="([^"]{10,100})"'),
+        linkRe:  RegExp(r'href="(/view_video\.php[^"]+)"'),
       ),
       (
         site: kSites.firstWhere((s) => s.id == 'xhamster'),
-        searchUrl: 'https://xhamster.com/search/$enc',
+        url: 'https://xhamster.com/search/$enc',
+        thumbAttr: 'src',
+        thumbRe: RegExp(r'"thumbUrl":"(https?://[^"]+\.jpg[^"]*)"'),
+        titleRe: RegExp(r'"title":"([^"]{10,100})"'),
+        linkRe:  RegExp(r'"pageURL":"(https?://xhamster\.com/videos/[^"]+)"'),
+      ),
+      (
+        site: kSites.firstWhere((s) => s.id == 'redtube'),
+        url: 'https://www.redtube.com/?search=$enc&page=1',
+        thumbAttr: 'data-thumb_url',
+        thumbRe: RegExp(r'data-thumb_url="(https?://[^"]+)"'),
+        titleRe: RegExp(r'<div[^>]*class="[^"]*video_title[^"]*"[^>]*>\s*<a[^>]*>([^<]{5,80})'),
+        linkRe:  RegExp(r'href="(/\d+[^"]*)"'),
       ),
       (
         site: kSites.firstWhere((s) => s.id == 'xxx'),
-        searchUrl: 'https://www.xxx.com/search?q=$enc',
+        url: 'https://www.xxx.com/search?q=$enc',
+        thumbAttr: 'src',
+        thumbRe: RegExp(r'<img[^>]+src="(https?://[^"]+\.(?:jpg|webp)[^"]*)"'),
+        titleRe: RegExp(r'title="([^"]{10,100})"'),
+        linkRe:  RegExp(r'href="(https?://www\.xxx\.com/\d+[^"]*)"'),
+      ),
+      (
+        site: kSites.firstWhere((s) => s.id == 'tikporn'),
+        url: 'https://tik.porn/?s=$enc',
+        thumbAttr: 'src',
+        thumbRe: RegExp(r'<img[^>]+src="(https?://[^"]+\.(?:jpg|webp)[^"]*)"'),
+        titleRe: RegExp(r'title="([^"]{10,100})"'),
+        linkRe:  RegExp(r'href="(https?://tik\.porn/[^"]+)"'),
       ),
     ];
 
-    // HTTP direto em paralelo
-    await Future.wait(httpTargets.map((t) async {
+    await Future.wait(targets.map((t) async {
       try {
         final r = await http.get(
-          Uri.parse(t.searchUrl),
+          Uri.parse(t.url),
           headers: {
             'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
                 'AppleWebKit/537.36 (KHTML, like Gecko) '
                 'Chrome/124.0.0.0 Mobile Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
             'Referer': t.site.baseUrl,
           },
         ).timeout(const Duration(seconds: 8));
-        results.addAll(_parseVideoResults(r.body, t.site).take(4));
-      } catch (_) {}
-    }));
 
-    // HeadlessInAppWebView em sequência para não sobrecarregar
-    for (final t in webviewTargets) {
-      try {
-        final html = await _fetchWithHeadlessWebView(t.searchUrl);
-        if (html != null) {
-          results.addAll(_parseVideoResults(html, t.site).take(4));
+        final html = r.body;
+        final thumbs = t.thumbRe.allMatches(html)
+            .map((m) => m.group(1)!).toList();
+        final titles = t.titleRe.allMatches(html)
+            .map((m) => (m.group(1) ?? '').trim())
+            .where((s) => s.length > 5)
+            .toList();
+        final links = t.linkRe.allMatches(html)
+            .map((m) {
+              final l = m.group(1)!;
+              if (l.startsWith('http')) return l;
+              return '${Uri.parse(t.site.baseUrl).origin}$l';
+            })
+            .toSet()
+            .toList();
+
+        final count = [thumbs.length, titles.length, links.length]
+            .reduce((a, b) => a < b ? a : b);
+
+        for (var i = 0; i < count && i < 5; i++) {
+          results.add(_ScrapedVideo(
+            title: titles[i],
+            link: links[i],
+            thumb: thumbs[i],
+            siteName: t.site.name,
+            faviconUrl: t.site.faviconUrl,
+          ));
         }
       } catch (_) {}
-    }
+    }));
 
     if (mounted) {
       setState(() {
@@ -301,82 +336,6 @@ class _SearchResultsPageState extends State<SearchResultsPage>
         _scrapingVideos = false;
       });
     }
-  }
-
-  Future<String?> _fetchWithHeadlessWebView(String url) async {
-    final completer = Completer<String?>();
-    HeadlessInAppWebView? headless;
-
-    headless = HeadlessInAppWebView(
-      initialUrlRequest: URLRequest(url: WebUri(url)),
-      initialSettings: InAppWebViewSettings(
-        javaScriptEnabled: true,
-        userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
-            'AppleWebKit/537.36 (KHTML, like Gecko) '
-            'Chrome/124.0.0.0 Mobile Safari/537.36',
-        useHybridComposition: true,
-      ),
-      onLoadStop: (ctrl, _) async {
-        try {
-          final html = await ctrl.getHtml();
-          completer.complete(html);
-        } catch (_) {
-          completer.complete(null);
-        }
-        await headless?.dispose();
-      },
-    );
-
-    await headless.run();
-
-    return completer.future.timeout(
-      const Duration(seconds: 10),
-      onTimeout: () {
-        headless?.dispose();
-        return null;
-      },
-    );
-  }
-
-  List<_ScrapedVideo> _parseVideoResults(String html, SiteModel site) {
-    final results = <_ScrapedVideo>[];
-
-    final thumbRe = RegExp(
-      r'(?:data-thumb(?:two)?|data-src|src)="(https?://[^"]+\.(?:jpg|jpeg|webp|png)[^"]*)"',
-      caseSensitive: false,
-    );
-    final titleRe = RegExp(
-      r'(?:title="([^"]{10,100})"|alt="([^"]{10,100})")',
-      caseSensitive: false,
-    );
-    final linkRe = RegExp(
-      r'href="(/(?:video[^"]{5,}|watch[^"]{5,}|[^"]{5,}\.html[^"]*|[^"]{5,}/\d+[^"]{0,30}))"',
-      caseSensitive: false,
-    );
-
-    final thumbs = thumbRe.allMatches(html).map((m) => m.group(1)!).toSet().toList();
-    final titles = titleRe.allMatches(html)
-        .map((m) => (m.group(1) ?? m.group(2) ?? '').trim())
-        .where((t) => t.length > 8)
-        .toList();
-    final links = linkRe.allMatches(html).map((m) {
-      final domain = Uri.parse(site.baseUrl).origin;
-      return '$domain${m.group(1)!}';
-    }).toSet().toList();
-
-    final count = [thumbs.length, titles.length, links.length]
-        .reduce((a, b) => a < b ? a : b);
-
-    for (var i = 0; i < count && results.length < 4; i++) {
-      results.add(_ScrapedVideo(
-        title: titles[i],
-        link: links[i],
-        thumb: thumbs[i],
-        siteName: site.name,
-        faviconUrl: site.faviconUrl,
-      ));
-    }
-    return results;
   }
 
   void _activateEditing() {
@@ -398,7 +357,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
   Future<bool> _onWillPop() async {
     if (_searching && _activeTab != _WebTab.videos) {
-      final ctrl = _activeTab == _WebTab.tudo ? _ctrlTudo : _ctrlImagens;
+      final ctrl = _webCtrls[_activeTab];
       if (ctrl != null && await ctrl.canGoBack()) {
         await ctrl.goBack();
         return false;
@@ -407,17 +366,20 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     return true;
   }
 
+  void _goBack() => Navigator.pop(context);
+
   void _switchTab(_WebTab tab) {
     if (_activeTab == tab) return;
+    // Pausa/resume para evitar congelamento
     if (tab == _WebTab.tudo) {
-      _ctrlTudo?.resumeTimers();
-      _ctrlImagens?.pauseTimers();
+      _webCtrls[_WebTab.tudo]?.resumeTimers();
+      _webCtrls[_WebTab.imagens]?.pauseTimers();
     } else if (tab == _WebTab.imagens) {
-      _ctrlImagens?.resumeTimers();
-      _ctrlTudo?.pauseTimers();
+      _webCtrls[_WebTab.imagens]?.resumeTimers();
+      _webCtrls[_WebTab.tudo]?.pauseTimers();
     } else {
-      _ctrlTudo?.pauseTimers();
-      _ctrlImagens?.pauseTimers();
+      _webCtrls[_WebTab.tudo]?.pauseTimers();
+      _webCtrls[_WebTab.imagens]?.pauseTimers();
     }
     setState(() => _activeTab = tab);
   }
@@ -436,71 +398,6 @@ class _SearchResultsPageState extends State<SearchResultsPage>
       primaryColor: const Color(0xFF2A2A2A),
     );
     Navigator.push(context, iosRoute(BrowserPage(site: site, freeNavigation: true)));
-  }
-
-  Widget _buildWebView({
-    required _WebTab tab,
-    required Color bgColor,
-    required double bottomPad,
-  }) {
-    final isLoading = tab == _WebTab.tudo ? _loadingTudo : _loadingImagens;
-
-    return ColoredBox(
-      color: bgColor,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: bottomPad),
-        child: Stack(children: [
-          InAppWebView(
-            initialUrlRequest: URLRequest(url: WebUri(tab.url(_q.text))),
-            initialSettings: InAppWebViewSettings(
-              javaScriptEnabled: true,
-              userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
-                  'AppleWebKit/537.36 (KHTML, like Gecko) '
-                  'Chrome/124.0.0.0 Mobile Safari/537.36',
-              useHybridComposition: true,
-              // Fix linha branca — igual ao CriarCodigosPage
-              transparentBackground: true,
-              disallowOverScroll: true,
-              supportZoom: false,
-              verticalScrollBarEnabled: false,
-              horizontalScrollBarEnabled: false,
-            ),
-            onWebViewCreated: (ctrl) {
-              if (tab == _WebTab.tudo) _ctrlTudo = ctrl;
-              else _ctrlImagens = ctrl;
-            },
-            onLoadStart: (_, __) => setState(() {
-              if (tab == _WebTab.tudo) _loadingTudo = true;
-              else _loadingImagens = true;
-            }),
-            onLoadStop: (ctrl, __) async {
-              await ctrl.evaluateJavascript(source: _ddgCss);
-              if (mounted) setState(() {
-                if (tab == _WebTab.tudo) _loadingTudo = false;
-                else _loadingImagens = false;
-              });
-            },
-            shouldOverrideUrlLoading: (ctrl, action) async {
-              final url = action.request.url?.toString() ?? '';
-              if (!_isDdgUrl(url)) {
-                _openInBrowser(url);
-                return NavigationActionPolicy.CANCEL;
-              }
-              return NavigationActionPolicy.ALLOW;
-            },
-          ),
-          if (isLoading)
-            Positioned(
-              top: 0, left: 0, right: 0,
-              child: LinearProgressIndicator(
-                backgroundColor: Colors.transparent,
-                color: AppTheme.ytRed,
-                minHeight: 2,
-              ),
-            ),
-        ]),
-      ),
-    );
   }
 
   @override
@@ -543,11 +440,13 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                           padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
                           child: Row(children: [
 
+                            // Botão voltar — SVG original com tamanho explícito
                             GestureDetector(
-                              onTap: () => Navigator.pop(context),
+                              onTap: _goBack,
                               child: Padding(
                                 padding: const EdgeInsets.all(6),
-                                child: _SvgIcon(_iBack,
+                                child: _SvgIcon(
+                                  _iBack,
                                   color: isDark ? Colors.white : Colors.black,
                                   size: 20,
                                 ),
@@ -556,6 +455,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
                             const SizedBox(width: 4),
 
+                            // Campo de pesquisa
                             Expanded(
                               child: GestureDetector(
                                 onTap: showEditable ? null : _activateEditing,
@@ -570,7 +470,8 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                                   child: showEditable
                                       ? Row(children: [
                                           const SizedBox(width: 10),
-                                          Icon(Icons.search, size: 16,
+                                          // Lucide search icon
+                                          Icon(LucideIcons.search, size: 16,
                                               color: isDark ? Colors.white38 : Colors.black38),
                                           const SizedBox(width: 6),
                                           Expanded(
@@ -595,7 +496,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                                               onTap: _clearSearch,
                                               child: Padding(
                                                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                                                child: Icon(Icons.close, size: 16,
+                                                child: Icon(LucideIcons.x, size: 16,
                                                     color: isDark ? Colors.white38 : Colors.black38),
                                               ),
                                             ),
@@ -623,12 +524,13 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                           ]),
                         ),
 
+                        // Tabs — estrutura original
                         if (_searching)
                           _TabBar(
                             active: _activeTab,
                             onSwitch: _switchTab,
                             isDark: isDark,
-                            accentColor: AppTheme.ytRed,
+                            accentColor: t.accent,
                           ),
                       ],
                     ),
@@ -655,37 +557,40 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                             onClearHistory: _clearHistory,
                           )
                         : !_searching
-                            ? _EmptyState(
-                                subColor: isDark ? Colors.white38 : Colors.black38)
-                            : Stack(children: [
-                                if (_webViewsReady) ...[
-                                  Offstage(
-                                    offstage: _activeTab != _WebTab.tudo,
-                                    child: _buildWebView(
-                                      tab: _WebTab.tudo,
-                                      bgColor: t.bg,
-                                      bottomPad: bottomPad,
+                            ? _EmptyState(subColor: isDark ? Colors.white38 : Colors.black38)
+                            : Stack(
+                                children: [
+                                  // WebViews sempre no DOM — Offstage evita destruir/recriar
+                                  for (final tab in [_WebTab.tudo, _WebTab.imagens])
+                                    Offstage(
+                                      offstage: _activeTab != tab,
+                                      child: _WebPane(
+                                        tab: tab,
+                                        query: _q.text,
+                                        isDark: isDark,
+                                        loading: _webLoading[tab]!,
+                                        bgColor: t.bg,
+                                        bottomPad: bottomPad,
+                                        onCreated: (ctrl) => _webCtrls[tab] = ctrl,
+                                        onLoadStart: () => setState(() => _webLoading[tab] = true),
+                                        onLoadStop: (ctrl) async {
+                                          await ctrl.evaluateJavascript(source: _ddgCss);
+                                          if (mounted) setState(() => _webLoading[tab] = false);
+                                        },
+                                        onExternalUrl: _openInBrowser,
+                                      ),
                                     ),
-                                  ),
-                                  Offstage(
-                                    offstage: _activeTab != _WebTab.imagens,
-                                    child: _buildWebView(
-                                      tab: _WebTab.imagens,
-                                      bgColor: t.bg,
-                                      bottomPad: bottomPad,
+                                  if (_activeTab == _WebTab.videos)
+                                    _VideosPane(
+                                      videos: _scrapedVideos,
+                                      loading: _scrapingVideos,
+                                      isDark: isDark,
+                                      textColor: t.text,
+                                      subColor: isDark ? Colors.white54 : Colors.black45,
+                                      onTap: _openInBrowser,
                                     ),
-                                  ),
                                 ],
-                                if (_activeTab == _WebTab.videos)
-                                  _VideosPane(
-                                    videos: _scrapedVideos,
-                                    loading: _scrapingVideos,
-                                    isDark: isDark,
-                                    textColor: t.text,
-                                    subColor: isDark ? Colors.white54 : Colors.black45,
-                                    onTap: _openInBrowser,
-                                  ),
-                              ]),
+                              ),
                   ),
                 ],
               ),
@@ -697,7 +602,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   }
 }
 
-// ─── TabBar ───────────────────────────────────────────────────────────────────
+// ─── TabBar — estrutura original ─────────────────────────────────────────────
 class _TabBar extends StatelessWidget {
   final _WebTab active;
   final void Function(_WebTab) onSwitch;
@@ -749,6 +654,81 @@ class _TabBar extends StatelessWidget {
   }
 }
 
+// ─── WebPane — estrutura original ────────────────────────────────────────────
+class _WebPane extends StatelessWidget {
+  final _WebTab tab;
+  final String query;
+  final bool isDark, loading;
+  final Color bgColor;
+  final double bottomPad;
+  final void Function(InAppWebViewController) onCreated;
+  final VoidCallback onLoadStart;
+  final void Function(InAppWebViewController) onLoadStop;
+  final void Function(String url) onExternalUrl;
+
+  const _WebPane({
+    super.key,
+    required this.tab,
+    required this.query,
+    required this.isDark,
+    required this.loading,
+    required this.bgColor,
+    required this.bottomPad,
+    required this.onCreated,
+    required this.onLoadStart,
+    required this.onLoadStop,
+    required this.onExternalUrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: bgColor,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomPad),
+        child: Stack(children: [
+          InAppWebView(
+            initialUrlRequest: URLRequest(url: WebUri(tab.url(query))),
+            initialSettings: InAppWebViewSettings(
+              javaScriptEnabled: true,
+              userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
+                  'AppleWebKit/537.36 (KHTML, like Gecko) '
+                  'Chrome/124.0.0.0 Mobile Safari/537.36',
+              useHybridComposition: true,
+              transparentBackground: true,
+              disallowOverScroll: true,
+              supportZoom: false,
+              verticalScrollBarEnabled: false,
+              horizontalScrollBarEnabled: false,
+            ),
+            onWebViewCreated: onCreated,
+            onLoadStart: (_, __) => onLoadStart(),
+            onLoadStop: (ctrl, __) => onLoadStop(ctrl),
+            onReceivedError: (_, __, ___) => onLoadStart(),
+            shouldOverrideUrlLoading: (ctrl, action) async {
+              final url = action.request.url?.toString() ?? '';
+              if (!_isDdgUrl(url)) {
+                onExternalUrl(url);
+                return NavigationActionPolicy.CANCEL;
+              }
+              return NavigationActionPolicy.ALLOW;
+            },
+          ),
+          if (loading)
+            Positioned(
+              top: 0, left: 0, right: 0,
+              child: LinearProgressIndicator(
+                backgroundColor: Colors.transparent,
+                color: AppTheme.ytRed,
+                minHeight: 2,
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
 // ─── VideosPane ───────────────────────────────────────────────────────────────
 class _VideosPane extends StatelessWidget {
   final List<_ScrapedVideo> videos;
@@ -764,12 +744,10 @@ class _VideosPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (loading) return const Center(child: CircularProgressIndicator());
     if (videos.isEmpty) {
       return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.videocam_off_rounded, size: 48, color: subColor.withOpacity(0.3)),
+        Icon(LucideIcons.videoOff, size: 48, color: subColor.withOpacity(0.3)),
         const SizedBox(height: 12),
         Text('Nenhum vídeo encontrado',
             style: TextStyle(color: subColor, fontSize: 14)),
@@ -791,41 +769,32 @@ class _VideosPane extends StatelessWidget {
                   v.thumb, width: 130, height: 80, fit: BoxFit.cover,
                   headers: const {
                     'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36',
+                    'Referer': 'https://www.google.com',
                   },
                   errorBuilder: (_, __, ___) => Container(
                     width: 130, height: 80,
-                    color: isDark
-                        ? const Color(0xFF2A2A2A)
-                        : const Color(0xFFE0E0E0),
-                    child: Icon(Icons.play_circle_outline,
-                        color: subColor, size: 32),
+                    color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0),
+                    child: Icon(LucideIcons.playCircle, color: subColor, size: 32),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text(v.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          color: textColor,
-                          fontSize: 13,
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(v.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: textColor, fontSize: 13,
                           fontWeight: FontWeight.w500)),
                   const SizedBox(height: 6),
                   Row(children: [
-                    Image.network(v.faviconUrl,
-                        width: 14, height: 14,
+                    Image.network(v.faviconUrl, width: 14, height: 14,
                         errorBuilder: (_, __, ___) =>
-                            Icon(Icons.public, size: 14, color: subColor)),
+                            Icon(LucideIcons.globe, size: 14, color: subColor)),
                     const SizedBox(width: 5),
-                    Text(v.siteName,
-                        style: TextStyle(color: subColor, fontSize: 11)),
+                    Text(v.siteName, style: TextStyle(color: subColor, fontSize: 11)),
                   ]),
-                ]),
-              ),
+                ],
+              )),
             ]),
           ),
         );
@@ -842,7 +811,7 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Icon(Icons.search, color: subColor.withOpacity(0.25), size: 48),
+      Icon(LucideIcons.search, color: subColor.withOpacity(0.25), size: 48),
       const SizedBox(height: 14),
       Text('Pesquisa algo', style: TextStyle(color: subColor, fontSize: 14)),
     ]));
@@ -872,7 +841,7 @@ class _SuggestionsView extends StatelessWidget {
 
     if (items.isEmpty) {
       return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.search, color: subColor.withOpacity(0.25), size: 48),
+        Icon(LucideIcons.search, color: subColor.withOpacity(0.25), size: 48),
         const SizedBox(height: 14),
         Text('Pesquisa algo', style: TextStyle(color: subColor, fontSize: 14)),
       ]));
@@ -886,27 +855,20 @@ class _SuggestionsView extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             child: Row(children: [
               Text('Pesquisas recentes',
-                  style: TextStyle(
-                      color: subColor,
-                      fontSize: 12,
+                  style: TextStyle(color: subColor, fontSize: 12,
                       fontWeight: FontWeight.w600)),
               const Spacer(),
               GestureDetector(
                 onTap: onClearHistory,
                 child: Text('Limpar tudo',
-                    style: TextStyle(
-                        color: AppTheme.ytRed,
-                        fontSize: 12,
+                    style: TextStyle(color: AppTheme.ytRed, fontSize: 12,
                         fontWeight: FontWeight.w600)),
               ),
             ]),
           ),
         _IosGroupedList(
-          bg: cardBg,
-          mutedColor: mutedColor,
-          textColor: textColor,
-          items: items,
-          isHistory: !showSuggestions,
+          bg: cardBg, mutedColor: mutedColor, textColor: textColor,
+          items: items, isHistory: !showSuggestions,
           onTap: onSelect,
           onAction: showSuggestions ? onFill : onRemoveHistory,
         ),
@@ -934,20 +896,15 @@ class _IosGroupedList extends StatelessWidget {
     return Column(
       children: items.asMap().entries.map((e) {
         final i = e.key; final label = e.value;
-        final isOnly  = total == 1;
-        final isFirst = i == 0;
-        final isLast  = i == total - 1;
-        const big   = Radius.circular(12);
-        const small = Radius.circular(6);
+        final isOnly = total == 1; final isFirst = i == 0; final isLast = i == total - 1;
+        const big = Radius.circular(12); const small = Radius.circular(6);
         final BorderRadius radius = isOnly
             ? const BorderRadius.all(big)
             : isFirst
-                ? const BorderRadius.only(
-                    topLeft: big, topRight: big,
+                ? const BorderRadius.only(topLeft: big, topRight: big,
                     bottomLeft: small, bottomRight: small)
                 : isLast
-                    ? const BorderRadius.only(
-                        topLeft: small, topRight: small,
+                    ? const BorderRadius.only(topLeft: small, topRight: small,
                         bottomLeft: big, bottomRight: big)
                     : const BorderRadius.all(small);
 
@@ -963,22 +920,20 @@ class _IosGroupedList extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: Row(children: [
-                    Icon(isHistory ? Icons.access_time : Icons.search,
+                    Icon(isHistory ? LucideIcons.clock3 : LucideIcons.search,
                         size: 16, color: mutedColor),
                     const SizedBox(width: 12),
-                    Expanded(child: Text(label,
-                        style: TextStyle(
-                            color: textColor,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w400))),
+                    Expanded(child: Text(label, style: TextStyle(
+                        color: textColor, fontSize: 15,
+                        fontWeight: FontWeight.w400))),
                     GestureDetector(
                       onTap: () => onAction(label),
                       behavior: HitTestBehavior.opaque,
                       child: Padding(
                         padding: const EdgeInsets.only(left: 12),
                         child: Icon(
-                            isHistory ? Icons.close : Icons.north_west,
-                            size: 15, color: mutedColor),
+                          isHistory ? LucideIcons.x : LucideIcons.arrowUpLeft,
+                          size: 15, color: mutedColor),
                       ),
                     ),
                   ]),
@@ -1008,11 +963,12 @@ class _IosGroupedList extends StatelessWidget {
   }
 }
 
-// ─── SvgIcon ──────────────────────────────────────────────────────────────────
+// ─── SvgIcon — com size explícito para garantir visibilidade ─────────────────
 class _SvgIcon extends StatelessWidget {
   final String svg;
   final Color color;
   final double size;
+
   const _SvgIcon(this.svg, {required this.color, this.size = 20});
 
   @override
@@ -1021,7 +977,9 @@ class _SvgIcon extends StatelessWidget {
     return Image.memory(
       Uri.dataFromString(colored, mimeType: 'image/svg+xml', encoding: utf8)
           .data!.contentAsBytes(),
-      width: size, height: size, fit: BoxFit.contain,
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
     );
   }
 
