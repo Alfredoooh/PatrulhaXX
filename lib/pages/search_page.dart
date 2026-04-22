@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/site_model.dart';
 import '../widgets/site_icon_widget.dart';
@@ -97,7 +96,7 @@ class _SearchPageState extends State<SearchPage> {
     return ListenableBuilder(
       listenable: ThemeService.instance,
       builder: (_, __) {
-        final t = AppTheme.current;
+        final t      = AppTheme.current;
         final isDark = ThemeService.instance.isDark;
         final cardBg = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF0F0F0);
         final mutedIc = isDark ? Colors.white30 : Colors.black26;
@@ -112,7 +111,8 @@ class _SearchPageState extends State<SearchPage> {
             body: ListView(
               padding: EdgeInsets.zero,
               children: [
-                // ── Status bar space + AppBar manual ──────────────────────────
+
+                // ── AppBar manual ─────────────────────────────────────────
                 Container(
                   color: t.appBar,
                   padding: EdgeInsets.only(
@@ -131,31 +131,26 @@ class _SearchPageState extends State<SearchPage> {
                             : const Color(0xFFE8E8E8),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Row(
-                        children: [
-                          const SizedBox(width: 12),
-                          Icon(
-                            Icons.search,
-                            size: 18,
-                            color: isDark ? Colors.white38 : Colors.black38,
+                      child: Row(children: [
+                        const SizedBox(width: 12),
+                        Icon(Icons.search, size: 18,
+                            color: isDark ? Colors.white38 : Colors.black38),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Pesquisar...',
+                          style: TextStyle(
+                            color: isDark ? Colors.white30 : Colors.black38,
+                            fontSize: 15,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Pesquisar...',
-                            style: TextStyle(
-                              color: isDark ? Colors.white30 : Colors.black38,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ]),
                     ),
                   ),
                 ),
 
                 const SizedBox(height: 16),
 
-                // ── Sites ─────────────────────────────────────────────────────
+                // ── Sites ─────────────────────────────────────────────────
                 SizedBox(
                   height: 88,
                   child: ListView.builder(
@@ -178,7 +173,7 @@ class _SearchPageState extends State<SearchPage> {
 
                 const SizedBox(height: 22),
 
-                // ── Categorias ────────────────────────────────────────────────
+                // ── Categorias ────────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                   child: Text(
@@ -231,7 +226,7 @@ class _SearchPageState extends State<SearchPage> {
                   ),
                 ),
 
-                // ── Histórico ─────────────────────────────────────────────────
+                // ── Histórico ─────────────────────────────────────────────
                 if (_history.isNotEmpty) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 28, 16, 8),
@@ -283,7 +278,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 }
 
-// ─── _SiteCell (idêntico ao home_page.dart) ───────────────────────────────────
+// ─── _SiteCell — idêntico ao home_page.dart ───────────────────────────────────
 class _SiteCell extends StatefulWidget {
   final SiteModel site;
   final VoidCallback onTap;
@@ -381,31 +376,25 @@ class _IosGroupedList extends StatelessWidget {
 
     return Column(
       children: items.asMap().entries.map((e) {
-        final i = e.key;
+        final i     = e.key;
         final label = e.value;
-        final isOnly = total == 1;
+        final isOnly  = total == 1;
         final isFirst = i == 0;
-        final isLast = i == total - 1;
+        final isLast  = i == total - 1;
 
-        const big = Radius.circular(12);
+        const big   = Radius.circular(12);
         const small = Radius.circular(6);
 
         final BorderRadius radius = isOnly
             ? const BorderRadius.all(big)
             : isFirst
                 ? const BorderRadius.only(
-                    topLeft: big,
-                    topRight: big,
-                    bottomLeft: small,
-                    bottomRight: small,
-                  )
+                    topLeft: big, topRight: big,
+                    bottomLeft: small, bottomRight: small)
                 : isLast
                     ? const BorderRadius.only(
-                        topLeft: small,
-                        topRight: small,
-                        bottomLeft: big,
-                        bottomRight: big,
-                      )
+                        topLeft: small, topRight: small,
+                        bottomLeft: big, bottomRight: big)
                     : const BorderRadius.all(small);
 
         return Dismissible(
@@ -430,22 +419,28 @@ class _IosGroupedList extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Row(
-                      children: [
-                        Icon(Icons.access_time, size: 16, color: mutedColor),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            label,
-                            style: TextStyle(
-                              color: textColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w400,
-                            ),
+                    child: Row(children: [
+                      Icon(Icons.access_time, size: 16, color: mutedColor),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      GestureDetector(
+                        onTap: () => onRemove(label),
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 12),
+                          child: Icon(Icons.close, size: 15, color: mutedColor),
+                        ),
+                      ),
+                    ]),
                   ),
                 ),
               ),
