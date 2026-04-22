@@ -200,7 +200,7 @@ class _ExplorePageState extends State<ExplorePage>
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: t.bg,          // sólido
+        statusBarColor: t.bg,
         statusBarIconBrightness: t.statusBar),
       child: Scaffold(
         backgroundColor: t.bg,
@@ -219,7 +219,6 @@ class _ExplorePageState extends State<ExplorePage>
           controller: _scroll,
           headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
 
-            // Título sobe e some atrás do status bar sólido
             SliverAppBar(
               backgroundColor: t.bg,
               surfaceTintColor: Colors.transparent,
@@ -227,9 +226,14 @@ class _ExplorePageState extends State<ExplorePage>
               elevation: 0,
               pinned: true,
               floating: false,
-              expandedHeight: 44,   // só a altura do título, sem topPad
-              toolbarHeight: 0,     // colapsado = zero altura, chips ficam no limite
+              expandedHeight: 44,
+              toolbarHeight: 0,
               automaticallyImplyLeading: false,
+              // ← única linha adicionada
+              systemOverlayStyle: SystemUiOverlayStyle(
+                statusBarColor: t.bg,
+                statusBarIconBrightness: t.statusBar,
+              ),
               flexibleSpace: FlexibleSpaceBar(
                 titlePadding: const EdgeInsets.only(left: 16, bottom: 10),
                 centerTitle: false,
@@ -251,7 +255,6 @@ class _ExplorePageState extends State<ExplorePage>
               ],
             ),
 
-            // Chips pregados no limite do status bar
             SliverPersistentHeader(
               pinned: true,
               delegate: _ChipDelegate(
