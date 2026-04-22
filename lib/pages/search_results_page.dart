@@ -530,7 +530,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                             active: _activeTab,
                             onSwitch: _switchTab,
                             isDark: isDark,
-                            accentColor: t.accent,
+                            accentColor: t.accentColor,
                           ),
                       ],
                     ),
