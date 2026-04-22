@@ -45,15 +45,40 @@ class _SearchPageState extends State<SearchPage> {
   List<String> _history = [];
   static const _kHistory = 'search_history_v3';
 
+  // Imagens neutras/abstratas que combinam visualmente com cada categoria
   static const _categories = [
-    _Category(label: 'Heterossexual'),
-    _Category(label: 'Homossexual'),
-    _Category(label: 'Lésbicas'),
-    _Category(label: 'Anal'),
-    _Category(label: 'Amador'),
-    _Category(label: 'MILF'),
-    _Category(label: 'Teen'),
-    _Category(label: 'Hentai'),
+    _Category(
+      label: 'Heterossexual',
+      imageUrl: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=400&q=80',
+    ),
+    _Category(
+      label: 'Homossexual',
+      imageUrl: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=400&q=80',
+    ),
+    _Category(
+      label: 'Lésbicas',
+      imageUrl: 'https://images.unsplash.com/photo-1490750967868-88df5691cc8d?w=400&q=80',
+    ),
+    _Category(
+      label: 'Anal',
+      imageUrl: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=400&q=80',
+    ),
+    _Category(
+      label: 'Amador',
+      imageUrl: 'https://images.unsplash.com/photo-1464820453369-31d2c0b651af?w=400&q=80',
+    ),
+    _Category(
+      label: 'MILF',
+      imageUrl: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&q=80',
+    ),
+    _Category(
+      label: 'Teen',
+      imageUrl: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=400&q=80',
+    ),
+    _Category(
+      label: 'Hentai',
+      imageUrl: 'https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=400&q=80',
+    ),
   ];
 
   @override
@@ -81,13 +106,11 @@ class _SearchPageState extends State<SearchPage> {
     await p.remove(_kHistory);
   }
 
-  void _goSearch(String q) {
-    Navigator.push(context, iosRoute(SearchResultsPage(query: q)));
-  }
+  void _goSearch(String q) =>
+      Navigator.push(context, iosRoute(SearchResultsPage(query: q)));
 
-  void _goSearchPage() {
-    Navigator.push(context, iosRoute(const SearchResultsPage()));
-  }
+  void _goSearchPage() =>
+      Navigator.push(context, iosRoute(const SearchResultsPage()));
 
   @override
   Widget build(BuildContext context) {
@@ -96,9 +119,9 @@ class _SearchPageState extends State<SearchPage> {
     return ListenableBuilder(
       listenable: ThemeService.instance,
       builder: (_, __) {
-        final t      = AppTheme.current;
-        final isDark = ThemeService.instance.isDark;
-        final cardBg = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF0F0F0);
+        final t       = AppTheme.current;
+        final isDark  = ThemeService.instance.isDark;
+        final cardBg  = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF0F0F0);
         final mutedIc = isDark ? Colors.white30 : Colors.black26;
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -108,167 +131,224 @@ class _SearchPageState extends State<SearchPage> {
           ),
           child: Scaffold(
             backgroundColor: t.bg,
-            body: ListView(
-              padding: EdgeInsets.zero,
+            // ── AppBar fixo — não sobe ao deslizar ───────────────────────
+            body: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
 
-                // ── AppBar manual ─────────────────────────────────────────
+                // AppBar sempre fixo no topo
                 Container(
                   color: t.appBar,
                   padding: EdgeInsets.only(
                     top: topPad + 8,
-                    left: 12,
-                    right: 12,
+                    left: 16,
+                    right: 16,
                     bottom: 10,
                   ),
-                  child: GestureDetector(
-                    onTap: _goSearchPage,
-                    child: Container(
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? const Color(0xFF2A2A2A)
-                            : const Color(0xFFE8E8E8),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(children: [
-                        const SizedBox(width: 12),
-                        Icon(Icons.search, size: 18,
-                            color: isDark ? Colors.white38 : Colors.black38),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Pesquisar...',
-                          style: TextStyle(
-                            color: isDark ? Colors.white30 : Colors.black38,
-                            fontSize: 15,
-                          ),
+                  child: Row(
+                    children: [
+                      // Título à esquerda
+                      Text(
+                        'Pesquisar',
+                        style: TextStyle(
+                          color: t.text,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
                         ),
-                      ]),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // ── Sites ─────────────────────────────────────────────────
-                SizedBox(
-                  height: 88,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: kSites.length,
-                    itemBuilder: (_, i) => _SiteCell(
-                      site: kSites[i],
-                      onTap: () => Navigator.push(
-                        context,
-                        iosRoute(FreeBrowserPage(
-                          url: kSites[i].baseUrl,
-                          title: kSites[i].name,
-                        )),
                       ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 22),
-
-                // ── Categorias ────────────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                  child: Text(
-                    'Categorias',
-                    style: TextStyle(
-                      color: t.text,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                      childAspectRatio: 1.55,
-                    ),
-                    itemCount: _categories.length,
-                    itemBuilder: (_, i) {
-                      final cat = _categories[i];
-                      return GestureDetector(
-                        onTap: () => _goSearch(cat.label),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
+                      const SizedBox(width: 12),
+                      // Input mais curto — ocupa o espaço restante
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _goSearchPage,
                           child: Container(
-                            color: isDark
-                                ? const Color(0xFF1E1E1E)
-                                : const Color(0xFFEEEEEE),
-                            child: Center(
-                              child: Text(
-                                cat.label,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF2A2A2A)
+                                  : const Color(0xFFE8E8E8),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(children: [
+                              const SizedBox(width: 10),
+                              Icon(Icons.search, size: 16,
+                                  color: isDark ? Colors.white38 : Colors.black38),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Pesquisar...',
                                 style: TextStyle(
-                                  color: t.text,
+                                  color: isDark ? Colors.white30 : Colors.black38,
                                   fontSize: 14,
-                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
+                            ]),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Conteúdo scrollável
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+
+                      const SizedBox(height: 16),
+
+                      // ── Sites ───────────────────────────────────────────
+                      SizedBox(
+                        height: 88,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          itemCount: kSites.length,
+                          itemBuilder: (_, i) => _SiteCell(
+                            site: kSites[i],
+                            onTap: () => Navigator.push(
+                              context,
+                              iosRoute(FreeBrowserPage(
+                                url: kSites[i].baseUrl,
+                                title: kSites[i].name,
+                              )),
                             ),
                           ),
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ),
 
-                // ── Histórico ─────────────────────────────────────────────
-                if (_history.isNotEmpty) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 28, 16, 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Histórico',
+                      // ── Categorias ──────────────────────────────────────
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                        child: Text(
+                          'Categorias',
                           style: TextStyle(
                             color: t.text,
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        GestureDetector(
-                          onTap: _clearHistory,
-                          child: Text(
-                            'Limpar',
-                            style: TextStyle(
-                              color: AppTheme.ytRed,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
+                      ),
+
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                            childAspectRatio: 1.55,
+                          ),
+                          itemCount: _categories.length,
+                          itemBuilder: (_, i) {
+                            final cat = _categories[i];
+                            return GestureDetector(
+                              onTap: () => _goSearch(cat.label),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Image.network(
+                                      cat.imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        color: isDark
+                                            ? const Color(0xFF1E1E1E)
+                                            : const Color(0xFFEEEEEE),
+                                      ),
+                                    ),
+                                    // Gradiente escuro por baixo do texto
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Colors.transparent,
+                                            Colors.black.withOpacity(0.65),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    // Texto no canto inferior esquerdo
+                                    Positioned(
+                                      left: 10,
+                                      bottom: 8,
+                                      right: 10,
+                                      child: Text(
+                                        cat.label,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          shadows: [
+                                            Shadow(
+                                              blurRadius: 6,
+                                              color: Colors.black54,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+
+                      // ── Histórico ───────────────────────────────────────
+                      if (_history.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 28, 16, 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Histórico',
+                                style: TextStyle(
+                                  color: t.text,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: _clearHistory,
+                                child: Text(
+                                  'Limpar',
+                                  style: TextStyle(
+                                    color: AppTheme.ytRed,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _IosGroupedList(
+                            bg: cardBg,
+                            mutedColor: mutedIc,
+                            textColor: t.text,
+                            items: _history,
+                            onTap: _goSearch,
+                            onRemove: _removeHistory,
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _IosGroupedList(
-                      bg: cardBg,
-                      mutedColor: mutedIc,
-                      textColor: t.text,
-                      items: _history,
-                      onTap: _goSearch,
-                      onRemove: _removeHistory,
-                    ),
-                  ),
-                ],
 
-                const SizedBox(height: 24),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -278,7 +358,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 }
 
-// ─── _SiteCell — idêntico ao home_page.dart ───────────────────────────────────
+// ─── _SiteCell ────────────────────────────────────────────────────────────────
 class _SiteCell extends StatefulWidget {
   final SiteModel site;
   final VoidCallback onTap;
@@ -352,7 +432,7 @@ class _SiteCellState extends State<_SiteCell>
   }
 }
 
-// ─── _IosGroupedList ──────────────────────────────────────────────────────────
+// ─── _IosGroupedList — sem X, só swipe para remover ──────────────────────────
 class _IosGroupedList extends StatelessWidget {
   final Color bg;
   final Color textColor;
@@ -432,14 +512,6 @@ class _IosGroupedList extends StatelessWidget {
                           ),
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => onRemove(label),
-                        behavior: HitTestBehavior.opaque,
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 12),
-                          child: Icon(Icons.close, size: 15, color: mutedColor),
-                        ),
-                      ),
                     ]),
                   ),
                 ),
@@ -455,5 +527,6 @@ class _IosGroupedList extends StatelessWidget {
 // ─── _Category ────────────────────────────────────────────────────────────────
 class _Category {
   final String label;
-  const _Category({required this.label});
+  final String imageUrl;
+  const _Category({required this.label, required this.imageUrl});
 }
