@@ -207,18 +207,22 @@ class _BrowserPageState extends State<BrowserPage> {
   }) {
     if (_dialogOpen) return;
     setState(() => _dialogOpen = true);
+
+    // Modal nativo com bordas moderadas (não exageradas)
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppTheme.current.sheet,
       isScrollControlled: true,
+      // Bordas moderadas — nativas do sistema
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+      ),
       builder: (_) => _DownloadSheet(
         src: src,
         type: type,
         thumb: thumb,
         site: widget.site,
         onSuccess: () {
-          // Abre DownloadListPage (downloads em curso)
-          // Quando o download termina, o item desaparece da lista automaticamente
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const DownloadListPage()),
@@ -248,6 +252,10 @@ class _BrowserPageState extends State<BrowserPage> {
   Widget build(BuildContext context) {
     final t      = AppTheme.current;
     final topPad = MediaQuery.of(context).padding.top;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    // AppBar reduzida 20%: era 52, agora ~42
+    const double kAppBarH = 42.0;
 
     return PopScope(
       canPop: false,
@@ -266,11 +274,11 @@ class _BrowserPageState extends State<BrowserPage> {
           backgroundColor: t.bg,
           body: Column(children: [
 
-            // ── AppBar + Status bar — contentor único sem junções ─────
+            // ── AppBar + Status bar ───────────────────────────────────
             Container(
               color: t.appBar,
               padding: EdgeInsets.only(top: topPad),
-              height: topPad + 52,
+              height: topPad + kAppBarH,
               child: Row(children: [
 
                 // X fechar
@@ -278,13 +286,11 @@ class _BrowserPageState extends State<BrowserPage> {
                   onTap: () => Navigator.of(context).pop(),
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     child: SvgPicture.string(
                       _svgClose,
                       width: 16, height: 16,
-                      colorFilter:
-                          ColorFilter.mode(t.icon, BlendMode.srcIn),
+                      colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
                     ),
                   ),
                 ),
@@ -294,8 +300,7 @@ class _BrowserPageState extends State<BrowserPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SiteIconWidget(
-                          site: widget.site, size: 22, showShadow: false),
+                      SiteIconWidget(site: widget.site, size: 20, showShadow: false),
                       const SizedBox(height: 2),
                       Text(
                         _shortLabel,
@@ -325,7 +330,7 @@ class _BrowserPageState extends State<BrowserPage> {
               ]),
             ),
 
-            // ── Barra de progresso — cor única (t.icon) ───────────────
+            // ── Barra de progresso ────────────────────────────────────
             SizedBox(
               height: 2.5,
               child: _loading
@@ -337,153 +342,163 @@ class _BrowserPageState extends State<BrowserPage> {
                   : const SizedBox.shrink(),
             ),
 
-            // ── WebView + overlay sem conexão ─────────────────────────
+            // ── WebView ───────────────────────────────────────────────
             Expanded(
-              child: Stack(children: [
+              child: ColoredBox(
+                // Fix linha branca: fundo da app antes do WebView renderizar
+                color: t.bg,
+                child: Stack(children: [
 
-                InAppWebView(
-                  initialUrlRequest: URLRequest(url: WebUri(_startUrl)),
-                  initialSettings: InAppWebViewSettings(
-                    javaScriptEnabled: true,
-                    javaScriptCanOpenWindowsAutomatically: true,
-                    domStorageEnabled: true,
-                    databaseEnabled: true,
-                    mediaPlaybackRequiresUserGesture: false,
-                    allowsInlineMediaPlayback: true,
-                    useOnDownloadStart: true,
-                    useShouldOverrideUrlLoading: true,
-                    supportZoom: true,
-                    builtInZoomControls: false,
-                    displayZoomControls: false,
-                    cacheEnabled: true,
-                    allowFileAccessFromFileURLs: true,
-                    allowUniversalAccessFromFileURLs: true,
-                    // Sem fundo branco antes de carregar — Android mostra branco por omissão
-                    transparentBackground: true,
-                    userAgent:
-                        'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-                  ),
-                  onWebViewCreated: (ctrl) {
-                    _wvCtrl = ctrl;
-                    ctrl.addJavaScriptHandler(
-                      handlerName: 'DownloadChannel',
-                      callback: _handleMediaArgs,
-                    );
-                  },
-                  onTitleChanged: (_, title) {
-                    if (mounted && title != null && title.isNotEmpty) {
-                      setState(() => _pageTitle = title);
-                    }
-                  },
-                  onLoadStart: (_, url) => setState(() {
-                    _loading = true;
-                    _progress = 0;
-                    _noConnection = false;
-                  }),
-                  onLoadStop: (ctrl, _) async {
-                    setState(() => _loading = false);
-                    await ctrl.evaluateJavascript(source: _mediaJs);
-                  },
-                  onReceivedError: (_, request, error) {
-                    // Apenas para o frame principal — ignora sub-recursos
-                    if (request.isForMainFrame == true) {
-                      if (mounted) setState(() => _noConnection = true);
-                    }
-                  },
-                  onProgressChanged: (_, p) =>
-                      setState(() => _progress = p / 100),
-                  shouldOverrideUrlLoading: (ctrl, action) async {
-                    final url   = action.request.url?.toString() ?? '';
-                    final lower = url.toLowerCase();
-                    final isMedia = lower.contains('.mp4') ||
-                        lower.contains('.webm') ||
-                        lower.contains('.m4v') ||
-                        lower.contains('.mov') ||
-                        lower.contains('.m3u8') ||
-                        lower.contains('.ts?');
-                    if (isMedia && !_dialogOpen) {
-                      _showDownload(src: url, type: 'video', thumb: '');
-                      return NavigationActionPolicy.CANCEL;
-                    }
-                    if (!_isAllowed(url)) return NavigationActionPolicy.CANCEL;
-                    return NavigationActionPolicy.ALLOW;
-                  },
-                  onDownloadStartRequest: (_, req) {
-                    if (!_dialogOpen) {
-                      _showDownload(
-                        src: req.url.toString(),
-                        type: _guessType(req.url.toString()),
-                        thumb: '',
+                  InAppWebView(
+                    initialUrlRequest: URLRequest(url: WebUri(_startUrl)),
+                    initialSettings: InAppWebViewSettings(
+                      javaScriptEnabled: true,
+                      javaScriptCanOpenWindowsAutomatically: true,
+                      domStorageEnabled: true,
+                      databaseEnabled: true,
+                      mediaPlaybackRequiresUserGesture: false,
+                      allowsInlineMediaPlayback: true,
+                      useOnDownloadStart: true,
+                      useShouldOverrideUrlLoading: true,
+                      supportZoom: true,
+                      builtInZoomControls: false,
+                      displayZoomControls: false,
+                      cacheEnabled: true,
+                      allowFileAccessFromFileURLs: true,
+                      allowUniversalAccessFromFileURLs: true,
+                      transparentBackground: true,
+                      // Fix linha branca lateral e inferior no Android
+                      useHybridComposition: true,
+                      userAgent:
+                          'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
+                          '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                    ),
+                    onWebViewCreated: (ctrl) {
+                      _wvCtrl = ctrl;
+                      ctrl.addJavaScriptHandler(
+                        handlerName: 'DownloadChannel',
+                        callback: _handleMediaArgs,
                       );
-                    }
-                  },
-                  onPermissionRequest: (_, req) async => PermissionResponse(
-                    resources: req.resources,
-                    action: PermissionResponseAction.GRANT,
+                    },
+                    onTitleChanged: (_, title) {
+                      if (mounted && title != null && title.isNotEmpty) {
+                        setState(() => _pageTitle = title);
+                      }
+                    },
+                    onLoadStart: (_, url) => setState(() {
+                      _loading = true;
+                      _progress = 0;
+                      _noConnection = false;
+                    }),
+                    onLoadStop: (ctrl, _) async {
+                      setState(() => _loading = false);
+                      await ctrl.evaluateJavascript(source: _mediaJs);
+                    },
+                    onReceivedError: (_, request, error) {
+                      if (request.isForMainFrame == true) {
+                        if (mounted) setState(() => _noConnection = true);
+                      }
+                    },
+                    onProgressChanged: (_, p) =>
+                        setState(() => _progress = p / 100),
+                    shouldOverrideUrlLoading: (ctrl, action) async {
+                      final url   = action.request.url?.toString() ?? '';
+                      final lower = url.toLowerCase();
+                      final isMedia = lower.contains('.mp4') ||
+                          lower.contains('.webm') ||
+                          lower.contains('.m4v') ||
+                          lower.contains('.mov') ||
+                          lower.contains('.m3u8') ||
+                          lower.contains('.ts?');
+                      if (isMedia && !_dialogOpen) {
+                        _showDownload(src: url, type: 'video', thumb: '');
+                        return NavigationActionPolicy.CANCEL;
+                      }
+                      if (!_isAllowed(url)) return NavigationActionPolicy.CANCEL;
+                      return NavigationActionPolicy.ALLOW;
+                    },
+                    onDownloadStartRequest: (_, req) {
+                      if (!_dialogOpen) {
+                        _showDownload(
+                          src: req.url.toString(),
+                          type: _guessType(req.url.toString()),
+                          thumb: '',
+                        );
+                      }
+                    },
+                    onPermissionRequest: (_, req) async => PermissionResponse(
+                      resources: req.resources,
+                      action: PermissionResponseAction.GRANT,
+                    ),
                   ),
-                ),
 
-                // ── Overlay sem conexão ───────────────────────────────
-                if (_noConnection)
-                  Positioned.fill(
-                    child: Container(
-                      color: t.bg,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 180,
-                            height: 180,
-                            child: Lottie.asset(
-                              'assets/lottie/no_connection.json',
-                              repeat: true,
-                              animate: true,
-                              errorBuilder: (_, __, ___) => Icon(
-                                Icons.wifi_off_rounded,
-                                size: 64,
-                                color: t.emptyIcon,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Sem ligação à internet',
-                            style: TextStyle(
-                              color: t.emptyText,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() => _noConnection = false);
-                              _wvCtrl?.reload();
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: t.cardAlt,
-                                borderRadius: BorderRadius.circular(100),
-                                border: Border.all(color: t.border),
-                              ),
-                              child: Text(
-                                'Tentar novamente',
-                                style: TextStyle(
-                                  color: t.text,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
+                  // ── Overlay sem conexão ───────────────────────────
+                  if (_noConnection)
+                    Positioned.fill(
+                      child: Container(
+                        color: t.bg,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 180,
+                              height: 180,
+                              child: Lottie.asset(
+                                'assets/lottie/no_connection.json',
+                                repeat: true,
+                                animate: true,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  Icons.wifi_off_rounded,
+                                  size: 64,
+                                  color: t.emptyIcon,
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 16),
+                            Text(
+                              'Sem ligação',
+                              style: TextStyle(
+                                color: t.text,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Verifica a tua ligação à internet.',
+                              style: TextStyle(
+                                color: t.textSecondary,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() => _noConnection = false);
+                                _wvCtrl?.reload();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: t.text,
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                                child: Text(
+                                  'Tentar novamente',
+                                  style: TextStyle(
+                                    color: t.textInvert,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-              ]),
+                ]),
+              ),
             ),
           ]),
         ),
@@ -492,7 +507,7 @@ class _BrowserPageState extends State<BrowserPage> {
   }
 }
 
-// ─── Popup menu ───────────────────────────────────────────────────────────────
+// ─── Menu button ──────────────────────────────────────────────────────────────
 class _MenuBtn extends StatefulWidget {
   final int activeDownloads;
   final VoidCallback onRefresh;
@@ -550,7 +565,7 @@ class _MenuBtnState extends State<_MenuBtn> {
       onTap: _show,
       behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Stack(clipBehavior: Clip.none, children: [
           SvgPicture.string(
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
@@ -564,8 +579,7 @@ class _MenuBtnState extends State<_MenuBtn> {
             Positioned(
               top: -5, right: -5,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
                 decoration: BoxDecoration(
                   color: AppTheme.ytRed,
                   borderRadius: BorderRadius.circular(100),
@@ -586,7 +600,7 @@ class _MenuBtnState extends State<_MenuBtn> {
   }
 }
 
-// ─── Overlay do popup ─────────────────────────────────────────────────────────
+// ─── Popup menu overlay — estilo Android antigo (≤10) ────────────────────────
 class _PopupMenuOverlay extends StatefulWidget {
   final double anchorRight, anchorTop;
   final int activeDownloads;
@@ -613,8 +627,9 @@ class _PopupMenuOverlayState extends State<_PopupMenuOverlay>
   void initState() {
     super.initState();
     _c = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 140));
-    _scale = CurvedAnimation(parent: _c, curve: Curves.easeOutBack);
+        vsync: this, duration: const Duration(milliseconds: 180));
+    // Estilo Android antigo (≤10): easeOutCubic suave sem bounce
+    _scale = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
     _fade  = CurvedAnimation(parent: _c, curve: Curves.easeOut);
     _c.forward();
   }
@@ -633,8 +648,7 @@ class _PopupMenuOverlayState extends State<_PopupMenuOverlay>
       onTap: onTap,
       child: Container(
         width: 196,
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         child: Row(children: [
           SvgPicture.string(svg, width: 18, height: 18,
               colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn)),
@@ -648,8 +662,7 @@ class _PopupMenuOverlayState extends State<_PopupMenuOverlay>
           ),
           if (badge != null)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                   color: AppTheme.ytRed,
                   borderRadius: BorderRadius.circular(100)),
@@ -693,17 +706,17 @@ class _PopupMenuOverlayState extends State<_PopupMenuOverlay>
                 width: 200,
                 decoration: BoxDecoration(
                   color: t.popup,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: t.borderSoft),
+                  // Bordas quadradas estilo Android antigo — raio pequeno
+                  borderRadius: BorderRadius.circular(4),
                   boxShadow: [
                     BoxShadow(
                         color: t.shadowHard.withOpacity(0.35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4)),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2)),
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(4),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     _item(_svgMenuRefresh, 'Recarregar', widget.onRefresh),
                     Divider(height: 1, color: t.dividerSoft),
@@ -730,9 +743,7 @@ class _PopupMenuOverlayState extends State<_PopupMenuOverlay>
   }
 }
 
-enum _MenuAction { refresh, copy, downloads }
-
-// ─── Download bottom sheet ────────────────────────────────────────────────────
+// ─── Download bottom sheet — nativo com bordas moderadas ─────────────────────
 class _DownloadSheet extends StatefulWidget {
   final String src;
   final String type;
@@ -754,19 +765,14 @@ class _DownloadSheet extends StatefulWidget {
 
 class _DownloadSheetState extends State<_DownloadSheet> {
   bool _downloading = false;
-  bool _done = false;
   String? _error;
 
   Future<void> _doDownload() async {
     setState(() { _downloading = true; _error = null; });
-    // Lança o download em background — não aguarda a conclusão aqui
     DownloadService.instance
         .download(url: widget.src, type: widget.type, context: context)
-        .then((item) {
-      // Quando terminar, o item fica em DownloadService.activeList
-      // A DownloadListPage já detecta o fim via ValueListenable
-    }).catchError((_) {});
-    // Fechar sheet e navegar imediatamente sem esperar pelo download
+        .then((item) {})
+        .catchError((_) {});
     if (!mounted) return;
     Navigator.pop(context);
     widget.onSuccess();
@@ -778,162 +784,153 @@ class _DownloadSheetState extends State<_DownloadSheet> {
     final isVideo = widget.type == 'video';
     final hasThumb = widget.thumb.isNotEmpty;
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      decoration: BoxDecoration(
-          color: t.sheet, borderRadius: BorderRadius.circular(22)),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
+    // O shape já está definido no showModalBottomSheet, aqui apenas o conteúdo
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
 
-          // Handle
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              decoration: BoxDecoration(
-                  color: t.sheetHandle,
-                  borderRadius: BorderRadius.circular(2)),
+        // Handle nativo
+        Center(
+          child: Container(
+            width: 32, height: 4,
+            decoration: BoxDecoration(
+                color: t.sheetHandle,
+                borderRadius: BorderRadius.circular(2)),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Preview
+        if (hasThumb)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: CachedNetworkImage(
+              imageUrl: widget.thumb,
+              height: 160,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              placeholder: (_, __) => Container(
+                height: 160,
+                color: t.thumbBg,
+                child: Center(
+                  child: SizedBox(
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 1.5, color: t.iconTertiary),
+                  ),
+                ),
+              ),
+              errorWidget: (_, __, ___) => Container(
+                height: 80,
+                color: t.thumbBg,
+                child: Center(
+                  child: Icon(
+                      isVideo
+                          ? Icons.videocam_outlined
+                          : Icons.image_outlined,
+                      color: t.iconTertiary,
+                      size: 32),
+                ),
+              ),
+            ),
+          )
+        else
+          Container(
+            height: 80,
+            width: double.infinity,
+            decoration: BoxDecoration(
+                color: t.thumbBg,
+                borderRadius: BorderRadius.circular(10)),
+            child: Center(
+              child: Icon(
+                  isVideo ? Icons.videocam_outlined : Icons.image_outlined,
+                  color: t.iconTertiary,
+                  size: 32),
             ),
           ),
-          const SizedBox(height: 16),
 
-          // Preview
-          if (hasThumb)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: CachedNetworkImage(
-                imageUrl: widget.thumb,
-                height: 160,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Container(
-                  height: 160,
-                  color: t.thumbBg,
-                  child: Center(
-                    child: SizedBox(
-                      width: 20, height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 1.5, color: t.iconTertiary),
-                    ),
-                  ),
-                ),
-                errorWidget: (_, __, ___) => Container(
-                  height: 80,
-                  color: t.thumbBg,
-                  child: Center(
-                    child: Icon(
-                        isVideo
-                            ? Icons.videocam_outlined
-                            : Icons.image_outlined,
-                        color: t.iconTertiary,
-                        size: 32),
-                  ),
-                ),
-              ),
-            )
-          else
-            Container(
-              height: 80,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                  color: t.thumbBg,
-                  borderRadius: BorderRadius.circular(14)),
-              child: Center(
-                child: Icon(
-                    isVideo
-                        ? Icons.videocam_outlined
-                        : Icons.image_outlined,
-                    color: t.iconTertiary,
-                    size: 32),
-              ),
-            ),
+        const SizedBox(height: 16),
 
-          const SizedBox(height: 16),
-
-          Row(children: [
-            SvgPicture.string(
-              isVideo ? _svgMenuDownloads : _svgMenuCopy,
-              width: 18, height: 18,
-              colorFilter: ColorFilter.mode(t.iconSub, BlendMode.srcIn),
+        Row(children: [
+          SvgPicture.string(
+            isVideo ? _svgMenuDownloads : _svgMenuCopy,
+            width: 18, height: 18,
+            colorFilter: ColorFilter.mode(t.iconSub, BlendMode.srcIn),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Baixar ${isVideo ? 'vídeo' : 'imagem'}',
+              style: TextStyle(
+                  color: t.text,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Baixar ${isVideo ? 'vídeo' : 'imagem'}',
-                style: TextStyle(
-                    color: t.text,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600),
-              ),
-            ),
-            Text('Privado',
-                style: TextStyle(color: t.textHint, fontSize: 11)),
-          ]),
-
-          const SizedBox(height: 16),
-
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(_error!,
-                  style: TextStyle(color: AppTheme.error, fontSize: 13)),
-            ),
-
-          // Botões — o sheet fecha imediatamente ao confirmar
-          // O progresso é visível na DownloadListPage
-          Row(children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  height: 48,
-                  decoration: BoxDecoration(
-                      color: t.btnGhost,
-                      borderRadius: BorderRadius.circular(24)),
-                  child: Center(
-                    child: Text('Cancelar',
-                        style: TextStyle(
-                            color: t.textSecondary,
-                            fontWeight: FontWeight.w500)),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: GestureDetector(
-                onTap: _downloading ? null : _doDownload,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  height: 48,
-                  decoration: BoxDecoration(
-                      color: _downloading
-                          ? t.text.withOpacity(0.5)
-                          : t.text,
-                      borderRadius: BorderRadius.circular(24)),
-                  child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                    SvgPicture.string(_svgMenuDownloads,
-                        width: 18, height: 18,
-                        colorFilter: ColorFilter.mode(
-                            t.textInvert, BlendMode.srcIn)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Baixar ${isVideo ? 'vídeo' : 'imagem'}',
-                      style: TextStyle(
-                          color: t.textInvert,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14),
-                    ),
-                  ]),
-                ),
-              ),
-            ),
-          ]),
+          ),
+          Text('Privado', style: TextStyle(color: t.textHint, fontSize: 11)),
         ]),
-      ),
+
+        const SizedBox(height: 16),
+
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(_error!,
+                style: TextStyle(color: AppTheme.error, fontSize: 13)),
+          ),
+
+        Row(children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                    color: t.btnGhost,
+                    borderRadius: BorderRadius.circular(24)),
+                child: Center(
+                  child: Text('Cancelar',
+                      style: TextStyle(
+                          color: t.textSecondary,
+                          fontWeight: FontWeight.w500)),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: GestureDetector(
+              onTap: _downloading ? null : _doDownload,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                height: 48,
+                decoration: BoxDecoration(
+                    color: _downloading
+                        ? t.text.withOpacity(0.5)
+                        : t.text,
+                    borderRadius: BorderRadius.circular(24)),
+                child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                  SvgPicture.string(_svgMenuDownloads,
+                      width: 18, height: 18,
+                      colorFilter:
+                          ColorFilter.mode(t.textInvert, BlendMode.srcIn)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Baixar ${isVideo ? 'vídeo' : 'imagem'}',
+                    style: TextStyle(
+                        color: t.textInvert,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ]),
+      ]),
     );
   }
 }
