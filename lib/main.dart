@@ -1,688 +1,1294 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'package:lottie/lottie.dart';
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'pages/home_page.dart';
-import 'pages/lock_screen.dart';
-import 'services/favicon_service.dart';
-import 'services/download_service.dart';
-import 'services/lock_service.dart';
-import 'services/theme_service.dart';
+import 'package:video_player/video_player.dart';
+import 'package:xml/xml.dart';
 
-const _ch = MethodChannel('com.patrulhaxx/secure');
-const _betaUrl = 'https://alfredoooh.github.io/database/beta.json';
+// ─────────────────────────────────────────────────────────────────────────────
+// Servidores de extracção
+// ─────────────────────────────────────────────────────────────────────────────
+const _extractServers = [
+  'https://nuxxconvert1.onrender.com',
+  'https://nuxxconvert2.onrender.com',
+  'https://nuxxconvert3.onrender.com',
+  'https://nuxxconvert4.onrender.com',
+  'https://nuxxconvert5.onrender.com',
+];
 
-void main() async {
-  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+/// Dispara pedidos a todos os servidores em paralelo e devolve o primeiro
+/// que responder com sucesso. Cancela os restantes assim que um responder.
+Future<String> extractVideoUrl(String pageUrl) async {
+  final completer = Completer<String>();
+  int errors = 0;
 
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-    systemNavigationBarColor: Colors.transparent,
-    systemNavigationBarIconBrightness: Brightness.light,
-  ));
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-
-  await ThemeService.instance.init();
-  await LockService.instance.init();
-  await DownloadService.instance.loadSaved();
-  FaviconService.instance.preloadAll();
-
-  _applySecure(ThemeService.instance.noScreenshot);
-
-  FlutterNativeSplash.remove();
-
-  runApp(const PatrulhaXXApp());
-}
-
-void _applySecure(bool enable) {
-  try { _ch.invokeMethod('setSecure', {'enable': enable}); } catch (_) {}
-}
-
-// ─── Verifica beta via JSON no GitHub ─────────────────────────────────────────
-Future<_BetaStatus> _checkBeta() async {
-  try {
-    final resp = await http
-        .get(Uri.parse(_betaUrl))
-        .timeout(const Duration(seconds: 8));
-    if (resp.statusCode != 200) return _BetaStatus.expired();
-    final data = json.decode(resp.body) as Map<String, dynamic>;
-    final beta = data['beta'] as Map<String, dynamic>?;
-    if (beta == null) return _BetaStatus.expired();
-    final expiresStr = beta['expires'] as String? ?? '';
-    final expires = DateTime.tryParse(expiresStr);
-    if (expires == null) return _BetaStatus.expired();
-    final now = DateTime.now();
-    final remaining = expires.difference(now);
-    return _BetaStatus(
-      expired: now.isAfter(expires),
-      expiresAt: expires,
-      daysLeft: remaining.inDays,
-    );
-  } catch (_) {
-    return _BetaStatus(expired: false, expiresAt: null, daysLeft: null);
+  for (final server in _extractServers) {
+    () async {
+      try {
+        final uri = Uri.parse('$server/extract?url=${Uri.encodeComponent(pageUrl)}');
+        final resp = await http.get(uri).timeout(const Duration(seconds: 20));
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body) as Map<String, dynamic>;
+          final link = data['link'] as String? ?? '';
+          if (link.isNotEmpty && !completer.isCompleted) {
+            completer.complete(link);
+          } else if (!completer.isCompleted) {
+            errors++;
+            if (errors == _extractServers.length) {
+              completer.completeError('Nenhum servidor conseguiu extrair o vídeo.');
+            }
+          }
+        } else {
+          errors++;
+          if (errors == _extractServers.length && !completer.isCompleted) {
+            completer.completeError('Todos os servidores falharam.');
+          }
+        }
+      } catch (_) {
+        errors++;
+        if (errors == _extractServers.length && !completer.isCompleted) {
+          completer.completeError('Todos os servidores falharam.');
+        }
+      }
+    }();
   }
+
+  return completer.future;
 }
 
-class _BetaStatus {
-  final bool expired;
-  final DateTime? expiresAt;
-  final int? daysLeft;
-  const _BetaStatus({
-    required this.expired,
-    required this.expiresAt,
-    required this.daysLeft,
+// ─────────────────────────────────────────────────────────────────────────────
+// VideoSource
+// ─────────────────────────────────────────────────────────────────────────────
+enum VideoSource {
+  eporner, pornhub, redtube, youporn, xvideos, xhamster, spankbang,
+  bravotube, drtuber, txxx, gotporn, porndig,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FeedVideo
+// ─────────────────────────────────────────────────────────────────────────────
+class FeedVideo {
+  final String title;
+  final String thumb;
+  final String embedUrl;
+  final String pageUrl;
+  final String duration;
+  final String views;
+  final VideoSource source;
+  final DateTime? publishedAt;
+
+  const FeedVideo({
+    required this.title,
+    required this.thumb,
+    required this.embedUrl,
+    required this.pageUrl,
+    required this.duration,
+    required this.views,
+    required this.source,
+    this.publishedAt,
   });
-  factory _BetaStatus.expired() =>
-      const _BetaStatus(expired: true, expiresAt: null, daysLeft: null);
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _DotsLoader — três pontinhos pulsantes
-// ─────────────────────────────────────────────────────────────────────────────
-class _DotsLoader extends StatefulWidget {
-  const _DotsLoader();
-  @override
-  State<_DotsLoader> createState() => _DotsLoaderState();
-}
-
-class _DotsLoaderState extends State<_DotsLoader>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat();
+  String get sourceLabel {
+    switch (source) {
+      case VideoSource.eporner:   return 'Eporner';
+      case VideoSource.pornhub:   return 'Pornhub';
+      case VideoSource.redtube:   return 'RedTube';
+      case VideoSource.youporn:   return 'YouPorn';
+      case VideoSource.xvideos:   return 'XVideos';
+      case VideoSource.xhamster:  return 'xHamster';
+      case VideoSource.spankbang: return 'SpankBang';
+      case VideoSource.bravotube: return 'BravoTube';
+      case VideoSource.drtuber:   return 'DrTuber';
+      case VideoSource.txxx:      return 'TXXX';
+      case VideoSource.gotporn:   return 'GotPorn';
+      case VideoSource.porndig:   return 'PornDig';
+    }
   }
 
-  @override
-  void dispose() { _c.dispose(); super.dispose(); }
+  String get sourceInitial {
+    switch (source) {
+      case VideoSource.eporner:   return 'E';
+      case VideoSource.pornhub:   return 'P';
+      case VideoSource.redtube:   return 'R';
+      case VideoSource.youporn:   return 'Y';
+      case VideoSource.xvideos:   return 'XV';
+      case VideoSource.xhamster:  return 'XH';
+      case VideoSource.spankbang: return 'SB';
+      case VideoSource.bravotube: return 'BT';
+      case VideoSource.drtuber:   return 'DT';
+      case VideoSource.txxx:      return 'TX';
+      case VideoSource.gotporn:   return 'GP';
+      case VideoSource.porndig:   return 'PD';
+    }
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (_, __) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(3, (i) {
-            final delay = i * 0.25;
-            final t = ((_c.value - delay) % 1.0 + 1.0) % 1.0;
-            final opacity = t < 0.5
-                ? 0.2 + (t / 0.5) * 0.8
-                : 1.0 - ((t - 0.5) / 0.5) * 0.8;
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(opacity.clamp(0.2, 1.0)),
-              ),
-            );
-          }),
+  static FeedVideo? fromEporner(Map<String, dynamic> j) {
+    final id = j['id'] as String? ?? '';
+    if (id.isEmpty) return null;
+    String thumb = '';
+    final thumbs = j['thumbs'] as List?;
+    if (thumbs != null && thumbs.isNotEmpty) {
+      final sorted = thumbs.map((t) => t as Map).toList()
+        ..sort((a, b) => ((b['width'] ?? 0) as int).compareTo((a['width'] ?? 0) as int));
+      thumb = sorted.first['src'] as String? ?? '';
+    }
+    if (thumb.isEmpty) return null;
+    return FeedVideo(
+      title: cleanTitle(j['title'] as String? ?? ''),
+      thumb: thumb,
+      embedUrl: 'https://www.eporner.com/embed/$id/',
+      pageUrl:  'https://www.eporner.com/video/$id/',
+      duration: j['duration'] as String? ?? '',
+      views: _fmtViews(j['views']),
+      source: VideoSource.eporner,
+      publishedAt: _parseDate(j['added'] ?? j['published'] ?? j['date']),
+    );
+  }
+
+  static FeedVideo? fromPornhub(Map<String, dynamic> j) {
+    final viewkey = j['video_id'] as String? ?? j['viewkey'] as String? ?? '';
+    if (viewkey.isEmpty) return null;
+    String thumb = '';
+    final thumbs = j['thumbs'] as List?;
+    if (thumbs != null && thumbs.isNotEmpty) {
+      thumb = (thumbs.first['src'] ?? thumbs.first['url'] ?? '') as String;
+    }
+    if (thumb.isEmpty) thumb = j['default_thumb'] as String? ?? '';
+    if (thumb.isEmpty) return null;
+    return FeedVideo(
+      title: cleanTitle(j['title'] as String? ?? ''),
+      thumb: thumb,
+      embedUrl: 'https://www.pornhub.com/embed/$viewkey',
+      pageUrl:  'https://www.pornhub.com/view_video.php?viewkey=$viewkey',
+      duration: j['duration'] as String? ?? '',
+      views: _fmtViews(j['views']),
+      source: VideoSource.pornhub,
+      publishedAt: _parseDate(j['publish_date'] ?? j['date_approved'] ?? j['added']),
+    );
+  }
+
+  static FeedVideo? fromRedtube(Map<String, dynamic> j) {
+    final vid = j['video_id'] as String? ?? '';
+    if (vid.isEmpty) return null;
+    final thumb = j['thumb'] as String? ?? j['default_thumb'] as String? ?? '';
+    if (thumb.isEmpty) return null;
+    return FeedVideo(
+      title: cleanTitle(j['title'] as String? ?? ''),
+      thumb: thumb,
+      embedUrl: 'https://embed.redtube.com/?id=$vid',
+      pageUrl:  'https://www.redtube.com/$vid',
+      duration: j['duration'] as String? ?? '',
+      views: _fmtViews(j['views']),
+      source: VideoSource.redtube,
+      publishedAt: _parseDate(j['publish_date'] ?? j['date']),
+    );
+  }
+
+  static FeedVideo? fromYouporn(Map<String, dynamic> j) {
+    final id = (j['id'] ?? j['video_id'] ?? '').toString();
+    if (id.isEmpty || id == '0') return null;
+    final thumb = j['thumb'] as String? ?? j['default_thumb'] as String? ?? '';
+    if (thumb.isEmpty) return null;
+    return FeedVideo(
+      title: cleanTitle(j['title'] as String? ?? ''),
+      thumb: thumb,
+      embedUrl: 'https://www.youporn.com/embed/$id/',
+      pageUrl:  'https://www.youporn.com/watch/$id/',
+      duration: j['duration'] as String? ?? '',
+      views: _fmtViews(j['views']),
+      source: VideoSource.youporn,
+      publishedAt: _parseDate(j['publish_date'] ?? j['date']),
+    );
+  }
+
+  static FeedVideo? fromXvideos(Map<String, dynamic> j) {
+    final id = (j['id'] ?? j['video_id'] ?? '').toString();
+    if (id.isEmpty || id == '0') return null;
+    final thumb = j['thumb'] as String? ?? j['thumbnail'] as String? ??
+        j['default_thumb'] as String? ?? '';
+    if (thumb.isEmpty) return null;
+    return FeedVideo(
+      title:    cleanTitle(j['title'] as String? ?? ''),
+      thumb:    thumb,
+      embedUrl: 'https://www.xvideos.com/embedframe/$id',
+      pageUrl:  'https://www.xvideos.com/video$id/',
+      duration: j['duration'] as String? ?? '',
+      views:    _fmtViews(j['views'] ?? j['nb_views']),
+      source:   VideoSource.xvideos,
+      publishedAt: _parseDate(j['added'] ?? j['date']),
+    );
+  }
+
+  static FeedVideo? fromXhamster(Map<String, dynamic> j) {
+    final id = (j['id'] ?? '').toString();
+    if (id.isEmpty) return null;
+    final thumb = j['thumbUrl'] as String? ?? j['thumb'] as String? ??
+        j['thumbnail'] as String? ?? '';
+    if (thumb.isEmpty) return null;
+    return FeedVideo(
+      title:    cleanTitle(j['title'] as String? ?? ''),
+      thumb:    thumb,
+      embedUrl: 'https://xhamster.com/xembed.php?video=$id',
+      pageUrl:  'https://xhamster.com/videos/x$id',
+      duration: j['duration']?.toString() ?? '',
+      views:    _fmtViews(j['views']),
+      source:   VideoSource.xhamster,
+      publishedAt: _parseDate(j['created'] ?? j['added'] ?? j['date']),
+    );
+  }
+
+  static FeedVideo? fromSpankbang(Map<String, dynamic> j) {
+    final id = (j['id'] ?? j['video_id'] ?? '').toString();
+    if (id.isEmpty) return null;
+    final thumb = j['thumb'] as String? ?? j['thumbnail'] as String? ?? '';
+    if (thumb.isEmpty) return null;
+    return FeedVideo(
+      title:    cleanTitle(j['title'] as String? ?? ''),
+      thumb:    thumb,
+      embedUrl: 'https://spankbang.com/$id/embed/',
+      pageUrl:  'https://spankbang.com/$id/video/',
+      duration: j['duration']?.toString() ?? '',
+      views:    _fmtViews(j['views']),
+      source:   VideoSource.spankbang,
+      publishedAt: _parseDate(j['date'] ?? j['added']),
+    );
+  }
+
+  static FeedVideo fromRss({
+    required String title,
+    required String thumb,
+    required String embedUrl,
+    required String pageUrl,
+    required VideoSource source,
+    DateTime? publishedAt,
+  }) => FeedVideo(
+    title: cleanTitle(title),
+    thumb: thumb,
+    embedUrl: embedUrl,
+    pageUrl: pageUrl,
+    duration: '',
+    views: '',
+    source: source,
+    publishedAt: publishedAt,
+  );
+
+  static DateTime? _parseDate(dynamic raw) {
+    if (raw == null) return null;
+    final s = raw.toString().trim();
+    if (s.isEmpty) return null;
+    final epoch = int.tryParse(s);
+    if (epoch != null) return DateTime.fromMillisecondsSinceEpoch(epoch * 1000);
+    try { return DateTime.parse(s); } catch (_) {}
+    return null;
+  }
+
+  static String cleanTitle(String raw) {
+    try {
+      final bytes = latin1.encode(raw);
+      final decoded = utf8.decode(bytes, allowMalformed: true);
+      if (decoded.runes.where((r) => r > 127).length <
+          raw.runes.where((r) => r > 127).length) {
+        return decoded;
+      }
+    } catch (_) {}
+    return raw;
+  }
+
+  static String _fmtViews(dynamic raw) {
+    if (raw == null) return '';
+    final n = int.tryParse(raw.toString()) ?? 0;
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(0)}K';
+    return n > 0 ? n.toString() : '';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FeedFetcher
+// ─────────────────────────────────────────────────────────────────────────────
+class FeedFetcher {
+  static const _ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
+
+  static const _terms = [
+    '', 'amateur', 'teen', 'milf', 'blonde', 'brunette', 'asian', 'latina',
+    'big', 'hot', 'sexy', 'beautiful', 'young', 'wild', 'homemade',
+  ];
+
+  static Future<List<FeedVideo>> fetchEporner(int page) async {
+    final term = _terms[page % _terms.length];
+    try {
+      final r = await http.get(
+        Uri.parse('https://www.eporner.com/api/v2/video/search/'
+            '?query=$term&per_page=20&page=${page.clamp(1, 60)}&thumbsize=big&format=json'),
+        headers: {'User-Agent': _ua},
+      ).timeout(const Duration(seconds: 12));
+      if (r.statusCode != 200) return [];
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      final videos = (data['videos'] as List? ?? []);
+      return videos
+          .map((v) => FeedVideo.fromEporner(v as Map<String, dynamic>))
+          .whereType<FeedVideo>()
+          .toList();
+    } catch (_) { return []; }
+  }
+
+  static Future<List<FeedVideo>> fetchPornhub(int page) async {
+    try {
+      final r = await http.get(
+        Uri.parse('https://www.pornhub.com/webmasters/search?search=&ordering=newest'
+            '&page=${page.clamp(1, 40)}&thumbsize=medium&format=json'),
+        headers: {'User-Agent': _ua},
+      ).timeout(const Duration(seconds: 12));
+      if (r.statusCode != 200) return [];
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      final videos = (data['videos'] as List? ?? []);
+      return videos
+          .map((v) {
+            final inner = v['video'] as Map<String, dynamic>? ?? v as Map<String, dynamic>;
+            return FeedVideo.fromPornhub(inner);
+          })
+          .whereType<FeedVideo>()
+          .toList();
+    } catch (_) { return []; }
+  }
+
+  static Future<List<FeedVideo>> fetchRedtube(int page) async {
+    final term = _terms[page % _terms.length];
+    final order = ['mostviewed', 'rating', 'newestdate'][page % 3];
+    try {
+      final r = await http.get(
+        Uri.parse('https://api.redtube.com/?data=redtube.Videos.searchVideos'
+            '&output=json&thumbsize=medium&count=20'
+            '&search=$term&ordering=$order&page=$page'),
+        headers: {'User-Agent': _ua},
+      ).timeout(const Duration(seconds: 12));
+      if (r.statusCode != 200) return [];
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      final videos = (data['videos'] as List? ?? []);
+      return videos
+          .map((v) {
+            final inner = v['video'] as Map<String, dynamic>? ?? v as Map<String, dynamic>;
+            return FeedVideo.fromRedtube(inner);
+          })
+          .whereType<FeedVideo>()
+          .toList();
+    } catch (_) { return []; }
+  }
+
+  static Future<List<FeedVideo>> fetchYouporn(int page) async {
+    try {
+      final r = await http.get(
+        Uri.parse('https://www.youporn.com/api/video/search/'
+            '?is_top=1&page=${page.clamp(1,15)}&per_page=20'),
+        headers: {'User-Agent': _ua, 'Accept': 'application/json',
+            'Referer': 'https://www.youporn.com/'},
+      ).timeout(const Duration(seconds: 12));
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        final videos = (data['videos'] ?? data['data'] ?? data) as List? ?? [];
+        final result = videos
+            .map((v) => FeedVideo.fromYouporn(v as Map<String, dynamic>))
+            .whereType<FeedVideo>()
+            .toList();
+        if (result.isNotEmpty) return result;
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  static Future<List<FeedVideo>> fetchXvideos(int page) async {
+    final urls = [
+      'https://www.xvideos.com/feeds/rss-new/0',
+      'https://www.xvideos.com/feeds/rss-most-viewed-alltime/0',
+    ];
+    final items = <FeedVideo>[];
+    for (final url in urls) {
+      try {
+        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 14));
+        if (r.statusCode != 200) continue;
+        final doc = XmlDocument.parse(r.body);
+        for (final item in doc.findAllElements('item')) {
+          final link    = _xml(item, 'link');
+          final title   = _xml(item, 'title');
+          final thumb   = _rssThumb(item);
+          final pubDate = _xml(item, 'pubDate');
+          if (link.isEmpty) continue;
+          final match = RegExp(r'/video(\d+)').firstMatch(link);
+          if (match == null) continue;
+          final id = match.group(1)!;
+          items.add(FeedVideo.fromRss(
+            title: title.isEmpty ? 'Vídeo' : title,
+            thumb: thumb,
+            embedUrl: 'https://www.xvideos.com/embedframe/$id',
+            pageUrl:  link,
+            source: VideoSource.xvideos,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  static Future<List<FeedVideo>> fetchXhamster(int page) async {
+    final urls = [
+      'https://www.xnxx.com/rss/latest_videos',
+      'https://www.xnxx.com/rss/best_videos',
+    ];
+    final items = <FeedVideo>[];
+    for (final url in urls) {
+      try {
+        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode != 200) continue;
+        final doc = XmlDocument.parse(r.body);
+        for (final item in doc.findAllElements('item')) {
+          final link    = _xml(item, 'link');
+          final title   = _xml(item, 'title');
+          final thumb   = _rssThumb(item);
+          final pubDate = _xml(item, 'pubDate');
+          if (link.isEmpty) continue;
+          final match = RegExp(r'/video-(\w+)/').firstMatch(link);
+          if (match == null) continue;
+          items.add(FeedVideo.fromRss(
+            title: title.isEmpty ? 'Vídeo' : title,
+            thumb: thumb,
+            embedUrl: 'https://www.xnxx.com/embedframe/${match.group(1)}',
+            pageUrl:  link,
+            source: VideoSource.xhamster,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  static Future<List<FeedVideo>> fetchSpankbang(int page) async {
+    final urls = ['https://spankbang.com/rss/', 'https://spankbang.com/rss/trending/'];
+    final items = <FeedVideo>[];
+    for (final url in urls) {
+      try {
+        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode != 200) continue;
+        final doc = XmlDocument.parse(r.body);
+        for (final item in doc.findAllElements('item')) {
+          final link    = _xml(item, 'link');
+          final title   = _xml(item, 'title');
+          final thumb   = _rssThumb(item);
+          final pubDate = _xml(item, 'pubDate');
+          if (link.isEmpty) continue;
+          final match = RegExp(r'^/([A-Za-z0-9]+)/').firstMatch(Uri.parse(link).path);
+          if (match == null) continue;
+          items.add(FeedVideo.fromRss(
+            title: title.isEmpty ? 'Vídeo' : title,
+            thumb: thumb,
+            embedUrl: 'https://spankbang.com/${match.group(1)}/embed/',
+            pageUrl:  link,
+            source: VideoSource.spankbang,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  static Future<List<FeedVideo>> fetchBravotube(int page) async {
+    final urls = ['https://www.bravotube.net/rss/new/', 'https://www.bravotube.net/rss/popular/'];
+    final items = <FeedVideo>[];
+    for (final url in urls) {
+      try {
+        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode != 200) continue;
+        final doc = XmlDocument.parse(r.body);
+        for (final item in doc.findAllElements('item')) {
+          final link    = _xml(item, 'link');
+          final title   = _xml(item, 'title');
+          final thumb   = _rssThumb(item);
+          final pubDate = _xml(item, 'pubDate');
+          if (link.isEmpty) continue;
+          final match = RegExp(r'-(\d+)\.html').firstMatch(link);
+          if (match == null) continue;
+          items.add(FeedVideo.fromRss(
+            title: title, thumb: thumb,
+            embedUrl: 'https://www.bravotube.net/embed/${match.group(1)}/',
+            pageUrl:  link,
+            source: VideoSource.bravotube,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  static Future<List<FeedVideo>> fetchDrtuber(int page) async {
+    final urls = ['https://www.drtuber.com/rss/latest', 'https://www.drtuber.com/rss/popular'];
+    final items = <FeedVideo>[];
+    for (final url in urls) {
+      try {
+        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode != 200) continue;
+        final doc = XmlDocument.parse(r.body);
+        for (final item in doc.findAllElements('item')) {
+          final link    = _xml(item, 'link');
+          final title   = _xml(item, 'title');
+          final thumb   = _rssThumb(item);
+          final pubDate = _xml(item, 'pubDate');
+          if (link.isEmpty) continue;
+          final match = RegExp(r'/video/(\d+)').firstMatch(link);
+          if (match == null) continue;
+          items.add(FeedVideo.fromRss(
+            title: title, thumb: thumb,
+            embedUrl: 'https://www.drtuber.com/embed/${match.group(1)}',
+            pageUrl:  link,
+            source: VideoSource.drtuber,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  static Future<List<FeedVideo>> fetchTxxx(int page) async {
+    final urls = ['https://www.txxx.com/rss/new/', 'https://www.txxx.com/rss/popular/'];
+    final items = <FeedVideo>[];
+    for (final url in urls) {
+      try {
+        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode != 200) continue;
+        final doc = XmlDocument.parse(r.body);
+        for (final item in doc.findAllElements('item')) {
+          final link    = _xml(item, 'link');
+          final title   = _xml(item, 'title');
+          final thumb   = _rssThumb(item);
+          final pubDate = _xml(item, 'pubDate');
+          if (link.isEmpty) continue;
+          final match = RegExp(r'-(\d+)/?$').firstMatch(Uri.parse(link).path);
+          if (match == null) continue;
+          items.add(FeedVideo.fromRss(
+            title: title, thumb: thumb,
+            embedUrl: 'https://www.txxx.com/embed/${match.group(1)}/',
+            pageUrl:  link,
+            source: VideoSource.txxx,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  static Future<List<FeedVideo>> fetchGotporn(int page) async {
+    final urls = ['https://www.gotporn.com/rss/latest', 'https://www.gotporn.com/rss/popular'];
+    final items = <FeedVideo>[];
+    for (final url in urls) {
+      try {
+        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode != 200) continue;
+        final doc = XmlDocument.parse(r.body);
+        for (final item in doc.findAllElements('item')) {
+          final link    = _xml(item, 'link');
+          final title   = _xml(item, 'title');
+          final thumb   = _rssThumb(item);
+          final pubDate = _xml(item, 'pubDate');
+          if (link.isEmpty) continue;
+          final match = RegExp(r'/video-(\d+)').firstMatch(link);
+          if (match == null) continue;
+          items.add(FeedVideo.fromRss(
+            title: title, thumb: thumb,
+            embedUrl: 'https://www.gotporn.com/video/embed/${match.group(1)}',
+            pageUrl:  link,
+            source: VideoSource.gotporn,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  static Future<List<FeedVideo>> fetchPorndig(int page) async {
+    final urls = ['https://www.porndig.com/rss', 'https://www.porndig.com/rss?category=latest'];
+    final items = <FeedVideo>[];
+    for (final url in urls) {
+      try {
+        final r = await http.get(Uri.parse(url), headers: {'User-Agent': _ua})
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode != 200) continue;
+        final doc = XmlDocument.parse(r.body);
+        for (final item in doc.findAllElements('item')) {
+          final link    = _xml(item, 'link');
+          final title   = _xml(item, 'title');
+          final thumb   = _rssThumb(item);
+          final pubDate = _xml(item, 'pubDate');
+          if (link.isEmpty) continue;
+          final match = RegExp(r'-(\d+)\.html').firstMatch(link);
+          if (match == null) continue;
+          items.add(FeedVideo.fromRss(
+            title: title, thumb: thumb,
+            embedUrl: 'https://www.porndig.com/embed/${match.group(1)}',
+            pageUrl:  link,
+            source: VideoSource.porndig,
+            publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
+          ));
+        }
+        if (items.isNotEmpty) break;
+      } catch (_) {}
+    }
+    return items;
+  }
+
+  // ── XML helpers ──────────────────────────────────────────────────────────────
+
+  static String _xml(dynamic el, String tag) {
+    try { return el.findElements(tag).first.innerText.trim(); } catch (_) { return ''; }
+  }
+
+  static String _mediaAttr(dynamic item, String localName, String attr) {
+    try {
+      for (final child in (item as dynamic).childElements) {
+        final qn = child.qualifiedName as String? ?? '';
+        final ln = child.localName as String? ?? '';
+        if (qn == 'media:$localName' || ln == localName) {
+          final val = child.getAttribute(attr) as String? ?? '';
+          if (val.isNotEmpty) return val;
+        }
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  static String _rssThumb(dynamic item) {
+    final mc = _mediaAttr(item, 'content', 'url');
+    if (mc.isNotEmpty) return mc;
+    final mt = _mediaAttr(item, 'thumbnail', 'url');
+    if (mt.isNotEmpty) return mt;
+    try {
+      for (final child in (item as dynamic).childElements) {
+        final ln = (child.localName as String? ?? '').toLowerCase();
+        if (ln == 'enclosure') {
+          final url  = child.getAttribute('url') as String? ?? '';
+          final type = child.getAttribute('type') as String? ?? '';
+          if (url.isNotEmpty && (type.startsWith('image') ||
+              url.contains('.jpg') || url.contains('.png') || url.contains('.webp'))) {
+            return url;
+          }
+        }
+      }
+    } catch (_) {}
+    try {
+      final desc = _xml(item, 'description');
+      if (desc.isNotEmpty) {
+        final rx = RegExp('<img[^>]+src=["\'](.*?)["\']');
+        final m = rx.firstMatch(desc);
+        if (m != null) return m.group(1) ?? '';
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  static DateTime? _tryParseRssDate(String raw) {
+    try { return DateTime.parse(raw); } catch (_) {}
+    try {
+      final months = {
+        'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+        'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
+      };
+      final rx = RegExp(r'\w+,\s+(\d{1,2})\s+(\w{3})\s+(\d{4})\s+(\d{2}):(\d{2}):(\d{2})');
+      final m = rx.firstMatch(raw);
+      if (m != null) {
+        return DateTime.utc(
+          int.parse(m.group(3)!),
+          months[m.group(2)] ?? 1,
+          int.parse(m.group(1)!),
+          int.parse(m.group(4)!),
+          int.parse(m.group(5)!),
+          int.parse(m.group(6)!),
         );
-      },
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // ── fetchAll ──────────────────────────────────────────────────────────────
+
+  static Future<List<FeedVideo>> fetchAll(int page) async {
+    final rng = Random(DateTime.now().millisecondsSinceEpoch ^ page.hashCode);
+    final epPage = rng.nextInt(60) + 1;
+    final phPage = rng.nextInt(40) + 1;
+    final rtPage = rng.nextInt(30) + 1;
+    final ypPage = rng.nextInt(20) + 1;
+    final xvPage = rng.nextInt(50) + 1;
+    final xhPage = rng.nextInt(30) + 1;
+    final sbPage = rng.nextInt(20) + 1;
+
+    final results = await Future.wait([
+      fetchEporner(epPage),
+      fetchPornhub(phPage),
+      fetchRedtube(rtPage),
+      fetchYouporn(ypPage),
+      fetchXvideos(xvPage),
+      fetchXhamster(xhPage),
+      fetchSpankbang(sbPage),
+      fetchBravotube(page),
+      fetchDrtuber(page),
+      fetchTxxx(page),
+      fetchGotporn(page),
+      fetchPorndig(page),
+    ]);
+
+    final merged = <FeedVideo>[];
+    final lists = results.where((l) => l.isNotEmpty).toList();
+    if (lists.isEmpty) return [];
+
+    int maxLen = lists.map((l) => l.length).reduce((a, b) => a > b ? a : b);
+    for (int i = 0; i < maxLen; i++) {
+      for (final list in lists) {
+        if (i < list.length) merged.add(list[i]);
+      }
+    }
+    merged.shuffle(rng);
+    return merged;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// main
+// ─────────────────────────────────────────────────────────────────────────────
+void main() {
+  runApp(const NuxxApp());
+}
+
+class NuxxApp extends StatelessWidget {
+  const NuxxApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Nuxx',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF111111),
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFFFF9000),
+          surface: Color(0xFF1A1A1A),
+        ),
+      ),
+      home: const FeedPage(),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AppTopToast — usado APENAS para password certa/errada (com Lottie)
-// Sem linhas, deslizar para cima dispensa o card
+// FeedPage
 // ─────────────────────────────────────────────────────────────────────────────
-class AppTopToast extends StatefulWidget {
-  final bool success;
-  final String message;
-  final String? subtitle;
-  final VoidCallback onDone;
-
-  const AppTopToast({
-    super.key,
-    required this.success,
-    required this.message,
-    this.subtitle,
-    required this.onDone,
-  });
+class FeedPage extends StatefulWidget {
+  const FeedPage({super.key});
 
   @override
-  State<AppTopToast> createState() => _AppTopToastState();
+  State<FeedPage> createState() => _FeedPageState();
 }
 
-class _AppTopToastState extends State<AppTopToast>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-  late final Animation<Offset> _slide;
-  late final Animation<double> _fade;
-  double _dragOffset = 0;
+class _FeedPageState extends State<FeedPage> {
+  final List<FeedVideo> _videos = [];
+  int _page = 1;
+  bool _loading = false;
+  bool _hasMore = true;
+  final ScrollController _scroll = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 440));
-    _slide = Tween<Offset>(
-            begin: const Offset(0, -1.6), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
-    _fade = CurvedAnimation(parent: _c, curve: Curves.easeOut);
-    _c.forward();
-    Future.delayed(const Duration(milliseconds: 3200), _dismiss);
-  }
-
-  @override
-  void dispose() { _c.dispose(); super.dispose(); }
-
-  void _dismiss() async {
-    if (!mounted) return;
-    await _c.reverse();
-    if (mounted) widget.onDone();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top;
-
-    return Positioned(
-      top: topPad + 10 + _dragOffset.clamp(-200.0, 40.0),
-      left: 16, right: 16,
-      child: GestureDetector(
-        onVerticalDragUpdate: (d) {
-          if (d.delta.dy < 0) {
-            setState(() => _dragOffset += d.delta.dy);
-          }
-        },
-        onVerticalDragEnd: (d) {
-          if (_dragOffset < -30) {
-            _dismiss();
-          } else {
-            setState(() => _dragOffset = 0);
-          }
-        },
-        child: SlideTransition(
-          position: _slide,
-          child: FadeTransition(
-            opacity: _fade,
-            child: Material(
-              type: MaterialType.transparency,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(100),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 11),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.74),
-                      borderRadius: BorderRadius.circular(100),
-                      border: Border.all(
-                          color: Colors.white.withOpacity(0.55), width: 0.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.16),
-                          blurRadius: 28,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Row(children: [
-                      Container(
-                        width: 38, height: 38,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF0F0F0),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Lottie.asset(
-                          widget.success
-                              ? 'assets/lottie/tick_mark.json'
-                              : 'assets/lottie/wrong_feedback.json',
-                          repeat: false,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.message,
-                              style: TextStyle(
-                                color: Colors.black.withOpacity(0.82),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.1,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (widget.subtitle != null) ...[
-                              const SizedBox(height: 1),
-                              Text(
-                                widget.subtitle!,
-                                style: TextStyle(
-                                  color: Colors.black.withOpacity(0.45),
-                                  fontSize: 11,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ]),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _BetaWarningToast — aviso de dias restantes, SEM Lottie, apenas ícone simples
-// Deslizar para cima dispensa o card
-// ─────────────────────────────────────────────────────────────────────────────
-class _BetaWarningToast extends StatefulWidget {
-  final int daysLeft;
-  final String expiresFormatted;
-  final VoidCallback onDone;
-
-  const _BetaWarningToast({
-    required this.daysLeft,
-    required this.expiresFormatted,
-    required this.onDone,
-  });
-
-  @override
-  State<_BetaWarningToast> createState() => _BetaWarningToastState();
-}
-
-class _BetaWarningToastState extends State<_BetaWarningToast>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-  late final Animation<Offset> _slide;
-  late final Animation<double> _fade;
-  double _dragOffset = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 440));
-    _slide = Tween<Offset>(
-            begin: const Offset(0, -1.6), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
-    _fade = CurvedAnimation(parent: _c, curve: Curves.easeOut);
-    _c.forward();
-    Future.delayed(const Duration(milliseconds: 4000), _dismiss);
-  }
-
-  @override
-  void dispose() { _c.dispose(); super.dispose(); }
-
-  void _dismiss() async {
-    if (!mounted) return;
-    await _c.reverse();
-    if (mounted) widget.onDone();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top;
-    final days = widget.daysLeft;
-    final label = days <= 0
-        ? 'Último dia de beta'
-        : '$days ${days == 1 ? "dia restante" : "dias restantes"} de beta';
-
-    return Positioned(
-      top: topPad + 10 + _dragOffset.clamp(-200.0, 40.0),
-      left: 16, right: 16,
-      child: GestureDetector(
-        onVerticalDragUpdate: (d) {
-          if (d.delta.dy < 0) {
-            setState(() => _dragOffset += d.delta.dy);
-          }
-        },
-        onVerticalDragEnd: (d) {
-          if (_dragOffset < -30) {
-            _dismiss();
-          } else {
-            setState(() => _dragOffset = 0);
-          }
-        },
-        child: SlideTransition(
-          position: _slide,
-          child: FadeTransition(
-            opacity: _fade,
-            child: Material(
-              type: MaterialType.transparency,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(100),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 11),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.74),
-                      borderRadius: BorderRadius.circular(100),
-                      border: Border.all(
-                          color: Colors.white.withOpacity(0.55), width: 0.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.16),
-                          blurRadius: 28,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Row(children: [
-                      Container(
-                        width: 38, height: 38,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFFF3E0),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Text('⏱', style: TextStyle(fontSize: 18)),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              label,
-                              style: TextStyle(
-                                color: Colors.black.withOpacity(0.82),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.1,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              'Acesso termina em ${widget.expiresFormatted}',
-                              style: TextStyle(
-                                color: Colors.black.withOpacity(0.45),
-                                fontSize: 11,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ]),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-class PatrulhaXXApp extends StatelessWidget {
-  const PatrulhaXXApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: ThemeService.instance,
-      builder: (_, __) => MaterialApp(
-        title: 'patrulhaXX',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          brightness: ThemeService.instance.isDark ? Brightness.dark : Brightness.light,
-          scaffoldBackgroundColor: ThemeService.instance.isDark
-              ? const Color(0xFF0C0C0C)
-              : const Color(0xFFF2F2F7),
-          colorScheme: ThemeService.instance.isDark
-              ? const ColorScheme.dark(
-                  surface: Color(0xFF1C1C1E), primary: Colors.white)
-              : const ColorScheme.light(
-                  surface: Color(0xFFFFFFFF), primary: Colors.black),
-          useMaterial3: true,
-        ),
-        home: const _AppGate(),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _AppGate
-// ─────────────────────────────────────────────────────────────────────────────
-class _AppGate extends StatefulWidget {
-  const _AppGate();
-  @override
-  State<_AppGate> createState() => _AppGateState();
-}
-
-class _AppGateState extends State<_AppGate> with WidgetsBindingObserver {
-  bool _unlocked    = false;
-  bool _lockEnabled = false;
-  bool _checking    = true;
-  bool _betaChecked = false;
-  _BetaStatus? _beta;
-
-  bool _showBetaToast      = false;
-  bool _betaToastDismissed = false;
-
-  DateTime? _pausedAt;
-  Timer? _lockTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _init();
+    _loadMore();
+    _scroll.addListener(() {
+      if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 300) {
+        _loadMore();
+      }
+    });
   }
 
   @override
   void dispose() {
-    _lockTimer?.cancel();
-    WidgetsBinding.instance.removeObserver(this);
+    _scroll.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_lockEnabled || !_unlocked) return;
-    if (state == AppLifecycleState.paused) {
-      _pausedAt = DateTime.now();
-      final delay = ThemeService.instance.lockDelay;
-      if (delay > 0) {
-        _lockTimer?.cancel();
-        _lockTimer = Timer(Duration(seconds: delay), _lock);
-      }
-    } else if (state == AppLifecycleState.resumed) {
-      final delay = ThemeService.instance.lockDelay;
-      if (delay == 0 && _pausedAt != null) _lock();
-      if (_pausedAt != null && delay > 0) {
-        final elapsed = DateTime.now().difference(_pausedAt!).inSeconds;
-        if (elapsed < delay) _lockTimer?.cancel();
-      }
-      _pausedAt = null;
-    }
-  }
-
-  void _lock() {
-    if (mounted) setState(() => _unlocked = false);
-  }
-
-  bool get _shouldShowBetaWarning {
-    if (_beta == null) return false;
-    if (_beta!.expired) return false;
-    if (_beta!.expiresAt == null) return false;
-    final days = _beta!.daysLeft ?? 0;
-    return days <= 9;
-  }
-
-  Future<void> _init() async {
-    final results = await Future.wait([
-      _checkBeta(),
-      LockService.instance.isEnabled(),
-    ]);
-    final beta = results[0] as _BetaStatus;
-    final lockEnabled = results[1] as bool;
-    if (mounted) {
+  Future<void> _loadMore() async {
+    if (_loading || !_hasMore) return;
+    setState(() => _loading = true);
+    try {
+      final newVideos = await FeedFetcher.fetchAll(_page);
       setState(() {
-        _beta = beta;
-        _betaChecked = true;
-        _lockEnabled = lockEnabled;
-        _unlocked = !lockEnabled;
-        _checking = false;
+        _videos.addAll(newVideos);
+        _page++;
+        if (newVideos.isEmpty) _hasMore = false;
       });
-      if (!beta.expired &&
-          beta.expiresAt != null &&
-          !_betaToastDismissed &&
-          (beta.daysLeft ?? 999) <= 9) {
-        if (mounted) setState(() => _showBetaToast = true);
-      }
+    } catch (_) {
+      setState(() => _hasMore = false);
+    } finally {
+      setState(() => _loading = false);
     }
   }
-
-  String _formatDate(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
   @override
   Widget build(BuildContext context) {
-    if (_checking) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF0D0D0D),
-        body: Center(child: _DotsLoader()),
-      );
-    }
-
-    if (_betaChecked && (_beta?.expired ?? false)) {
-      return const _ExpiredScreen();
-    }
-
-    if (!_unlocked) {
-      return LockScreen(
-        mode: LockMode.unlock,
-        onUnlocked: () => setState(() {
-          _unlocked = true;
-          _lockEnabled = true;
-          if (_betaChecked &&
-              !(_beta?.expired ?? true) &&
-              _beta?.expiresAt != null &&
-              !_betaToastDismissed &&
-              (_beta?.daysLeft ?? 999) <= 9) {
-            _showBetaToast = true;
-          }
-        }),
-      );
-    }
-
-    return Stack(children: [
-      const HomePage(),
-      if (_showBetaToast && !_betaToastDismissed && _shouldShowBetaWarning)
-        _BetaWarningToast(
-          daysLeft: _beta!.daysLeft ?? 0,
-          expiresFormatted: _formatDate(_beta!.expiresAt!),
-          onDone: () => setState(() {
-            _showBetaToast = false;
-            _betaToastDismissed = true;
-          }),
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF111111),
+        title: const Text(
+          'NUXX',
+          style: TextStyle(
+            color: Color(0xFFFF9000),
+            fontWeight: FontWeight.w900,
+            fontSize: 22,
+            letterSpacing: 4,
+          ),
         ),
-    ]);
+        centerTitle: true,
+        elevation: 0,
+      ),
+      body: _videos.isEmpty && _loading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF9000)))
+          : ListView.builder(
+              controller: _scroll,
+              padding: const EdgeInsets.all(12),
+              itemCount: _videos.length + (_loading ? 1 : 0),
+              itemBuilder: (context, i) {
+                if (i == _videos.length) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: CircularProgressIndicator(color: Color(0xFFFF9000))),
+                  );
+                }
+                return _VideoCard(video: _videos[i]);
+              },
+            ),
+    );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _ExpiredScreen
+// _VideoCard
 // ─────────────────────────────────────────────────────────────────────────────
-class _ExpiredScreen extends StatelessWidget {
-  const _ExpiredScreen();
+class _VideoCard extends StatelessWidget {
+  final FeedVideo video;
+  const _VideoCard({required this.video});
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => VideoPlayerPage(video: video)),
       ),
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Thumbnail
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: video.thumb.isNotEmpty
+                    ? Image.network(
+                        video.thumb,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: const Color(0xFF222222),
+                          child: const Icon(Icons.broken_image, color: Colors.white24, size: 40),
+                        ),
+                      )
+                    : Container(
+                        color: const Color(0xFF222222),
+                        child: const Icon(Icons.video_library, color: Colors.white24, size: 40),
+                      ),
+              ),
+            ),
+            // Info
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Atualizar versão\ndo aplicativo',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF111111),
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      height: 1.3,
+                  // Badge da fonte
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF9000),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      video.sourceInitial,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Esta versão expirou.\nInstala a versão mais recente para continuar.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF888888),
-                      fontSize: 14,
-                      height: 1.6,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF111111),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          video.title.isNotEmpty ? video.title : 'Sem título',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Atualizar',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        if (video.views.isNotEmpty || video.duration.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              if (video.views.isNotEmpty)
+                                Text(
+                                  '${video.views} views',
+                                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                ),
+                              if (video.views.isNotEmpty && video.duration.isNotEmpty)
+                                const Text('  ·  ', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                              if (video.duration.isNotEmpty)
+                                Text(
+                                  video.duration,
+                                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-          ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VideoPlayerPage
+// ─────────────────────────────────────────────────────────────────────────────
+class VideoPlayerPage extends StatefulWidget {
+  final FeedVideo video;
+  const VideoPlayerPage({super.key, required this.video});
+
+  @override
+  State<VideoPlayerPage> createState() => _VideoPlayerPageState();
+}
+
+class _VideoPlayerPageState extends State<VideoPlayerPage> {
+  VideoPlayerController? _controller;
+  bool _extracting = true;
+  String? _error;
+  bool _showControls = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _extract();
+  }
+
+  Future<void> _extract() async {
+    setState(() { _extracting = true; _error = null; });
+    try {
+      final directUrl = await extractVideoUrl(widget.video.pageUrl);
+      final ctrl = VideoPlayerController.networkUrl(Uri.parse(directUrl));
+      await ctrl.initialize();
+      ctrl.play();
+      if (mounted) {
+        setState(() {
+          _controller = ctrl;
+          _extracting = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _extracting = false;
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _toggleControls() => setState(() => _showControls = !_showControls);
+
+  String _fmtDuration(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '${d.inHours > 0 ? '${d.inHours}:' : ''}$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Player
+            GestureDetector(
+              onTap: _toggleControls,
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Vídeo ou estados
+                    if (_extracting)
+                      const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(color: Color(0xFFFF9000)),
+                          SizedBox(height: 12),
+                          Text('A extrair vídeo...', style: TextStyle(color: Colors.white54, fontSize: 13)),
+                        ],
+                      )
+                    else if (_error != null)
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+                          const SizedBox(height: 8),
+                          Text(
+                            _error!,
+                            style: const TextStyle(color: Colors.white54, fontSize: 12),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: _extract,
+                            child: const Text('Tentar novamente', style: TextStyle(color: Color(0xFFFF9000))),
+                          ),
+                        ],
+                      )
+                    else if (_controller != null)
+                      VideoPlayer(_controller!),
+
+                    // Controlos overlay
+                    if (_controller != null && _showControls)
+                      _ControlsOverlay(
+                        controller: _controller!,
+                        fmtDuration: _fmtDuration,
+                        onBack: () => Navigator.pop(context),
+                      ),
+
+                    // Botão de back quando controlos ocultos
+                    if (!_showControls)
+                      Positioned(
+                        top: 8, left: 8,
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.black45,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Título e info
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.video.title.isNotEmpty ? widget.video.title : 'Sem título',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF9000),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            widget.video.sourceLabel,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        if (widget.video.views.isNotEmpty) ...[
+                          const SizedBox(width: 10),
+                          Text(
+                            '${widget.video.views} views',
+                            style: const TextStyle(color: Colors.white38, fontSize: 12),
+                          ),
+                        ],
+                        if (widget.video.duration.isNotEmpty) ...[
+                          const SizedBox(width: 10),
+                          Text(
+                            widget.video.duration,
+                            style: const TextStyle(color: Colors.white38, fontSize: 12),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _ControlsOverlay
+// ─────────────────────────────────────────────────────────────────────────────
+class _ControlsOverlay extends StatefulWidget {
+  final VideoPlayerController controller;
+  final String Function(Duration) fmtDuration;
+  final VoidCallback onBack;
+
+  const _ControlsOverlay({
+    required this.controller,
+    required this.fmtDuration,
+    required this.onBack,
+  });
+
+  @override
+  State<_ControlsOverlay> createState() => _ControlsOverlayState();
+}
+
+class _ControlsOverlayState extends State<_ControlsOverlay> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_update);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_update);
+    super.dispose();
+  }
+
+  void _update() { if (mounted) setState(() {}); }
+
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = widget.controller;
+    final pos  = ctrl.value.position;
+    final dur  = ctrl.value.duration;
+    final isPlaying = ctrl.value.isPlaying;
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.black54, Colors.transparent, Colors.transparent, Colors.black54],
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Top bar
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: widget.onBack,
+              ),
+            ],
+          ),
+          // Centro: play/pause
+          IconButton(
+            iconSize: 56,
+            icon: Icon(
+              isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+              color: Colors.white,
+            ),
+            onPressed: () => isPlaying ? ctrl.pause() : ctrl.play(),
+          ),
+          // Barra de progresso
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Column(
+              children: [
+                VideoProgressIndicator(
+                  ctrl,
+                  allowScrubbing: true,
+                  colors: const VideoProgressColors(
+                    playedColor: Color(0xFFFF9000),
+                    bufferedColor: Colors.white24,
+                    backgroundColor: Colors.white12,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(widget.fmtDuration(pos),
+                        style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                    Text(widget.fmtDuration(dur),
+                        style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
