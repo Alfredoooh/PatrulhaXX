@@ -146,7 +146,7 @@ class _ExplorePageState extends State<ExplorePage>
       transitionDuration: const Duration(milliseconds: 420),
       reverseTransitionDuration: const Duration(milliseconds: 280),
       pageBuilder: (_, __, ___) => ExibicaoPage(
-        embedUrl: video.embedUrl, currentVideo: video,
+        pageUrl: video.pageUrl, currentVideo: video,
         onVideoTap: widget.onVideoTap, isActive: true),
       transitionsBuilder: (_, anim, secAnim, child) {
         final enter = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
