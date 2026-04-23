@@ -215,62 +215,60 @@ class _ExplorePageState extends State<ExplorePage>
             child: Icon(Icons.keyboard_arrow_up_rounded,
                 color: t.isDark ? Colors.white : AppTheme.ytRed, size: 24)),
         ),
-        body: ScrollConfiguration(
-          behavior: ScrollConfiguration.of(context).copyWith(overscroll: false),
-          child: NestedScrollView(
-            controller: _scroll,
-            headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
+        body: NestedScrollView(
+          controller: _scroll,
+          headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
 
-              SliverAppBar(
-                backgroundColor: t.bg,
-                surfaceTintColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                elevation: 0,
-                pinned: true,
-                floating: false,
-                expandedHeight: 44,
-                toolbarHeight: 0,
-                automaticallyImplyLeading: false,
-                systemOverlayStyle: SystemUiOverlayStyle(
-                  statusBarColor: t.bg,
-                  statusBarIconBrightness: t.statusBar,
-                ),
-                flexibleSpace: FlexibleSpaceBar(
-                  titlePadding: const EdgeInsets.only(left: 16, bottom: 10),
-                  centerTitle: false,
-                  expandedTitleScale: 1.0,
-                  title: Text('Explorar',
-                    style: TextStyle(
-                      color: t.text,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5)),
-                ),
-                actions: [
-                  Builder(builder: (btnCtx) => GestureDetector(
-                    onTap: () => _showPopup(btnCtx, isDark),
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 14, bottom: 10),
-                      child: Icon(Icons.more_vert, color: t.text, size: 22)),
-                  )),
-                ],
+            SliverAppBar(
+              backgroundColor: t.bg,
+              surfaceTintColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              elevation: 0,
+              pinned: true,
+              floating: false,
+              expandedHeight: 44,
+              toolbarHeight: 0,
+              automaticallyImplyLeading: false,
+              // ← única linha adicionada
+              systemOverlayStyle: SystemUiOverlayStyle(
+                statusBarColor: t.bg,
+                statusBarIconBrightness: t.statusBar,
               ),
+              flexibleSpace: FlexibleSpaceBar(
+                titlePadding: const EdgeInsets.only(left: 16, bottom: 10),
+                centerTitle: false,
+                expandedTitleScale: 1.0,
+                title: Text('Explorar',
+                  style: TextStyle(
+                    color: t.text,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5)),
+              ),
+              actions: [
+                Builder(builder: (btnCtx) => GestureDetector(
+                  onTap: () => _showPopup(btnCtx, isDark),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 14, bottom: 10),
+                    child: Icon(Icons.more_vert, color: t.text, size: 22)),
+                )),
+              ],
+            ),
 
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _ChipDelegate(
-                  height: 40,
-                  selected: _chip,
-                  isDark: isDark,
-                  onChanged: (c) => setState(() => _chip = c),
-                  bg: t.bg,
-                ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _ChipDelegate(
+                height: 40,
+                selected: _chip,
+                isDark: isDark,
+                onChanged: (c) => setState(() => _chip = c),
+                bg: t.bg,
               ),
-            ],
-            body: _loading
-                ? _buildSkeletons()
-                : _error ? _buildError() : _buildGrid(),
-          ),
+            ),
+          ],
+          body: _loading
+              ? _buildSkeletons()
+              : _error ? _buildError() : _buildGrid(),
         ),
       ),
     );
