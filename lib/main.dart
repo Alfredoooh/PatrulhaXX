@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:video_player/video_player.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'models.dart';
 import 'scraper.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
@@ -28,7 +29,6 @@ class NuxxApp extends StatelessWidget {
           primary: Color(0xFFFF9000),
           surface: Color(0xFF1A1A1A),
         ),
-        fontFamily: 'system-ui',
       ),
       home: const FeedPage(),
     );
@@ -47,7 +47,6 @@ class FeedPage extends StatefulWidget {
 class _FeedPageState extends State<FeedPage> {
   final List<VideoItem> _items = [];
   bool _loading = true;
-  bool _empty = false;
   final ScrollController _scroll = ScrollController();
 
   @override
@@ -63,19 +62,16 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   void _loadMore() {
-    setState(() { _loading = true; _empty = false; });
+    setState(() => _loading = true);
     fetchAllStream().listen(
       (batch) {
         if (mounted) setState(() => _items.addAll(batch));
       },
       onDone: () {
-        if (mounted) setState(() {
-          _loading = false;
-          _empty = _items.isEmpty;
-        });
+        if (mounted) setState(() => _loading = false);
       },
       onError: (_) {
-        if (mounted) setState(() { _loading = false; _empty = _items.isEmpty; });
+        if (mounted) setState(() => _loading = false);
       },
     );
   }
@@ -184,7 +180,6 @@ class _VideoCard extends StatelessWidget {
                       placeholder: (_, __) => Container(color: const Color(0xFF222222)),
                       errorWidget: (_, __, ___) => Container(color: const Color(0xFF222222)),
                     ),
-                    // Play overlay
                     Container(
                       color: Colors.black.withOpacity(0.3),
                       child: const Center(
@@ -204,7 +199,6 @@ class _VideoCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Badge
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
@@ -221,7 +215,6 @@ class _VideoCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Title + meta
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,7 +233,10 @@ class _VideoCard extends StatelessWidget {
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
-                                [if (item.views.isNotEmpty) '${item.views} views', if (item.duration.isNotEmpty) item.duration].join(' · '),
+                                [
+                                  if (item.views.isNotEmpty) '${item.views} views',
+                                  if (item.duration.isNotEmpty) item.duration,
+                                ].join(' · '),
                                 style: const TextStyle(fontSize: 11, color: Color(0xFF666666)),
                               ),
                             ),
@@ -269,7 +265,7 @@ class PlayerPage extends StatefulWidget {
 }
 
 class _PlayerPageState extends State<PlayerPage> {
-  VideoPlayerController? _ctrl;
+  String? _videoUrl;
   String _status = 'A extrair video...';
   bool _extracting = true;
   bool _error = false;
@@ -280,25 +276,62 @@ class _PlayerPageState extends State<PlayerPage> {
     _extract();
   }
 
-  @override
-  void dispose() {
-    _ctrl?.dispose();
-    super.dispose();
-  }
-
   Future<void> _extract() async {
-    setState(() { _extracting = true; _error = false; _status = 'A extrair video...'; });
+    setState(() {
+      _extracting = true;
+      _error = false;
+      _videoUrl = null;
+      _status = 'A extrair video...';
+    });
     try {
       final url = await extractVideoUrl(widget.video.videoUrl);
       if (!mounted) return;
-      final ctrl = VideoPlayerController.networkUrl(Uri.parse(url));
-      await ctrl.initialize();
-      if (!mounted) { ctrl.dispose(); return; }
-      setState(() { _ctrl = ctrl; _extracting = false; });
-      ctrl.play();
+      setState(() {
+        _videoUrl = url;
+        _extracting = false;
+      });
     } catch (e) {
-      if (mounted) setState(() { _extracting = false; _error = true; _status = 'Erro: $e'; });
+      if (mounted) {
+        setState(() {
+          _extracting = false;
+          _error = true;
+          _status = 'Erro ao extrair video';
+        });
+      }
     }
+  }
+
+  /// HTML injetado no WebView — apenas o <video> nativo do browser
+  String _buildHtml(String videoUrl) {
+    final escaped = videoUrl.replaceAll('"', '&quot;');
+    return '''<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+  video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: #000;
+    object-fit: contain;
+  }
+</style>
+</head>
+<body>
+<video
+  id="v"
+  src="$escaped"
+  controls
+  autoplay
+  playsinline
+  webkit-playsinline
+></video>
+</body>
+</html>''';
   }
 
   @override
@@ -309,91 +342,88 @@ class _PlayerPageState extends State<PlayerPage> {
       backgroundColor: Colors.black,
       body: Column(
         children: [
-          // Video area
-          Stack(
-            children: [
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: _ctrl != null && _ctrl!.value.isInitialized
-                    ? VideoPlayer(_ctrl!)
-                    : Container(color: Colors.black),
-              ),
-              // Status overlay
-              if (_extracting || _error)
-                Positioned.fill(
-                  child: Container(
+          // ── ZONA DE VÍDEO — apenas este AspectRatio usa InAppWebView ──
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Stack(
+              children: [
+                // WebView com <video> HTML nativo — só aparece quando temos URL
+                if (_videoUrl != null)
+                  InAppWebView(
+                    initialData: InAppWebViewInitialData(
+                      data: _buildHtml(_videoUrl!),
+                      mimeType: 'text/html',
+                      encoding: 'utf-8',
+                    ),
+                    initialSettings: InAppWebViewSettings(
+                      mediaPlaybackRequiresUserGesture: false,
+                      allowsInlineMediaPlayback: true,
+                      transparentBackground: true,
+                      supportZoom: false,
+                      disableHorizontalScroll: true,
+                      disableVerticalScroll: true,
+                      allowFileAccessFromFileURLs: true,
+                      allowUniversalAccessFromFileURLs: true,
+                    ),
+                  ),
+
+                // Overlay de estado — cobre o WebView enquanto extrai
+                if (_extracting || _error)
+                  Container(
                     color: Colors.black,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (_extracting) const _Spinner(),
-                        const SizedBox(height: 12),
-                        Text(
-                          _status,
-                          style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13),
-                        ),
-                        if (_error) ...[
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_extracting) const _Spinner(),
                           const SizedBox(height: 12),
-                          GestureDetector(
-                            onTap: _extract,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: const Color(0xFFFF9000)),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'Tentar novamente',
-                                style: TextStyle(color: Color(0xFFFF9000), fontSize: 13),
+                          Text(
+                            _status,
+                            style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13),
+                          ),
+                          if (_error) ...[
+                            const SizedBox(height: 12),
+                            GestureDetector(
+                              onTap: _extract,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: const Color(0xFFFF9000)),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Tentar novamente',
+                                  style: TextStyle(color: Color(0xFFFF9000), fontSize: 13),
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              // Back button
-              Positioned(
-                top: MediaQuery.of(context).padding.top + 8,
-                left: 8,
-                child: GestureDetector(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-                  ),
-                ),
-              ),
-              // Video controls tap area
-              if (_ctrl != null && _ctrl!.value.isInitialized)
-                Positioned.fill(
+
+                // Botão voltar — sempre por cima
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 8,
+                  left: 8,
                   child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _ctrl!.value.isPlaying ? _ctrl!.pause() : _ctrl!.play();
-                      });
-                    },
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                    ),
                   ),
                 ),
-            ],
-          ),
-          // Video controls bar
-          if (_ctrl != null && _ctrl!.value.isInitialized)
-            VideoProgressIndicator(
-              _ctrl!,
-              allowScrubbing: true,
-              colors: const VideoProgressColors(
-                playedColor: Color(0xFFFF9000),
-                bufferedColor: Color(0xFF444444),
-                backgroundColor: Color(0xFF222222),
-              ),
+              ],
             ),
-          // Info
+          ),
+
+          // ── INFO — Flutter nativo, sem alterações ──
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -402,7 +432,11 @@ class _PlayerPageState extends State<PlayerPage> {
                 children: [
                   Text(
                     widget.video.title.isEmpty ? 'Sem titulo' : widget.video.title,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, height: 1.4),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      height: 1.4,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Wrap(
@@ -418,7 +452,9 @@ class _PlayerPageState extends State<PlayerPage> {
                         child: Text(
                           label,
                           style: const TextStyle(
-                            color: Colors.black, fontSize: 11, fontWeight: FontWeight.w900,
+                            color: Colors.black,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ),
@@ -459,8 +495,10 @@ class _SpinnerState extends State<_Spinner> with SingleTickerProviderStateMixin 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700))
-      ..repeat();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..repeat();
   }
 
   @override
@@ -474,7 +512,8 @@ class _SpinnerState extends State<_Spinner> with SingleTickerProviderStateMixin 
     return RotationTransition(
       turns: _ctrl,
       child: Container(
-        width: 36, height: 36,
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(color: const Color(0xFF333333), width: 3),
