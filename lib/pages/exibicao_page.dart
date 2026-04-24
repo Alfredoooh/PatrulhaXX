@@ -5,10 +5,10 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
-import 'package:video_player/video_player.dart';
 
 import '../models/feed_video_model.dart';
 import '../services/download_service.dart';
@@ -24,14 +24,13 @@ const List<String> _convertApis = [
   'https://nuxxconvert5.onrender.com',
 ];
 
-Future<String?> _extractDirectLink(String pageUrl) async {
+Future<String?> _extractDirectLink(String videoUrl) async {
   final completer = Completer<String?>();
   int failed = 0;
-
   for (final api in _convertApis) {
     () async {
       try {
-        final uri = Uri.parse('$api/extract?url=${Uri.encodeComponent(pageUrl)}');
+        final uri = Uri.parse('$api/extract?url=${Uri.encodeComponent(videoUrl)}');
         final resp = await http.get(uri).timeout(const Duration(seconds: 90));
         if (resp.statusCode == 200) {
           final data = jsonDecode(resp.body);
@@ -52,16 +51,7 @@ Future<String?> _extractDirectLink(String pageUrl) async {
       }
     }();
   }
-
   return completer.future;
-}
-
-bool _isDirectVideoUrl(String url) {
-  if (url.isEmpty) return false;
-  final lower = url.toLowerCase().split('?').first;
-  return lower.endsWith('.mp4') || lower.endsWith('.m3u8') || lower.endsWith('.webm') ||
-      lower.endsWith('.mkv') || lower.endsWith('.mov') || lower.endsWith('.avi') ||
-      lower.endsWith('.flv') || lower.endsWith('.ts');
 }
 
 // ─── SVGs ─────────────────────────────────────────────────────────────────────
@@ -95,33 +85,6 @@ const _svgDl =
     'a1,1,0,0,0-1.414,1.415Z"/>'
     '<path d="M23,16h0a1,1,0,0,0-1,1v4a1,1,0,0,1-1,1H3a1,1,0,0,1-1-1V17a1,1,0,0,0-1-1H1'
     'a1,1,0,0,0-1,1v4a3,3,0,0,0,3,3H21a3,3,0,0,0,3-3V17A1,1,0,0,0,23,16Z"/></svg>';
-
-const _svgPlay =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M20.492,7.969,8.967.8A4.322,4.322,0,0,0,2.735,4.344V19.667A4.294,4.294,0,0,0,7,24'
-    'a4.357,4.357,0,0,0,2.232-.62l11.526-7.165a4.321,4.321,0,0,0-.266-8.246Z"/></svg>';
-
-const _svgPause =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M6.5,0A3.5,3.5,0,0,0,3,3.5v17a3.5,3.5,0,0,0,7,0V3.5A3.5,3.5,0,0,0,6.5,0Z"/>'
-    '<path d="M17.5,0A3.5,3.5,0,0,0,14,3.5v17a3.5,3.5,0,0,0,7,0V3.5A3.5,3.5,0,0,0,17.5,0Z"/></svg>';
-
-const _svgVolOn =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M13.82.2A12.054,12.054,0,0,0,6.266,5H5a5.008,5.008,0,0,0-5,5v4'
-    'a5.008,5.008,0,0,0,5,5H6.266A12.059,12.059,0,0,0,13.82,23.8a.917.917,0,0,0,.181.017'
-    'a1,1,0,0,0,1-1V1.186A1,1,0,0,0,13.82.2Z"/>'
-    '<path d="M20.807,4.29a1,1,0,0,0-1.415,1.415,8.913,8.913,0,0,1,0,12.59'
-    'a1,1,0,0,0,1.415,1.415A10.916,10.916,0,0,0,20.807,4.29Z"/></svg>';
-
-const _svgVolOff =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M13.82.2A12.054,12.054,0,0,0,6.266,5H5a5.008,5.008,0,0,0-5,5v4'
-    'a5.008,5.008,0,0,0,5,5H6.266A12.059,12.059,0,0,0,13.82,23.8a.917.917,0,0,0,.181.017'
-    'a1,1,0,0,0,1-1V1.186A1,1,0,0,0,13.82.2Z"/>'
-    '<path d="M22.707,8.293a1,1,0,0,0-1.414,0L20,9.586l-1.293-1.293a1,1,0,0,0-1.414,1.414'
-    'L18.586,11l-1.293,1.293a1,1,0,1,0,1.414,1.414L20,12.414l1.293,1.293a1,1,0,0,0,1.414-1.414'
-    'L21.414,11l1.293-1.293A1,1,0,0,0,22.707,8.293Z"/></svg>';
 
 // ─── Shimmer ──────────────────────────────────────────────────────────────────
 class _Shimmer extends StatefulWidget {
@@ -168,149 +131,7 @@ List<Widget> _skeletonCards(int n) => List.generate(n, (_) =>
       ])),
     ])));
 
-// ─── Player Controls com auto-hide ───────────────────────────────────────────
-class _PlayerControls extends StatefulWidget {
-  final bool playing;
-  final bool muted;
-  final Duration position;
-  final Duration duration;
-  final VoidCallback onPlayPause;
-  final VoidCallback onMute;
-  final VoidCallback onNext;
-  final VoidCallback onPrev;
-  final bool hasPrev;
-  final bool hasNext;
-  final ValueChanged<double> onSeek;
-  final VoidCallback onDownload;
-
-  const _PlayerControls({
-    super.key,
-    required this.playing, required this.muted,
-    required this.position, required this.duration,
-    required this.onPlayPause, required this.onMute,
-    required this.onNext, required this.onPrev,
-    required this.hasPrev, required this.hasNext,
-    required this.onSeek, required this.onDownload,
-  });
-
-  @override State<_PlayerControls> createState() => _PlayerControlsState();
-}
-
-class _PlayerControlsState extends State<_PlayerControls>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ac;
-  late final Animation<double> _opacity;
-  Timer? _hideTimer;
-
-  @override void initState() {
-    super.initState();
-    _ac = AnimationController(vsync: this, duration: const Duration(milliseconds: 250), value: 1.0);
-    _opacity = CurvedAnimation(parent: _ac, curve: Curves.easeOut);
-    _scheduleHide();
-  }
-
-  void _scheduleHide() {
-    _hideTimer?.cancel();
-    if (widget.playing) {
-      _hideTimer = Timer(const Duration(seconds: 3), () {
-        if (mounted) _ac.reverse();
-      });
-    }
-  }
-
-  void show() {
-    _ac.forward();
-    _scheduleHide();
-  }
-
-  @override void didUpdateWidget(_PlayerControls old) {
-    super.didUpdateWidget(old);
-    if (!widget.playing) { _hideTimer?.cancel(); _ac.forward(); }
-    if (widget.playing && !old.playing) _scheduleHide();
-  }
-
-  @override void dispose() { _hideTimer?.cancel(); _ac.dispose(); super.dispose(); }
-
-  String _fmt(Duration d) {
-    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '${d.inHours > 0 ? '${d.inHours}:' : ''}$m:$s';
-  }
-
-  @override Widget build(BuildContext context) {
-    final total = widget.duration.inMilliseconds.toDouble();
-    final pos = widget.position.inMilliseconds.toDouble().clamp(0.0, total > 0 ? total : 1.0);
-
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: show,
-      child: FadeTransition(
-        opacity: _opacity,
-        child: Stack(children: [
-          Positioned(left: 0, right: 0, bottom: 0,
-            child: Container(height: 120,
-              decoration: const BoxDecoration(gradient: LinearGradient(
-                begin: Alignment.bottomCenter, end: Alignment.topCenter,
-                colors: [Color(0xDD000000), Colors.transparent])))),
-
-          Positioned(top: 8, right: 8,
-            child: Row(children: [
-              _SmallBtn(svg: _svgVolOff, active: widget.muted, activeSvg: _svgVolOn, onTap: widget.onMute),
-              const SizedBox(width: 6),
-              _SmallBtn(svg: _svgDl, onTap: widget.onDownload),
-            ])),
-
-          Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Opacity(opacity: widget.hasPrev ? 1.0 : 0.3,
-              child: GestureDetector(
-                onTap: widget.hasPrev ? widget.onPrev : null,
-                child: Container(width: 48, height: 48,
-                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
-                  child: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 28)))),
-            const SizedBox(width: 20),
-            GestureDetector(
-              onTap: widget.onPlayPause,
-              child: Container(width: 68, height: 68,
-                decoration: BoxDecoration(color: Colors.black.withOpacity(0.75), shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 20)]),
-                child: Center(child: SvgPicture.string(
-                  widget.playing ? _svgPause : _svgPlay, width: 26, height: 26,
-                  colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn))))),
-            const SizedBox(width: 20),
-            Opacity(opacity: widget.hasNext ? 1.0 : 0.3,
-              child: GestureDetector(
-                onTap: widget.hasNext ? widget.onNext : null,
-                child: Container(width: 48, height: 48,
-                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
-                  child: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 28)))),
-          ])),
-
-          Positioned(left: 12, right: 12, bottom: 8,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Row(children: [
-                Text(_fmt(widget.position), style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                const Spacer(),
-                Text(_fmt(widget.duration), style: const TextStyle(color: Colors.white70, fontSize: 11)),
-              ]),
-              const SizedBox(height: 2),
-              SliderTheme(
-                data: SliderThemeData(
-                  trackHeight: 2.5,
-                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-                  activeTrackColor: Colors.white,
-                  inactiveTrackColor: Colors.white30,
-                  thumbColor: Colors.white,
-                  overlayColor: Colors.white24,
-                ),
-                child: Slider(value: pos, min: 0, max: total > 0 ? total : 1.0, onChanged: widget.onSeek)),
-            ])),
-        ]),
-      ),
-    );
-  }
-}
-
+// ─── _SmallBtn ────────────────────────────────────────────────────────────────
 class _SmallBtn extends StatelessWidget {
   final String svg;
   final String? activeSvg;
@@ -339,21 +160,37 @@ class _RelatedCard extends StatefulWidget {
     const ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
         '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
     final origins = {
-      VideoSource.eporner: 'https://www.eporner.com/',
-      VideoSource.pornhub: 'https://www.pornhub.com/',
-      VideoSource.redtube: 'https://www.redtube.com/',
-      VideoSource.youporn: 'https://www.youporn.com/',
-      VideoSource.xvideos: 'https://www.xvideos.com/',
-      VideoSource.xhamster: 'https://xhamster.com/',
-      VideoSource.spankbang: 'https://spankbang.com/',
-      VideoSource.bravotube: 'https://www.bravotube.net/',
-      VideoSource.drtuber: 'https://www.drtuber.com/',
-      VideoSource.txxx: 'https://www.txxx.com/',
-      VideoSource.gotporn: 'https://www.gotporn.com/',
-      VideoSource.porndig: 'https://www.porndig.com/',
+      VideoSource.eporner:    'https://www.eporner.com/',
+      VideoSource.pornhub:    'https://www.pornhub.com/',
+      VideoSource.redtube:    'https://www.redtube.com/',
+      VideoSource.youporn:    'https://www.youporn.com/',
+      VideoSource.xvideos:    'https://www.xvideos.com/',
+      VideoSource.xhamster:   'https://xhamster.com/',
+      VideoSource.spankbang:  'https://spankbang.com/',
+      VideoSource.bravotube:  'https://www.bravotube.net/',
+      VideoSource.drtuber:    'https://www.drtuber.com/',
+      VideoSource.txxx:       'https://www.txxx.com/',
+      VideoSource.gotporn:    'https://www.gotporn.com/',
+      VideoSource.porndig:    'https://www.porndig.com/',
+      VideoSource.beeg:       'https://beeg.com/',
+      VideoSource.tube8:      'https://www.tube8.com/',
+      VideoSource.tnaflix:    'https://www.tnaflix.com/',
+      VideoSource.empflix:    'https://www.empflix.com/',
+      VideoSource.porntrex:   'https://www.porntrex.com/',
+      VideoSource.hclips:     'https://hclips.com/',
+      VideoSource.tubedupe:   'https://www.tubedupe.com/',
+      VideoSource.nuvid:      'https://www.nuvid.com/',
+      VideoSource.sunporno:   'https://www.sunporno.com/',
+      VideoSource.pornone:    'https://pornone.com/',
+      VideoSource.slutload:   'https://www.slutload.com/',
+      VideoSource.iceporn:    'https://www.iceporn.com/',
+      VideoSource.vjav:       'https://vjav.com/',
+      VideoSource.jizzbunker: 'https://jizzbunker.com/',
+      VideoSource.cliphunter: 'https://www.cliphunter.com/',
     };
     return {'User-Agent': ua, if (origins[src] != null) 'Referer': origins[src]!};
   }
+
   @override State<_RelatedCard> createState() => _RelatedCardState();
 }
 
@@ -441,9 +278,29 @@ class _ThumbCompactState extends State<_ThumbCompact> {
   }
 }
 
+// ─── InAppWebView HTML builder ────────────────────────────────────────────────
+String _buildPlayerHtml(String directUrl) {
+  final escaped = directUrl.replaceAll('"', '&quot;');
+  return '''<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+  video { width: 100%; height: 100%; display: block; background: #000; object-fit: contain; }
+</style>
+</head>
+<body>
+<video id="v" src="$escaped" controls autoplay playsinline webkit-playsinline></video>
+</body>
+</html>''';
+}
+
 // ─── ExibicaoPage ─────────────────────────────────────────────────────────────
 class ExibicaoPage extends StatefulWidget {
-  final String? pageUrl;      // ← link da página do vídeo (antes era embedUrl)
+  final String? videoUrl;
   final FeedVideo? currentVideo;
   final void Function(FeedVideo) onVideoTap;
   final bool isActive;
@@ -452,7 +309,7 @@ class ExibicaoPage extends StatefulWidget {
 
   const ExibicaoPage({
     super.key,
-    this.pageUrl,
+    this.videoUrl,
     this.currentVideo,
     required this.onVideoTap,
     this.isActive = true,
@@ -469,91 +326,38 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 
   final List<FeedVideo> _related = [];
   bool _loadingRelated = false;
-  bool _muted = false;
-  bool _playing = true;
-  bool _playerLoading = true;
   FeedVideo? _nextVideo;
   int _currentPlaylistIndex = 0;
 
   late final AnimationController _descAnim;
   late final AnimationController _playerEnterAnim;
 
-  VideoPlayerController? _ctrl;
-  bool _initialized = false;
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
-  Timer? _posTimer;
-
+  // Player state
   String? _directUrl;
   bool _extracting = false;
+  bool _extractFailed = false;
+  InAppWebViewController? _webCtrl;
 
-  final _controlsKey = GlobalKey<_PlayerControlsState>();
-
-  bool get _isEmpty => widget.pageUrl == null || widget.currentVideo == null;
+  bool get _isEmpty => widget.videoUrl == null || widget.currentVideo == null;
 
   @override void initState() {
     super.initState();
     _currentPlaylistIndex = widget.playlistIndex;
     _descAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 450))..forward();
     _playerEnterAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..forward();
-    if (!_isEmpty) { _loadRelated(); _extractAndPlay(widget.pageUrl!); }
+    if (!_isEmpty) { _loadRelated(); _extractAndPlay(widget.videoUrl!); }
   }
 
   Future<void> _extractAndPlay(String url) async {
     if (!mounted) return;
-    setState(() { _extracting = true; _playerLoading = true; _initialized = false; _directUrl = null; });
-
-    String? directUrl = _isDirectVideoUrl(url) ? url : await _extractDirectLink(url);
-
+    setState(() { _extracting = true; _extractFailed = false; _directUrl = null; });
+    final direct = await _extractDirectLink(url);
     if (!mounted) return;
-    if (directUrl == null) {
-      setState(() { _extracting = false; _playerLoading = false; });
-      _snack('Não foi possível obter o vídeo.');
+    if (direct == null || direct.isEmpty) {
+      setState(() { _extracting = false; _extractFailed = true; });
       return;
     }
-
-    setState(() { _directUrl = directUrl; _extracting = false; });
-    await _initPlayer(directUrl);
-  }
-
-  Future<void> _initPlayer(String url) async {
-    _ctrl?.removeListener(_onVideoUpdate);
-    await _ctrl?.dispose();
-    _ctrl = null;
-    _posTimer?.cancel();
-    _initialized = false;
-
-    final c = VideoPlayerController.networkUrl(Uri.parse(url));
-    try {
-      await c.initialize();
-    } catch (_) {
-      if (mounted) setState(() => _playerLoading = false);
-      return;
-    }
-    if (!mounted) { c.dispose(); return; }
-
-    _ctrl = c;
-    _duration = c.value.duration;
-    _initialized = true;
-    c.setLooping(true);
-    c.setVolume(_muted ? 0.0 : 1.0);
-    if (_playing) c.play();
-    c.addListener(_onVideoUpdate);
-
-    _posTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-      if (mounted && _ctrl != null) setState(() => _position = _ctrl!.value.position);
-    });
-
-    if (mounted) setState(() => _playerLoading = false);
-  }
-
-  void _onVideoUpdate() {
-    if (!mounted) return;
-    setState(() {
-      _playing = _ctrl?.value.isPlaying ?? false;
-      _position = _ctrl?.value.position ?? Duration.zero;
-      _duration = _ctrl?.value.duration ?? Duration.zero;
-    });
+    setState(() { _directUrl = direct; _extracting = false; });
   }
 
   @override void didUpdateWidget(ExibicaoPage old) {
@@ -561,47 +365,21 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     if (widget.currentVideo != old.currentVideo && !_isEmpty) {
       _descAnim.forward(from: 0.0);
       _playerEnterAnim.forward(from: 0.0);
-      setState(() { _playing = true; _position = Duration.zero; });
-      _extractAndPlay(widget.pageUrl!);
+      _webCtrl = null;
+      _extractAndPlay(widget.videoUrl!);
       _loadRelated();
     }
     if (widget.isActive != old.isActive) {
-      widget.isActive ? _ctrl?.play() : _ctrl?.pause();
-      setState(() => _playing = widget.isActive);
+      if (!widget.isActive) {
+        _webCtrl?.evaluateJavascript(source: 'document.getElementById("v")?.pause()');
+      }
     }
   }
 
   @override void dispose() {
-    _posTimer?.cancel();
-    _ctrl?.removeListener(_onVideoUpdate);
-    _ctrl?.dispose();
     _descAnim.dispose();
     _playerEnterAnim.dispose();
     super.dispose();
-  }
-
-  void _togglePlay() {
-    final np = !_playing;
-    setState(() => _playing = np);
-    np ? _ctrl?.play() : _ctrl?.pause();
-    _controlsKey.currentState?.show();
-  }
-
-  void _toggleMute() {
-    final nm = !_muted;
-    setState(() => _muted = nm);
-    _ctrl?.setVolume(nm ? 0.0 : 1.0);
-  }
-
-  void _seek(double ms) {
-    _ctrl?.seekTo(Duration(milliseconds: ms.toInt()));
-    _controlsKey.currentState?.show();
-  }
-
-  void _skipSeconds(int secs) {
-    final newPos = _position + Duration(seconds: secs);
-    _ctrl?.seekTo(newPos.isNegative ? Duration.zero : newPos);
-    _controlsKey.currentState?.show();
   }
 
   void _goNext() {
@@ -629,7 +407,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
       title: widget.currentVideo?.title ?? 'video',
       type: 'video',
       thumbUrl: widget.currentVideo?.thumb ?? '',
-      sourceUrl: widget.currentVideo?.pageUrl ?? '',
+      sourceUrl: widget.currentVideo?.videoUrl ?? '',
     );
     _snack('Download iniciado');
   }
@@ -640,7 +418,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     final videos = await FeedFetcher.fetchAll(Random().nextInt(30) + 1);
     if (!mounted) return;
     setState(() {
-      _related..clear()..addAll(videos.where((v) => v.pageUrl != widget.pageUrl).take(20));
+      _related..clear()..addAll(videos.where((v) => v.videoUrl != widget.videoUrl).take(20));
       _loadingRelated = false;
     });
   }
@@ -713,14 +491,31 @@ class _ExibicaoPageState extends State<ExibicaoPage>
               child: ColoredBox(color: Colors.black,
                 child: Stack(children: [
 
-                  if (_initialized && _ctrl != null)
-                    Positioned.fill(child: FittedBox(fit: BoxFit.contain,
-                      child: SizedBox(
-                        width: _ctrl!.value.size.width,
-                        height: _ctrl!.value.size.height,
-                        child: VideoPlayer(_ctrl!)))),
+                  // WebView player
+                  if (_directUrl != null)
+                    Positioned.fill(
+                      child: InAppWebView(
+                        initialData: InAppWebViewInitialData(
+                          data: _buildPlayerHtml(_directUrl!),
+                          mimeType: 'text/html',
+                          encoding: 'utf-8',
+                        ),
+                        initialSettings: InAppWebViewSettings(
+                          mediaPlaybackRequiresUserGesture: false,
+                          allowsInlineMediaPlayback: true,
+                          transparentBackground: true,
+                          supportZoom: false,
+                          disableHorizontalScroll: true,
+                          disableVerticalScroll: true,
+                          allowFileAccessFromFileURLs: true,
+                          allowUniversalAccessFromFileURLs: true,
+                        ),
+                        onWebViewCreated: (ctrl) => _webCtrl = ctrl,
+                      ),
+                    ),
 
-                  if (_playerLoading || _extracting)
+                  // Overlay: loading / extracting / error
+                  if (_extracting || _extractFailed || _directUrl == null)
                     Positioned.fill(child: Stack(children: [
                       if (video?.thumb != null && video!.thumb.isNotEmpty)
                         Image.network(video.thumb, fit: BoxFit.cover,
@@ -729,37 +524,50 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                           errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black)),
                       Container(color: Colors.black54),
                       Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const CircularProgressIndicator(color: Colors.white70, strokeWidth: 1.5),
                         if (_extracting) ...[
+                          const CircularProgressIndicator(color: Colors.white70, strokeWidth: 1.5),
                           const SizedBox(height: 10),
                           const Text('A obter vídeo...', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                        ],
+                        if (_extractFailed) ...[
+                          const Icon(Icons.error_outline_rounded, color: Colors.white54, size: 36),
+                          const SizedBox(height: 10),
+                          const Text('Não foi possível obter o vídeo.',
+                              style: TextStyle(color: Colors.white60, fontSize: 12)),
+                          const SizedBox(height: 12),
+                          GestureDetector(
+                            onTap: () => _extractAndPlay(widget.videoUrl!),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.white54),
+                                borderRadius: BorderRadius.circular(8)),
+                              child: const Text('Tentar novamente',
+                                  style: TextStyle(color: Colors.white70, fontSize: 12)))),
                         ],
                       ])),
                     ])),
 
-                  // Double tap esquerdo — recuar 10s
-                  Positioned(left: 0, top: 0, bottom: 0, width: screenW * 0.35,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onDoubleTap: () { _skipSeconds(-10); _controlsKey.currentState?.show(); },
-                      onTap: () => _controlsKey.currentState?.show())),
+                  // Nav: prev / next
+                  if (!_isEmpty) ...[
+                    if (hasPrev)
+                      Positioned(left: 8, top: playerH / 2 - 20,
+                        child: GestureDetector(onTap: _goPrev,
+                          child: Container(width: 40, height: 40,
+                            decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                            child: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 22)))),
+                    if (hasNext)
+                      Positioned(right: 8, top: playerH / 2 - 20,
+                        child: GestureDetector(onTap: _goNext,
+                          child: Container(width: 40, height: 40,
+                            decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                            child: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 22)))),
+                  ],
 
-                  // Double tap direito — avançar 10s
-                  Positioned(right: 0, top: 0, bottom: 0, width: screenW * 0.35,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onDoubleTap: () { _skipSeconds(10); _controlsKey.currentState?.show(); },
-                      onTap: () => _controlsKey.currentState?.show())),
-
-                  if (!_isEmpty)
-                    Positioned.fill(child: _PlayerControls(
-                      key: _controlsKey,
-                      playing: _playing, muted: _muted,
-                      position: _position, duration: _duration,
-                      hasPrev: hasPrev, hasNext: hasNext,
-                      onPlayPause: _togglePlay, onMute: _toggleMute,
-                      onNext: _goNext, onPrev: _goPrev,
-                      onSeek: _seek, onDownload: _forceDownload)),
+                  // Download button
+                  if (_directUrl != null)
+                    Positioned(top: 8, right: 8,
+                      child: _SmallBtn(svg: _svgDl, onTap: _forceDownload)),
 
                   if (_isEmpty)
                     const Positioned.fill(child: ColoredBox(color: Colors.black)),
@@ -788,9 +596,9 @@ class _ExibicaoPageState extends State<ExibicaoPage>
             onVideoTap: (v) {
               final idx = _related.indexOf(v);
               setState(() => _currentPlaylistIndex = idx >= 0 ? idx : 0);
-              if (_nextVideo?.pageUrl == v.pageUrl) setState(() => _nextVideo = null);
+              if (_nextVideo?.videoUrl == v.videoUrl) setState(() => _nextVideo = null);
               Navigator.of(context).push(CupertinoPageRoute(builder: (_) => ExibicaoPage(
-                pageUrl: v.pageUrl,
+                videoUrl: v.videoUrl,
                 currentVideo: v,
                 onVideoTap: widget.onVideoTap, isActive: true,
                 playlist: _related, playlistIndex: idx >= 0 ? idx : 0)));
@@ -897,7 +705,7 @@ class _SuggestionsSectionState extends State<_SuggestionsSection> {
             (_, i) {
               if (i >= widget.related.length) return const SizedBox(height: 32);
               final v = widget.related[i];
-              return _RelatedCard(key: ValueKey(v.pageUrl), video: v, index: i,
+              return _RelatedCard(key: ValueKey(v.videoUrl), video: v, index: i,
                   onTap: () => widget.onVideoTap(v),
                   onMenuTap: (pos) => widget.onMenuTap(v, pos));
             },

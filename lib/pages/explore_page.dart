@@ -146,7 +146,7 @@ class _ExplorePageState extends State<ExplorePage>
       transitionDuration: const Duration(milliseconds: 420),
       reverseTransitionDuration: const Duration(milliseconds: 280),
       pageBuilder: (_, __, ___) => ExibicaoPage(
-        pageUrl: video.pageUrl, currentVideo: video,
+        videoUrl: video.videoUrl, currentVideo: video,
         onVideoTap: widget.onVideoTap, isActive: true),
       transitionsBuilder: (_, anim, secAnim, child) {
         final enter = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
@@ -163,31 +163,22 @@ class _ExplorePageState extends State<ExplorePage>
   void _showPopup(BuildContext btnCtx, bool isDark) async {
     final popupBg = isDark ? const Color(0xFF2A2A2A) : Colors.white;
     final textCol = isDark ? Colors.white : Colors.black87;
-
     final RenderBox box     = btnCtx.findRenderObject() as RenderBox;
-    final RenderBox overlay = Navigator.of(btnCtx).overlay!.context
-        .findRenderObject() as RenderBox;
+    final RenderBox overlay = Navigator.of(btnCtx).overlay!.context.findRenderObject() as RenderBox;
     final RelativeRect pos  = RelativeRect.fromRect(
       Rect.fromPoints(
         box.localToGlobal(Offset.zero, ancestor: overlay),
         box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay)),
       Offset.zero & overlay.size);
-
     await showMenu<String>(
-      context: btnCtx,
-      position: pos,
-      color: popupBg,
-      elevation: 8,
+      context: btnCtx, position: pos, color: popupBg, elevation: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       items: [
-        PopupMenuItem(value: 'filmes',
-          height: 46,
+        PopupMenuItem(value: 'filmes', height: 46,
           child: Text('Filmes', style: TextStyle(color: textCol, fontSize: 14))),
-        PopupMenuItem(value: 'meus_videos',
-          height: 46,
+        PopupMenuItem(value: 'meus_videos', height: 46,
           child: Text('Meus vídeos', style: TextStyle(color: textCol, fontSize: 14))),
-        PopupMenuItem(value: 'shows',
-          height: 46,
+        PopupMenuItem(value: 'shows', height: 46,
           child: Text('Shows', style: TextStyle(color: textCol, fontSize: 14))),
       ],
     );
@@ -220,7 +211,6 @@ class _ExplorePageState extends State<ExplorePage>
           child: NestedScrollView(
             controller: _scroll,
             headerSliverBuilder: (ctx, innerBoxIsScrolled) => [
-
               SliverAppBar(
                 backgroundColor: t.bg,
                 surfaceTintColor: Colors.transparent,
@@ -233,18 +223,14 @@ class _ExplorePageState extends State<ExplorePage>
                 automaticallyImplyLeading: false,
                 systemOverlayStyle: SystemUiOverlayStyle(
                   statusBarColor: t.bg,
-                  statusBarIconBrightness: t.statusBar,
-                ),
+                  statusBarIconBrightness: t.statusBar),
                 flexibleSpace: FlexibleSpaceBar(
                   titlePadding: const EdgeInsets.only(left: 16, bottom: 10),
                   centerTitle: false,
                   expandedTitleScale: 1.0,
                   title: Text('Explorar',
-                    style: TextStyle(
-                      color: t.text,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5)),
+                    style: TextStyle(color: t.text, fontSize: 22,
+                        fontWeight: FontWeight.w800, letterSpacing: -0.5)),
                 ),
                 actions: [
                   Builder(builder: (btnCtx) => GestureDetector(
@@ -255,16 +241,11 @@ class _ExplorePageState extends State<ExplorePage>
                   )),
                 ],
               ),
-
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _ChipDelegate(
-                  height: 40,
-                  selected: _chip,
-                  isDark: isDark,
-                  onChanged: (c) => setState(() => _chip = c),
-                  bg: t.bg,
-                ),
+                  height: 40, selected: _chip, isDark: isDark,
+                  onChanged: (c) => setState(() => _chip = c), bg: t.bg),
               ),
             ],
             body: _loading
@@ -288,11 +269,9 @@ class _ExplorePageState extends State<ExplorePage>
         onTap: _fetch,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          decoration: BoxDecoration(
-              color: AppTheme.ytRed, borderRadius: BorderRadius.circular(100)),
+          decoration: BoxDecoration(color: AppTheme.ytRed, borderRadius: BorderRadius.circular(100)),
           child: const Text('Tentar novamente',
-              style: TextStyle(color: Colors.white, fontSize: 13,
-                  fontWeight: FontWeight.w600)))),
+              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)))),
     ]));
   }
 
@@ -301,12 +280,9 @@ class _ExplorePageState extends State<ExplorePage>
     return MasonryGridView.count(
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 32),
-      crossAxisCount: 2,
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 8,
+      crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 8,
       itemCount: 8,
-      itemBuilder: (_, i) =>
-          _SkeletonTile(height: colW / _kRatios[i % _kRatios.length]));
+      itemBuilder: (_, i) => _SkeletonTile(height: colW / _kRatios[i % _kRatios.length]));
   }
 
   Widget _buildGrid() {
@@ -323,9 +299,7 @@ class _ExplorePageState extends State<ExplorePage>
       child: MasonryGridView.count(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 32),
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 8,
+        crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 8,
         itemCount: list.length + (_fetching ? 2 : 0),
         itemBuilder: (_, i) {
           if (i >= list.length) {
@@ -333,7 +307,7 @@ class _ExplorePageState extends State<ExplorePage>
             return _SkeletonTile(height: colW / _kRatios[i % _kRatios.length]);
           }
           return _VideoTile(
-            key: ValueKey(list[i].embedUrl),
+            key: ValueKey(list[i].videoUrl),
             video: list[i],
             ratio: _kRatios[i % _kRatios.length],
             onTap: () => _openVideo(list[i]));
@@ -343,7 +317,6 @@ class _ExplorePageState extends State<ExplorePage>
 }
 
 // ─── Chip delegate ────────────────────────────────────────────────────────────
-
 class _ChipDelegate extends SliverPersistentHeaderDelegate {
   final double height;
   final _ChipFilter selected;
@@ -352,16 +325,12 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
   final Color bg;
 
   const _ChipDelegate({
-    required this.height,
-    required this.selected,
-    required this.onChanged,
-    required this.isDark,
-    required this.bg,
+    required this.height, required this.selected, required this.onChanged,
+    required this.isDark, required this.bg,
   });
 
   @override double get minExtent => height;
   @override double get maxExtent => height;
-
   @override bool shouldRebuild(_ChipDelegate old) =>
       old.selected != selected || old.isDark != isDark || old.bg != bg;
 
@@ -407,14 +376,12 @@ class _ChipDelegate extends SliverPersistentHeaderDelegate {
 }
 
 // ─── Video tile ───────────────────────────────────────────────────────────────
-
 class _VideoTile extends StatelessWidget {
   final FeedVideo video;
   final double ratio;
   final VoidCallback onTap;
 
-  const _VideoTile({super.key, required this.video,
-      required this.ratio, required this.onTap});
+  const _VideoTile({super.key, required this.video, required this.ratio, required this.onTap});
 
   static const _ua = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
       'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
@@ -427,18 +394,33 @@ class _VideoTile extends StatelessWidget {
 
   String get _referer {
     switch (video.source) {
-      case VideoSource.eporner:   return 'https://www.eporner.com/';
-      case VideoSource.pornhub:   return 'https://www.pornhub.com/';
-      case VideoSource.redtube:   return 'https://www.redtube.com/';
-      case VideoSource.youporn:   return 'https://www.youporn.com/';
-      case VideoSource.xvideos:   return 'https://www.xvideos.com/';
-      case VideoSource.xhamster:  return 'https://xhamster.com/';
-      case VideoSource.spankbang: return 'https://spankbang.com/';
-      case VideoSource.bravotube: return 'https://www.bravotube.net/';
-      case VideoSource.drtuber:   return 'https://www.drtuber.com/';
-      case VideoSource.txxx:      return 'https://www.txxx.com/';
-      case VideoSource.gotporn:   return 'https://www.gotporn.com/';
-      case VideoSource.porndig:   return 'https://www.porndig.com/';
+      case VideoSource.eporner:    return 'https://www.eporner.com/';
+      case VideoSource.pornhub:    return 'https://www.pornhub.com/';
+      case VideoSource.redtube:    return 'https://www.redtube.com/';
+      case VideoSource.youporn:    return 'https://www.youporn.com/';
+      case VideoSource.xvideos:    return 'https://www.xvideos.com/';
+      case VideoSource.xhamster:   return 'https://xhamster.com/';
+      case VideoSource.spankbang:  return 'https://spankbang.com/';
+      case VideoSource.bravotube:  return 'https://www.bravotube.net/';
+      case VideoSource.drtuber:    return 'https://www.drtuber.com/';
+      case VideoSource.txxx:       return 'https://www.txxx.com/';
+      case VideoSource.gotporn:    return 'https://www.gotporn.com/';
+      case VideoSource.porndig:    return 'https://www.porndig.com/';
+      case VideoSource.beeg:       return 'https://beeg.com/';
+      case VideoSource.tube8:      return 'https://www.tube8.com/';
+      case VideoSource.tnaflix:    return 'https://www.tnaflix.com/';
+      case VideoSource.empflix:    return 'https://www.empflix.com/';
+      case VideoSource.porntrex:   return 'https://www.porntrex.com/';
+      case VideoSource.hclips:     return 'https://hclips.com/';
+      case VideoSource.tubedupe:   return 'https://www.tubedupe.com/';
+      case VideoSource.nuvid:      return 'https://www.nuvid.com/';
+      case VideoSource.sunporno:   return 'https://www.sunporno.com/';
+      case VideoSource.pornone:    return 'https://pornone.com/';
+      case VideoSource.slutload:   return 'https://www.slutload.com/';
+      case VideoSource.iceporn:    return 'https://www.iceporn.com/';
+      case VideoSource.vjav:       return 'https://vjav.com/';
+      case VideoSource.jizzbunker: return 'https://jizzbunker.com/';
+      case VideoSource.cliphunter: return 'https://www.cliphunter.com/';
     }
   }
 
@@ -455,7 +437,6 @@ class _VideoTile extends StatelessWidget {
   @override Widget build(BuildContext context) {
     final t     = AppTheme.current;
     final views = _fv(video.views);
-
     return GestureDetector(
       onTap: onTap,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -496,7 +477,6 @@ class _VideoTile extends StatelessWidget {
 }
 
 // ─── Shimmer ──────────────────────────────────────────────────────────────────
-
 class _Shimmer extends StatefulWidget {
   const _Shimmer();
   @override State<_Shimmer> createState() => _ShimmerState();
@@ -507,8 +487,7 @@ class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin 
   @override void initState() {
     super.initState();
     _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
-    _a = Tween<double>(begin: -2, end: 2)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+    _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
   }
   @override void dispose() { _c.dispose(); super.dispose(); }
   @override Widget build(BuildContext context) => AnimatedBuilder(
@@ -519,21 +498,18 @@ class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin 
 }
 
 // ─── Skeleton tile ────────────────────────────────────────────────────────────
-
 class _SkeletonTile extends StatefulWidget {
   final double height;
   const _SkeletonTile({required this.height});
   @override State<_SkeletonTile> createState() => _SkeletonTileState();
 }
-class _SkeletonTileState extends State<_SkeletonTile>
-    with SingleTickerProviderStateMixin {
+class _SkeletonTileState extends State<_SkeletonTile> with SingleTickerProviderStateMixin {
   late final AnimationController _c;
   late final Animation<double> _a;
   @override void initState() {
     super.initState();
     _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
-    _a = Tween<double>(begin: -2, end: 2)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+    _a = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
   }
   @override void dispose() { _c.dispose(); super.dispose(); }
 
