@@ -398,7 +398,7 @@ class FeedFetcher {
     try {
       final desc = _xmlTag(item, 'description');
       if (desc.isNotEmpty) {
-        final m = RegExp(r'<img[^>]+src=["\'](.*?)["\']').firstMatch(desc);
+        final m = RegExp('<img[^>]+src=["\'](.*?)["\']').firstMatch(desc);
         if (m != null) return m.group(1) ?? '';
       }
     } catch (_) {}
