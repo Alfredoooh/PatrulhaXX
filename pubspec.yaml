@@ -38,12 +38,13 @@ dependencies:
   http: ^1.2.2
   dio: ^5.4.3+1
   xml: ^6.5.0
+  html: ^0.15.4
 
   # ── Armazenamento & Preferências ─────────────────────────────────────────
   shared_preferences: ^2.3.2
   path_provider: ^2.1.4
   path: ^1.9.0
-
+  flutter_cache_manager: ^3.3.1
   # ── Hardware & Permissões ────────────────────────────────────────────────
   permission_handler: 11.3.1
   mobile_scanner: ^5.2.3
