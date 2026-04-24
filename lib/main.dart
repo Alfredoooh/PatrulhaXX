@@ -2,11 +2,21 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
 import 'package:video_player/video_player.dart';
 import 'package:xml/xml.dart';
 
-const _extractServers = [
+const _extractorHtml = '''
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+<script>
+const servers = [
   'https://nuxxconvert1.onrender.com',
   'https://nuxxconvert2.onrender.com',
   'https://nuxxconvert3.onrender.com',
@@ -14,37 +24,78 @@ const _extractServers = [
   'https://nuxxconvert5.onrender.com',
 ];
 
-Future<String> extractVideoUrl(String pageUrl) async {
-  final completer = Completer<String>();
-  int errors = 0;
-  for (final server in _extractServers) {
-    () async {
+async function extractVideoUrl(pageUrl) {
+  return new Promise((resolve, reject) => {
+    let errors = 0;
+    servers.forEach(async (server) => {
       try {
-        final uri = Uri.parse('$server/extract?url=${Uri.encodeComponent(pageUrl)}');
-        final resp = await http.get(uri).timeout(const Duration(seconds: 20));
-        if (resp.statusCode == 200) {
-          final data = jsonDecode(resp.body) as Map<String, dynamic>;
-          final link = data['link'] as String? ?? '';
-          if (link.isNotEmpty && !completer.isCompleted) {
-            completer.complete(link);
-          } else {
-            errors++;
-            if (errors == _extractServers.length && !completer.isCompleted)
-              completer.completeError('Nenhum servidor conseguiu extrair o vídeo.');
-          }
+        const resp = await fetch(server + '/extract?url=' + encodeURIComponent(pageUrl));
+        const data = await resp.json();
+        if (data.link && data.link.length > 0) {
+          resolve(data.link);
         } else {
           errors++;
-          if (errors == _extractServers.length && !completer.isCompleted)
-            completer.completeError('Todos os servidores falharam.');
+          if (errors === servers.length) reject('Nenhum servidor extraiu o link');
         }
-      } catch (_) {
+      } catch(e) {
         errors++;
-        if (errors == _extractServers.length && !completer.isCompleted)
-          completer.completeError('Todos os servidores falharam.');
+        if (errors === servers.length) reject('Todos os servidores falharam');
       }
-    }();
-  }
-  return completer.future;
+    });
+  });
+}
+</script>
+</body>
+</html>
+''';
+
+Future<String> extractVideoUrl(String pageUrl) async {
+  final completer = Completer<String>();
+  HeadlessInAppWebView? headless;
+
+  headless = HeadlessInAppWebView(
+    initialData: InAppWebViewInitialData(data: _extractorHtml),
+    onWebViewCreated: (controller) {
+      controller.addJavaScriptHandler(
+        handlerName: 'onResult',
+        callback: (args) {
+          if (!completer.isCompleted) {
+            final val = args.isNotEmpty ? args[0].toString() : '';
+            if (val.startsWith('ERROR:')) {
+              completer.completeError(val.replaceFirst('ERROR:', '').trim());
+            } else if (val.isNotEmpty) {
+              completer.complete(val);
+            } else {
+              completer.completeError('Link vazio');
+            }
+          }
+          headless?.dispose();
+        },
+      );
+    },
+    onLoadStop: (controller, url) async {
+      await controller.evaluateJavascript(source: '''
+        (async () => {
+          try {
+            const link = await extractVideoUrl(${jsonEncode(pageUrl)});
+            window.flutter_inappwebview.callHandler('onResult', link);
+          } catch(e) {
+            window.flutter_inappwebview.callHandler('onResult', 'ERROR:' + e);
+          }
+        })();
+      ''');
+    },
+  );
+
+  await headless!.run();
+
+  return completer.future.timeout(
+    const Duration(seconds: 25),
+    onTimeout: () {
+      headless?.dispose();
+      throw Exception('Timeout na extracção');
+    },
+  );
 }
 
 enum VideoSource {
@@ -55,8 +106,7 @@ enum VideoSource {
 class FeedVideo {
   final String title;
   final String thumb;
-  final String embedUrl;
-  final String pageUrl;
+  final String videoUrl;
   final String duration;
   final String views;
   final VideoSource source;
@@ -65,8 +115,7 @@ class FeedVideo {
   const FeedVideo({
     required this.title,
     required this.thumb,
-    required this.embedUrl,
-    required this.pageUrl,
+    required this.videoUrl,
     required this.duration,
     required this.views,
     required this.source,
@@ -121,8 +170,7 @@ class FeedVideo {
     return FeedVideo(
       title:    cleanTitle(j['title'] as String? ?? ''),
       thumb:    thumb,
-      embedUrl: 'https://www.eporner.com/embed/$id/',
-      pageUrl:  'https://www.eporner.com/video/$id/',
+      videoUrl: 'https://www.eporner.com/video/$id/',
       duration: j['duration'] as String? ?? '',
       views:    _fmtViews(j['views']),
       source:   VideoSource.eporner,
@@ -140,12 +188,10 @@ class FeedVideo {
     }
     if (thumb.isEmpty) thumb = j['default_thumb'] as String? ?? '';
     if (thumb.isEmpty) return null;
-    // Sempre www — ignora subdomínio de localização (pt, de, fr, etc.)
     return FeedVideo(
       title:    cleanTitle(j['title'] as String? ?? ''),
       thumb:    thumb,
-      embedUrl: 'https://www.pornhub.com/embed/$viewkey',
-      pageUrl:  'https://www.pornhub.com/view_video.php?viewkey=$viewkey',
+      videoUrl: 'https://www.pornhub.com/view_video.php?viewkey=$viewkey',
       duration: j['duration'] as String? ?? '',
       views:    _fmtViews(j['views']),
       source:   VideoSource.pornhub,
@@ -158,12 +204,10 @@ class FeedVideo {
     if (vid.isEmpty) return null;
     final thumb = j['thumb'] as String? ?? j['default_thumb'] as String? ?? '';
     if (thumb.isEmpty) return null;
-    // Sempre www.redtube.com — ignora .com.br e outros regionais
     return FeedVideo(
       title:    cleanTitle(j['title'] as String? ?? ''),
       thumb:    thumb,
-      embedUrl: 'https://embed.redtube.com/?id=$vid',
-      pageUrl:  'https://www.redtube.com/$vid',
+      videoUrl: 'https://www.redtube.com/$vid',
       duration: j['duration'] as String? ?? '',
       views:    _fmtViews(j['views']),
       source:   VideoSource.redtube,
@@ -179,8 +223,7 @@ class FeedVideo {
     return FeedVideo(
       title:    cleanTitle(j['title'] as String? ?? ''),
       thumb:    thumb,
-      embedUrl: 'https://www.youporn.com/embed/$id/',
-      pageUrl:  'https://www.youporn.com/watch/$id/',
+      videoUrl: 'https://www.youporn.com/watch/$id/',
       duration: j['duration'] as String? ?? '',
       views:    _fmtViews(j['views']),
       source:   VideoSource.youporn,
@@ -189,7 +232,6 @@ class FeedVideo {
   }
 
   static FeedVideo? fromXvideos(Map<String, dynamic> j) {
-    // XVideos usa formato /video.ID/slug — o ID vem em j['id'] ou j['video_id']
     final id = (j['id'] ?? j['video_id'] ?? '').toString();
     if (id.isEmpty || id == '0') return null;
     final thumb = j['thumb'] as String? ?? j['thumbnail'] as String? ??
@@ -198,8 +240,7 @@ class FeedVideo {
     return FeedVideo(
       title:    cleanTitle(j['title'] as String? ?? ''),
       thumb:    thumb,
-      embedUrl: 'https://www.xvideos.com/embedframe/$id',
-      pageUrl:  'https://www.xvideos.com/video.$id/',
+      videoUrl: 'https://www.xvideos.com/video.$id/',
       duration: j['duration'] as String? ?? '',
       views:    _fmtViews(j['views'] ?? j['nb_views']),
       source:   VideoSource.xvideos,
@@ -208,7 +249,6 @@ class FeedVideo {
   }
 
   static FeedVideo? fromXhamster(Map<String, dynamic> j) {
-    // xHamster: /videos/titulo-ID onde ID é alfanumérico (ex: xhEI9G3)
     final id = (j['id'] ?? '').toString();
     if (id.isEmpty) return null;
     final thumb = j['thumbUrl'] as String? ?? j['thumb'] as String? ??
@@ -223,8 +263,7 @@ class FeedVideo {
     return FeedVideo(
       title:    cleanTitle(j['title'] as String? ?? ''),
       thumb:    thumb,
-      embedUrl: 'https://xhamster.com/xembed.php?video=$id',
-      pageUrl:  pageUrl,
+      videoUrl: pageUrl,
       duration: j['duration']?.toString() ?? '',
       views:    _fmtViews(j['views']),
       source:   VideoSource.xhamster,
@@ -232,14 +271,11 @@ class FeedVideo {
     );
   }
 
-  // Remove parâmetros UTM e normaliza domínio xHamster
   static String _normalizeXhamsterUrl(String url) {
     try {
       final uri = Uri.parse(url);
       return Uri(scheme: 'https', host: 'xhamster.com', path: uri.path).toString();
-    } catch (_) {
-      return url;
-    }
+    } catch (_) { return url; }
   }
 
   static FeedVideo? fromSpankbang(Map<String, dynamic> j) {
@@ -250,8 +286,7 @@ class FeedVideo {
     return FeedVideo(
       title:    cleanTitle(j['title'] as String? ?? ''),
       thumb:    thumb,
-      embedUrl: 'https://spankbang.com/$id/embed/',
-      pageUrl:  'https://spankbang.com/$id/video/',
+      videoUrl: 'https://spankbang.com/$id/video/',
       duration: j['duration']?.toString() ?? '',
       views:    _fmtViews(j['views']),
       source:   VideoSource.spankbang,
@@ -262,16 +297,14 @@ class FeedVideo {
   static FeedVideo fromRss({
     required String title,
     required String thumb,
-    required String embedUrl,
-    required String pageUrl,
+    required String videoUrl,
     required VideoSource source,
     DateTime? publishedAt,
   }) =>
       FeedVideo(
         title:    cleanTitle(title),
         thumb:    thumb,
-        embedUrl: embedUrl,
-        pageUrl:  pageUrl,
+        videoUrl: videoUrl,
         duration: '',
         views:    '',
         source:   source,
@@ -398,7 +431,6 @@ class FeedFetcher {
     return [];
   }
 
-  // XVideos — RSS devolve links no formato /video.ID/slug
   static Future<List<FeedVideo>> fetchXvideos(int page) async {
     final urls = [
       'https://www.xvideos.com/feeds/rss-new/0',
@@ -418,17 +450,11 @@ class FeedFetcher {
           final pubDate = _xml(item, 'pubDate');
           if (rawLink.isEmpty) continue;
           final fullLink = rawLink.startsWith('http')
-              ? rawLink
-              : 'https://www.xvideos.com$rawLink';
-          // Formato real: /video.ID/slug ou /videoID/slug
-          final match = RegExp(r'/video[./]([a-zA-Z0-9]+)').firstMatch(fullLink);
-          if (match == null) continue;
-          final id = match.group(1)!;
+              ? rawLink : 'https://www.xvideos.com$rawLink';
           items.add(FeedVideo.fromRss(
             title:    title.isEmpty ? 'Vídeo' : title,
             thumb:    thumb,
-            embedUrl: 'https://www.xvideos.com/embedframe/$id',
-            pageUrl:  fullLink,
+            videoUrl: fullLink,
             source:   VideoSource.xvideos,
             publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
@@ -439,12 +465,8 @@ class FeedFetcher {
     return items;
   }
 
-  // xHamster — RSS real, URL formato /videos/titulo-IDalfanumerico
   static Future<List<FeedVideo>> fetchXhamster(int page) async {
-    final urls = [
-      'https://xhamster.com/rss',
-      'https://xhamster.com/rss?sort=newest',
-    ];
+    final urls = ['https://xhamster.com/rss', 'https://xhamster.com/rss?sort=newest'];
     final items = <FeedVideo>[];
     for (final url in urls) {
       try {
@@ -459,19 +481,12 @@ class FeedFetcher {
           final pubDate = _xml(item, 'pubDate');
           if (rawLink.isEmpty) continue;
           final fullLink = rawLink.startsWith('http')
-              ? rawLink
-              : 'https://xhamster.com$rawLink';
-          // Remove UTM e normaliza domínio
+              ? rawLink : 'https://xhamster.com$rawLink';
           final cleanLink = FeedVideo._normalizeXhamsterUrl(fullLink);
-          // Formato: /videos/titulo-xhXXXXXX — ID alfanumérico no fim
-          final match = RegExp(r'/videos/[\w-]+-([a-zA-Z0-9]+)$').firstMatch(cleanLink);
-          if (match == null) continue;
-          final id = match.group(1)!;
           items.add(FeedVideo.fromRss(
             title:    title.isEmpty ? 'Vídeo' : title,
             thumb:    thumb,
-            embedUrl: 'https://xhamster.com/xembed.php?video=$id',
-            pageUrl:  cleanLink,
+            videoUrl: cleanLink,
             source:   VideoSource.xhamster,
             publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
@@ -498,17 +513,11 @@ class FeedFetcher {
           final pubDate = _xml(item, 'pubDate');
           if (rawLink.isEmpty) continue;
           final fullLink = rawLink.startsWith('http')
-              ? rawLink
-              : 'https://spankbang.com$rawLink';
-          // Formato: /ID/video/titulo
-          final match = RegExp(r'spankbang\.com/([A-Za-z0-9]+)/').firstMatch(fullLink);
-          if (match == null) continue;
-          final id = match.group(1)!;
+              ? rawLink : 'https://spankbang.com$rawLink';
           items.add(FeedVideo.fromRss(
             title:    title.isEmpty ? 'Vídeo' : title,
             thumb:    thumb,
-            embedUrl: 'https://spankbang.com/$id/embed/',
-            pageUrl:  fullLink,
+            videoUrl: fullLink,
             source:   VideoSource.spankbang,
             publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
@@ -519,12 +528,8 @@ class FeedFetcher {
     return items;
   }
 
-  // BravoTube — formato /videos/titulo/ (sem ID numérico no slug)
   static Future<List<FeedVideo>> fetchBravotube(int page) async {
-    final urls = [
-      'https://www.bravotube.net/rss/new/',
-      'https://www.bravotube.net/rss/popular/',
-    ];
+    final urls = ['https://www.bravotube.net/rss/new/', 'https://www.bravotube.net/rss/popular/'];
     final items = <FeedVideo>[];
     for (final url in urls) {
       try {
@@ -539,19 +544,11 @@ class FeedFetcher {
           final pubDate = _xml(item, 'pubDate');
           if (rawLink.isEmpty) continue;
           final fullLink = rawLink.startsWith('http')
-              ? rawLink
-              : 'https://www.bravotube.net$rawLink';
-          // Tenta extrair ID numérico se existir, senão usa o link completo
-          final matchId = RegExp(r'-(\d+)\.html').firstMatch(fullLink);
-          final embedUrl = matchId != null
-              ? 'https://www.bravotube.net/embed/${matchId.group(1)}/'
-              : '';
-          if (embedUrl.isEmpty && !fullLink.contains('/videos/')) continue;
+              ? rawLink : 'https://www.bravotube.net$rawLink';
           items.add(FeedVideo.fromRss(
             title:    title.isEmpty ? 'Vídeo' : title,
             thumb:    thumb,
-            embedUrl: embedUrl,
-            pageUrl:  fullLink,
+            videoUrl: fullLink,
             source:   VideoSource.bravotube,
             publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
@@ -562,12 +559,8 @@ class FeedFetcher {
     return items;
   }
 
-  // DrTuber — pageUrl real: /video/ID/titulo (não /video/download/save/ID)
   static Future<List<FeedVideo>> fetchDrtuber(int page) async {
-    final urls = [
-      'https://www.drtuber.com/rss/latest',
-      'https://www.drtuber.com/rss/popular',
-    ];
+    final urls = ['https://www.drtuber.com/rss/latest', 'https://www.drtuber.com/rss/popular'];
     final items = <FeedVideo>[];
     for (final url in urls) {
       try {
@@ -582,19 +575,14 @@ class FeedFetcher {
           final pubDate = _xml(item, 'pubDate');
           if (rawLink.isEmpty) continue;
           final fullLink = rawLink.startsWith('http')
-              ? rawLink
-              : 'https://www.drtuber.com$rawLink';
-          // Normaliza: remove /download/save/ se presente
+              ? rawLink : 'https://www.drtuber.com$rawLink';
           final cleanLink = fullLink
               .replaceFirst(RegExp(r'/video/download/save/'), '/video/')
-              .replaceFirst(RegExp(r'^https?://m\.drtuber'), 'https://www.drtuber');
-          final match = RegExp(r'/video/(\d+)').firstMatch(cleanLink);
-          if (match == null) continue;
+              .replaceFirst(RegExp(r'^https?://m\.drtuber'), 'https://www.drtuber.com');
           items.add(FeedVideo.fromRss(
             title:    title.isEmpty ? 'Vídeo' : title,
             thumb:    thumb,
-            embedUrl: 'https://www.drtuber.com/embed/${match.group(1)}',
-            pageUrl:  cleanLink,
+            videoUrl: cleanLink,
             source:   VideoSource.drtuber,
             publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
@@ -606,10 +594,7 @@ class FeedFetcher {
   }
 
   static Future<List<FeedVideo>> fetchTxxx(int page) async {
-    final urls = [
-      'https://www.txxx.com/rss/new/',
-      'https://www.txxx.com/rss/popular/',
-    ];
+    final urls = ['https://www.txxx.com/rss/new/', 'https://www.txxx.com/rss/popular/'];
     final items = <FeedVideo>[];
     for (final url in urls) {
       try {
@@ -624,15 +609,11 @@ class FeedFetcher {
           final pubDate = _xml(item, 'pubDate');
           if (rawLink.isEmpty) continue;
           final fullLink = rawLink.startsWith('http')
-              ? rawLink
-              : 'https://www.txxx.com$rawLink';
-          final match = RegExp(r'-(\d+)/?$').firstMatch(Uri.parse(fullLink).path);
-          if (match == null) continue;
+              ? rawLink : 'https://www.txxx.com$rawLink';
           items.add(FeedVideo.fromRss(
             title:    title.isEmpty ? 'Vídeo' : title,
             thumb:    thumb,
-            embedUrl: 'https://www.txxx.com/embed/${match.group(1)}/',
-            pageUrl:  fullLink,
+            videoUrl: fullLink,
             source:   VideoSource.txxx,
             publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
@@ -643,12 +624,8 @@ class FeedFetcher {
     return items;
   }
 
-  // GotPorn — ignora links de redirect /out/, usa apenas links directos /video-ID
   static Future<List<FeedVideo>> fetchGotporn(int page) async {
-    final urls = [
-      'https://www.gotporn.com/rss/latest',
-      'https://www.gotporn.com/rss/popular',
-    ];
+    final urls = ['https://www.gotporn.com/rss/latest', 'https://www.gotporn.com/rss/popular'];
     final items = <FeedVideo>[];
     for (final url in urls) {
       try {
@@ -662,18 +639,13 @@ class FeedFetcher {
           final thumb   = _rssThumb(item);
           final pubDate = _xml(item, 'pubDate');
           if (rawLink.isEmpty) continue;
-          // Ignora links de redirect /out/
           if (rawLink.contains('/out/') || rawLink.contains('/out?')) continue;
           final fullLink = rawLink.startsWith('http')
-              ? rawLink
-              : 'https://www.gotporn.com$rawLink';
-          final match = RegExp(r'/video-(\d+)').firstMatch(fullLink);
-          if (match == null) continue;
+              ? rawLink : 'https://www.gotporn.com$rawLink';
           items.add(FeedVideo.fromRss(
             title:    title.isEmpty ? 'Vídeo' : title,
             thumb:    thumb,
-            embedUrl: 'https://www.gotporn.com/video/embed/${match.group(1)}',
-            pageUrl:  fullLink,
+            videoUrl: fullLink,
             source:   VideoSource.gotporn,
             publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
@@ -685,10 +657,7 @@ class FeedFetcher {
   }
 
   static Future<List<FeedVideo>> fetchPorndig(int page) async {
-    final urls = [
-      'https://www.porndig.com/rss',
-      'https://www.porndig.com/rss?category=latest',
-    ];
+    final urls = ['https://www.porndig.com/rss', 'https://www.porndig.com/rss?category=latest'];
     final items = <FeedVideo>[];
     for (final url in urls) {
       try {
@@ -703,15 +672,11 @@ class FeedFetcher {
           final pubDate = _xml(item, 'pubDate');
           if (rawLink.isEmpty) continue;
           final fullLink = rawLink.startsWith('http')
-              ? rawLink
-              : 'https://www.porndig.com$rawLink';
-          final match = RegExp(r'-(\d+)\.html').firstMatch(fullLink);
-          if (match == null) continue;
+              ? rawLink : 'https://www.porndig.com$rawLink';
           items.add(FeedVideo.fromRss(
             title:    title.isEmpty ? 'Vídeo' : title,
             thumb:    thumb,
-            embedUrl: 'https://www.porndig.com/embed/${match.group(1)}',
-            pageUrl:  fullLink,
+            videoUrl: fullLink,
             source:   VideoSource.porndig,
             publishedAt: pubDate.isNotEmpty ? _tryParseRssDate(pubDate) : null,
           ));
@@ -1017,7 +982,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   Future<void> _extract() async {
     setState(() { _extracting = true; _error = null; });
     try {
-      final directUrl = await extractVideoUrl(widget.video.pageUrl);
+      final directUrl = await extractVideoUrl(widget.video.videoUrl);
       final ctrl = VideoPlayerController.networkUrl(Uri.parse(directUrl));
       await ctrl.initialize();
       ctrl.play();
@@ -1161,9 +1126,9 @@ class _ControlsOverlayState extends State<_ControlsOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    final ctrl = widget.controller;
-    final pos  = ctrl.value.position;
-    final dur  = ctrl.value.duration;
+    final ctrl    = widget.controller;
+    final pos     = ctrl.value.position;
+    final dur     = ctrl.value.duration;
     final playing = ctrl.value.isPlaying;
     return Container(
       decoration: const BoxDecoration(
