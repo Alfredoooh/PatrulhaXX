@@ -320,10 +320,6 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   late final AnimationController _thumbFadeAnim;
   bool _thumbVisible = true;
 
-  // Volume
-  final VolumeController _volumeController = VolumeController();
-  StreamSubscription<double>? _volSub;
-
   bool get _isEmpty => widget.videoUrl == null || widget.currentVideo == null;
 
   @override void initState() {
@@ -405,13 +401,11 @@ window.setSystemVolume=function(p){
   // ── Volume sistema ─────────────────────────────────────────────────────────
   Future<void> _startVolumeSync() async {
     try {
-      final vol = await _volumeController.getVolume();
+      final vol = await VolumeController.instance.getVolume();
       _sendVolumeToPlayer((vol * 100).round());
     } catch (_) {}
-
-    _volSub?.cancel();
     try {
-      _volSub = _volumeController.addListener((vol) {
+      VolumeController.instance.addListener((vol) {
         _sendVolumeToPlayer((vol * 100).round());
       }, fetchInitialVolume: false);
     } catch (_) {}
@@ -422,9 +416,7 @@ window.setSystemVolume=function(p){
   }
 
   void _stopVolumeSync() {
-    _volSub?.cancel();
-    _volSub = null;
-    try { _volumeController.removeListener(); } catch (_) {}
+    try { VolumeController.instance.removeListener(); } catch (_) {}
   }
 
   // ── Ciclo de vida ──────────────────────────────────────────────────────────
@@ -566,19 +558,17 @@ window.setSystemVolume=function(p){
                         ),
                         onWebViewCreated: (ctrl) {
                           _webCtrl = ctrl;
-
                           ctrl.addJavaScriptHandler(
                             handlerName: 'onVideoPlaying',
                             callback: (_) => _onVideoStarted(),
                           );
-
                           ctrl.addJavaScriptHandler(
                             handlerName: 'onVolumeChange',
                             callback: (args) {
                               if (args.isEmpty) return;
                               final pct = (args[0] as num).toDouble();
                               try {
-                                _volumeController.setVolume(pct / 100);
+                                VolumeController.instance.setVolume(pct / 100);
                               } catch (_) {}
                             },
                           );

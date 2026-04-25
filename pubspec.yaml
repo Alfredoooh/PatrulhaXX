@@ -49,7 +49,7 @@ dependencies:
   permission_handler: 11.3.1
   mobile_scanner: ^5.2.3
   flutter_p2p_connection: ^3.0.3
-  volume_controller: ^2.0.3
+  volume_controller: ^3.4.4
 
   # ── QR Code ──────────────────────────────────────────────────────────────
   qr_flutter: any
