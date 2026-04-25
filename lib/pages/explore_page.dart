@@ -394,33 +394,48 @@ class _VideoTile extends StatelessWidget {
 
   String get _referer {
     switch (video.source) {
-      case VideoSource.eporner:    return 'https://www.eporner.com/';
-      case VideoSource.pornhub:    return 'https://www.pornhub.com/';
-      case VideoSource.redtube:    return 'https://www.redtube.com/';
-      case VideoSource.youporn:    return 'https://www.youporn.com/';
-      case VideoSource.xvideos:    return 'https://www.xvideos.com/';
-      case VideoSource.xhamster:   return 'https://xhamster.com/';
-      case VideoSource.spankbang:  return 'https://spankbang.com/';
-      case VideoSource.bravotube:  return 'https://www.bravotube.net/';
-      case VideoSource.drtuber:    return 'https://www.drtuber.com/';
-      case VideoSource.txxx:       return 'https://www.txxx.com/';
-      case VideoSource.gotporn:    return 'https://www.gotporn.com/';
-      case VideoSource.porndig:    return 'https://www.porndig.com/';
-      case VideoSource.beeg:       return 'https://beeg.com/';
-      case VideoSource.tube8:      return 'https://www.tube8.com/';
-      case VideoSource.tnaflix:    return 'https://www.tnaflix.com/';
-      case VideoSource.empflix:    return 'https://www.empflix.com/';
-      case VideoSource.porntrex:   return 'https://www.porntrex.com/';
-      case VideoSource.hclips:     return 'https://hclips.com/';
-      case VideoSource.tubedupe:   return 'https://www.tubedupe.com/';
-      case VideoSource.nuvid:      return 'https://www.nuvid.com/';
-      case VideoSource.sunporno:   return 'https://www.sunporno.com/';
-      case VideoSource.pornone:    return 'https://pornone.com/';
-      case VideoSource.slutload:   return 'https://www.slutload.com/';
-      case VideoSource.iceporn:    return 'https://www.iceporn.com/';
-      case VideoSource.vjav:       return 'https://vjav.com/';
-      case VideoSource.jizzbunker: return 'https://jizzbunker.com/';
-      case VideoSource.cliphunter: return 'https://www.cliphunter.com/';
+      case VideoSource.eporner:        return 'https://www.eporner.com/';
+      case VideoSource.pornhub:        return 'https://www.pornhub.com/';
+      case VideoSource.redtube:        return 'https://www.redtube.com/';
+      case VideoSource.youporn:        return 'https://www.youporn.com/';
+      case VideoSource.xvideos:        return 'https://www.xvideos.com/';
+      case VideoSource.xhamster:       return 'https://xhamster.com/';
+      case VideoSource.spankbang:      return 'https://spankbang.com/';
+      case VideoSource.bravotube:      return 'https://www.bravotube.net/';
+      case VideoSource.drtuber:        return 'https://www.drtuber.com/';
+      case VideoSource.txxx:           return 'https://www.txxx.com/';
+      case VideoSource.gotporn:        return 'https://www.gotporn.com/';
+      case VideoSource.porndig:        return 'https://www.porndig.com/';
+      case VideoSource.beeg:           return 'https://beeg.com/';
+      case VideoSource.tube8:          return 'https://www.tube8.com/';
+      case VideoSource.tnaflix:        return 'https://www.tnaflix.com/';
+      case VideoSource.empflix:        return 'https://www.empflix.com/';
+      case VideoSource.porntrex:       return 'https://www.porntrex.com/';
+      case VideoSource.hclips:         return 'https://hclips.com/';
+      case VideoSource.tubedupe:       return 'https://www.tubedupe.com/';
+      case VideoSource.nuvid:          return 'https://www.nuvid.com/';
+      case VideoSource.sunporno:       return 'https://www.sunporno.com/';
+      case VideoSource.pornone:        return 'https://pornone.com/';
+      case VideoSource.slutload:       return 'https://www.slutload.com/';
+      case VideoSource.iceporn:        return 'https://www.iceporn.com/';
+      case VideoSource.vjav:           return 'https://vjav.com/';
+      case VideoSource.jizzbunker:     return 'https://jizzbunker.com/';
+      case VideoSource.cliphunter:     return 'https://www.cliphunter.com/';
+      case VideoSource.sexvid:         return 'https://sexvid.xxx/';
+      case VideoSource.yeptube:        return 'https://www.yeptube.com/';
+      case VideoSource.xnxx:           return 'https://www.xnxx.com/';
+      case VideoSource.pornoxo:        return 'https://www.pornoxo.com/';
+      case VideoSource.anysex:         return 'https://anysex.com/';
+      case VideoSource.fuqer:          return 'https://fuqer.com/';
+      case VideoSource.fapster:        return 'https://fapster.xxx/';
+      case VideoSource.proporn:        return 'https://proporn.com/';
+      case VideoSource.h2porn:         return 'https://www.h2porn.com/';
+      case VideoSource.alphaporno:     return 'https://www.alphaporno.com/';
+      case VideoSource.watchmygf:      return 'https://watchmygf.me/';
+      case VideoSource.xcafe:          return 'https://xcafe.com/';
+      case VideoSource.tubecup:        return 'https://tubecup.com/';
+      case VideoSource.vidlox:         return 'https://vidlox.me/';
+      case VideoSource.naughtyamerica: return 'https://www.naughtyamerica.com/';
     }
   }
 
