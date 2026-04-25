@@ -321,6 +321,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   bool _thumbVisible = true;
 
   // Volume
+  final VolumeController _volumeController = VolumeController();
   StreamSubscription<double>? _volSub;
 
   bool get _isEmpty => widget.videoUrl == null || widget.currentVideo == null;
@@ -404,13 +405,13 @@ window.setSystemVolume=function(p){
   // ── Volume sistema ─────────────────────────────────────────────────────────
   Future<void> _startVolumeSync() async {
     try {
-      final vol = await VolumeController.instance.getVolume();
+      final vol = await _volumeController.getVolume();
       _sendVolumeToPlayer((vol * 100).round());
     } catch (_) {}
 
     _volSub?.cancel();
     try {
-      _volSub = VolumeController.instance.addListener((vol) {
+      _volSub = _volumeController.addListener((vol) {
         _sendVolumeToPlayer((vol * 100).round());
       }, fetchInitialVolume: false);
     } catch (_) {}
@@ -423,7 +424,7 @@ window.setSystemVolume=function(p){
   void _stopVolumeSync() {
     _volSub?.cancel();
     _volSub = null;
-    try { VolumeController.instance.removeListener(); } catch (_) {}
+    try { _volumeController.removeListener(); } catch (_) {}
   }
 
   // ── Ciclo de vida ──────────────────────────────────────────────────────────
@@ -577,7 +578,7 @@ window.setSystemVolume=function(p){
                               if (args.isEmpty) return;
                               final pct = (args[0] as num).toDouble();
                               try {
-                                VolumeController.instance.setVolume(pct / 100);
+                                _volumeController.setVolume(pct / 100);
                               } catch (_) {}
                             },
                           );
