@@ -49,6 +49,7 @@ dependencies:
   permission_handler: 11.3.1
   mobile_scanner: ^5.2.3
   flutter_p2p_connection: ^3.0.3
+  volume_controller: any
 
   # ── QR Code ──────────────────────────────────────────────────────────────
   qr_flutter: any
@@ -77,18 +78,8 @@ flutter:
     - assets/logo.png
     - assets/images/background.png
     - assets/images/bg2.jpg
-    - assets/images/bg3.jpg
-    - assets/images/bg4.jpg
     - assets/images/bg5.jpg
     - assets/images/bg6.jpg
-    - assets/images/bg7.jpg
-    - assets/images/bg8.jpg
-    - assets/images/bg9.jpg
-    - assets/images/bg10.jpg
-    - assets/images/bg11.jpg
-    - assets/images/bg12.jpg
-    - assets/videos/promo.mp4
-    - assets/icons/downloads_folder.png
     - assets/lottie/tick_mark.json
     - assets/lottie/lock.json
     - assets/lottie/no_connection.json
@@ -96,3 +87,13 @@ flutter:
     - assets/lottie/wrong_feedback.json
     - assets/icons/svg/
     - assets/icons/svg/settings/
+    - assets/icons/svg/search.svg
+    - assets/icons/svg/history.svg
+    - assets/imagens/search_page/hetero.jpg
+    - assets/imagens/search_page/homo.jpg
+    - assets/imagens/search_page/lesbicas.jpg
+    - assets/imagens/search_page/anal.jpg
+    - assets/imagens/search_page/amador.jpg
+    - assets/imagens/search_page/milf.jpg
+    - assets/imagens/search_page/teen.jpg
+    - assets/imagens/search_page/hentai.jpg

@@ -8,11 +8,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:volume_controller/volume_controller.dart';
 
 import '../models/feed_video_model.dart';
 import '../services/download_service.dart';
-import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 
 // ─── APIs de conversão ────────────────────────────────────────────────────────
@@ -94,6 +93,7 @@ class _Shimmer extends StatefulWidget {
   const _Shimmer({this.width, this.height, this.radius = 6});
   @override State<_Shimmer> createState() => _ShimmerState();
 }
+
 class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin {
   late final AnimationController _c;
   late final Animation<double> _a;
@@ -134,16 +134,13 @@ List<Widget> _skeletonCards(int n) => List.generate(n, (_) =>
 // ─── _SmallBtn ────────────────────────────────────────────────────────────────
 class _SmallBtn extends StatelessWidget {
   final String svg;
-  final String? activeSvg;
-  final bool active;
   final VoidCallback onTap;
-  const _SmallBtn({required this.svg, required this.onTap, this.activeSvg, this.active = false});
+  const _SmallBtn({required this.svg, required this.onTap});
   @override Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: Container(width: 36, height: 36,
       decoration: BoxDecoration(color: Colors.black.withOpacity(0.7), shape: BoxShape.circle),
-      child: Center(child: SvgPicture.string(
-        (active && activeSvg != null) ? activeSvg! : svg, width: 17, height: 17,
+      child: Center(child: SvgPicture.string(svg, width: 17, height: 17,
         colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)))));
 }
 
@@ -256,6 +253,7 @@ class _ThumbCompact extends StatefulWidget {
   const _ThumbCompact({required this.url, required this.headers, required this.bg});
   @override State<_ThumbCompact> createState() => _ThumbCompactState();
 }
+
 class _ThumbCompactState extends State<_ThumbCompact> {
   int _attempt = 0; bool _failed = false;
   @override Widget build(BuildContext context) {
@@ -276,26 +274,6 @@ class _ThumbCompactState extends State<_ThumbCompact> {
       loadingBuilder: (_, child, p) => p == null ? child : const _Shimmer(radius: 0),
     );
   }
-}
-
-// ─── InAppWebView HTML builder ────────────────────────────────────────────────
-String _buildPlayerHtml(String directUrl) {
-  final escaped = directUrl.replaceAll('"', '&quot;');
-  return '''<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
-  video { width: 100%; height: 100%; display: block; background: #000; object-fit: contain; }
-</style>
-</head>
-<body>
-<video id="v" src="$escaped" controls autoplay playsinline webkit-playsinline></video>
-</body>
-</html>''';
 }
 
 // ─── ExibicaoPage ─────────────────────────────────────────────────────────────
@@ -326,7 +304,6 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 
   final List<FeedVideo> _related = [];
   bool _loadingRelated = false;
-  FeedVideo? _nextVideo;
   int _currentPlaylistIndex = 0;
 
   late final AnimationController _descAnim;
@@ -337,6 +314,14 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   bool _extracting = false;
   bool _extractFailed = false;
   InAppWebViewController? _webCtrl;
+  String? _playerHtmlTemplate;
+
+  // Thumb fade
+  late final AnimationController _thumbFadeAnim;
+  bool _thumbVisible = true;
+
+  // Volume
+  StreamSubscription<double>? _volSub;
 
   bool get _isEmpty => widget.videoUrl == null || widget.currentVideo == null;
 
@@ -345,12 +330,60 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     _currentPlaylistIndex = widget.playlistIndex;
     _descAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 450))..forward();
     _playerEnterAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..forward();
-    if (!_isEmpty) { _loadRelated(); _extractAndPlay(widget.videoUrl!); }
+    _thumbFadeAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    _loadPlayerTemplate();
+    if (!_isEmpty) {
+      _loadRelated();
+      _extractAndPlay(widget.videoUrl!);
+    }
   }
 
+  // ── Template HTML ──────────────────────────────────────────────────────────
+  Future<void> _loadPlayerTemplate() async {
+    try {
+      final html = await rootBundle.loadString('assets/player.html');
+      if (mounted) setState(() => _playerHtmlTemplate = html);
+    } catch (_) {
+      if (mounted) setState(() => _playerHtmlTemplate = _fallbackHtml);
+    }
+  }
+
+  static const String _fallbackHtml = '''<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<style>*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#000;overflow:hidden}
+video{width:100%;height:100%;display:block;object-fit:contain}</style>
+</head><body>
+<video id="vid" src="{{VIDEO_URL}}" controls autoplay playsinline webkit-playsinline></video>
+<script>
+document.getElementById("vid").addEventListener("playing",function(){
+  if(window.flutter_inappwebview)
+    window.flutter_inappwebview.callHandler("onVideoPlaying");
+},{once:true});
+window.setSystemVolume=function(p){
+  var v=document.getElementById("vid");
+  if(v){v.volume=p/100;v.muted=(p===0);}
+};
+</script>
+</body></html>''';
+
+  String _buildPlayerHtml(String directUrl) {
+    final escaped = directUrl.replaceAll('"', '&quot;');
+    return (_playerHtmlTemplate ?? _fallbackHtml).replaceAll('{{VIDEO_URL}}', escaped);
+  }
+
+  // ── Extracção ──────────────────────────────────────────────────────────────
   Future<void> _extractAndPlay(String url) async {
     if (!mounted) return;
-    setState(() { _extracting = true; _extractFailed = false; _directUrl = null; });
+    setState(() {
+      _extracting = true;
+      _extractFailed = false;
+      _directUrl = null;
+      _thumbVisible = true;
+    });
+    _thumbFadeAnim.value = 0.0;
+
     final direct = await _extractDirectLink(url);
     if (!mounted) return;
     if (direct == null || direct.isEmpty) {
@@ -360,46 +393,66 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     setState(() { _directUrl = direct; _extracting = false; });
   }
 
+  // ── Thumb fade ─────────────────────────────────────────────────────────────
+  void _onVideoStarted() {
+    if (!_thumbVisible) return;
+    _thumbFadeAnim.forward().then((_) {
+      if (mounted) setState(() => _thumbVisible = false);
+    });
+  }
+
+  // ── Volume sistema ─────────────────────────────────────────────────────────
+  void _startVolumeSync() {
+    VolumeController().showSystemUI = false;
+
+    // Lê volume actual e envia ao player
+    VolumeController().getVolume().then((vol) {
+      _sendVolumeToPlayer((vol * 100).round());
+    });
+
+    // Escuta botões físicos e outras mudanças
+    _volSub?.cancel();
+    _volSub = VolumeController().listener((vol) {
+      _sendVolumeToPlayer((vol * 100).round());
+    });
+  }
+
+  void _sendVolumeToPlayer(int pct) {
+    _webCtrl?.evaluateJavascript(source: 'window.setSystemVolume($pct);');
+  }
+
+  void _stopVolumeSync() {
+    _volSub?.cancel();
+    _volSub = null;
+    VolumeController().removeListener();
+  }
+
+  // ── Ciclo de vida ──────────────────────────────────────────────────────────
   @override void didUpdateWidget(ExibicaoPage old) {
     super.didUpdateWidget(old);
     if (widget.currentVideo != old.currentVideo && !_isEmpty) {
       _descAnim.forward(from: 0.0);
       _playerEnterAnim.forward(from: 0.0);
       _webCtrl = null;
+      _thumbFadeAnim.value = 0.0;
+      _stopVolumeSync();
       _extractAndPlay(widget.videoUrl!);
       _loadRelated();
     }
-    if (widget.isActive != old.isActive) {
-      if (!widget.isActive) {
-        _webCtrl?.evaluateJavascript(source: 'document.getElementById("v")?.pause()');
-      }
+    if (widget.isActive != old.isActive && !widget.isActive) {
+      _webCtrl?.evaluateJavascript(source: 'document.getElementById("vid")?.pause()');
     }
   }
 
   @override void dispose() {
     _descAnim.dispose();
     _playerEnterAnim.dispose();
+    _thumbFadeAnim.dispose();
+    _stopVolumeSync();
     super.dispose();
   }
 
-  void _goNext() {
-    final pl = widget.playlist ?? _related;
-    final nextIdx = _currentPlaylistIndex + 1;
-    if (nextIdx < pl.length) {
-      setState(() => _currentPlaylistIndex = nextIdx);
-      widget.onVideoTap(pl[nextIdx]);
-    }
-  }
-
-  void _goPrev() {
-    final prevIdx = _currentPlaylistIndex - 1;
-    if (prevIdx >= 0) {
-      final pl = widget.playlist ?? _related;
-      setState(() => _currentPlaylistIndex = prevIdx);
-      widget.onVideoTap(pl[prevIdx]);
-    }
-  }
-
+  // ── Download ───────────────────────────────────────────────────────────────
   Future<void> _forceDownload() async {
     if (_directUrl == null) { _snack('A extrair link...'); return; }
     DownloadService.instance.startDownload(
@@ -412,6 +465,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     _snack('Download iniciado');
   }
 
+  // ── Related ────────────────────────────────────────────────────────────────
   Future<void> _loadRelated() async {
     if (!mounted) return;
     setState(() { _loadingRelated = true; _related.clear(); });
@@ -423,6 +477,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     });
   }
 
+  // ── Snack ──────────────────────────────────────────────────────────────────
   void _snack(String msg) {
     final t = AppTheme.current;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -431,6 +486,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
       duration: const Duration(seconds: 2)));
   }
 
+  // ── Menu vídeo ─────────────────────────────────────────────────────────────
   void _showVideoMenu(BuildContext ctx, FeedVideo v, Offset pos) {
     final t = AppTheme.current;
     final RenderBox overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
@@ -447,9 +503,9 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     ).then((val) {
       if (val == null || !mounted) return;
       switch (val) {
-        case 'save': _snack('Guardado para assistir mais tarde'); break;
+        case 'save':     _snack('Guardado para assistir mais tarde'); break;
         case 'playlist': _snack('Adicionado à playlist'); break;
-        case 'next': setState(() => _nextVideo = v); _snack('Será exibido a seguir'); break;
+        case 'next':     _snack('Será exibido a seguir'); break;
       }
     });
   }
@@ -463,15 +519,13 @@ class _ExibicaoPageState extends State<ExibicaoPage>
         Expanded(child: Text(label, style: TextStyle(color: t.text, fontSize: 13.5))),
       ]));
 
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override Widget build(BuildContext context) {
     super.build(context);
     final t = AppTheme.current;
     final screenW = MediaQuery.of(context).size.width;
     final playerH = screenW * 9 / 16;
     final video = widget.currentVideo;
-    final pl = widget.playlist ?? _related;
-    final hasPrev = _currentPlaylistIndex > 0;
-    final hasNext = _currentPlaylistIndex < pl.length - 1;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -481,7 +535,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
         backgroundColor: t.bg,
         body: SafeArea(bottom: false, child: Column(children: [
 
-          // ── Player ──────────────────────────────────────────────────────────
+          // ── Player ────────────────────────────────────────────────────────
           AnimatedBuilder(
             animation: _playerEnterAnim,
             builder: (_, child) => FadeTransition(opacity: _playerEnterAnim,
@@ -491,8 +545,8 @@ class _ExibicaoPageState extends State<ExibicaoPage>
               child: ColoredBox(color: Colors.black,
                 child: Stack(children: [
 
-                  // WebView player
-                  if (_directUrl != null)
+                  // WebView
+                  if (_directUrl != null && _playerHtmlTemplate != null)
                     Positioned.fill(
                       child: InAppWebView(
                         initialData: InAppWebViewInitialData(
@@ -510,98 +564,112 @@ class _ExibicaoPageState extends State<ExibicaoPage>
                           allowFileAccessFromFileURLs: true,
                           allowUniversalAccessFromFileURLs: true,
                         ),
-                        onWebViewCreated: (ctrl) => _webCtrl = ctrl,
+                        onWebViewCreated: (ctrl) {
+                          _webCtrl = ctrl;
+
+                          // Vídeo começou a reproduzir → fade out da thumb
+                          ctrl.addJavaScriptHandler(
+                            handlerName: 'onVideoPlaying',
+                            callback: (_) => _onVideoStarted(),
+                          );
+
+                          // Slider de volume alterado → aplica no sistema
+                          ctrl.addJavaScriptHandler(
+                            handlerName: 'onVolumeChange',
+                            callback: (args) {
+                              if (args.isEmpty) return;
+                              final pct = (args[0] as num).toDouble();
+                              VolumeController().setVolume(pct / 100, showSystemUI: false);
+                            },
+                          );
+                        },
+                        onLoadStop: (ctrl, _) async {
+                          // Após carregar: sincroniza volume do sistema → player
+                          // e começa a ouvir botões físicos
+                          _startVolumeSync();
+                        },
                       ),
                     ),
 
-                  // Overlay: loading / extracting / error
-                  if (_extracting || _extractFailed || _directUrl == null)
-                    Positioned.fill(child: Stack(children: [
-                      if (video?.thumb != null && video!.thumb.isNotEmpty)
-                        Image.network(video.thumb, fit: BoxFit.cover,
-                          width: double.infinity, height: double.infinity,
-                          headers: const {'User-Agent': 'Mozilla/5.0'},
-                          errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black)),
-                      Container(color: Colors.black54),
-                      Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        if (_extracting) ...[
-                          const CircularProgressIndicator(color: Colors.white70, strokeWidth: 1.5),
-                          const SizedBox(height: 10),
-                          const Text('A obter vídeo...', style: TextStyle(color: Colors.white60, fontSize: 12)),
-                        ],
-                        if (_extractFailed) ...[
-                          const Icon(Icons.error_outline_rounded, color: Colors.white54, size: 36),
-                          const SizedBox(height: 10),
-                          const Text('Não foi possível obter o vídeo.',
-                              style: TextStyle(color: Colors.white60, fontSize: 12)),
-                          const SizedBox(height: 12),
-                          GestureDetector(
-                            onTap: () => _extractAndPlay(widget.videoUrl!),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.white54),
-                                borderRadius: BorderRadius.circular(8)),
-                              child: const Text('Tentar novamente',
-                                  style: TextStyle(color: Colors.white70, fontSize: 12)))),
-                        ],
-                      ])),
-                    ])),
+                  // Thumb com fade-out enquanto carrega
+                  if (_thumbVisible && video != null && video.thumb.isNotEmpty)
+                    Positioned.fill(
+                      child: AnimatedBuilder(
+                        animation: _thumbFadeAnim,
+                        builder: (_, child) => Opacity(
+                          opacity: 1.0 - _thumbFadeAnim.value,
+                          child: child),
+                        child: Stack(fit: StackFit.expand, children: [
+                          Image.network(
+                            video.thumb,
+                            fit: BoxFit.cover,
+                            headers: const {'User-Agent': 'Mozilla/5.0'},
+                            errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black),
+                          ),
+                          if (_extracting)
+                            Container(color: Colors.black54,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white70, strokeWidth: 1.5))),
+                        ]),
+                      ),
+                    ),
 
-                  // Nav: prev / next
-                  if (!_isEmpty) ...[
-                    if (hasPrev)
-                      Positioned(left: 8, top: playerH / 2 - 20,
-                        child: GestureDetector(onTap: _goPrev,
-                          child: Container(width: 40, height: 40,
-                            decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                            child: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 22)))),
-                    if (hasNext)
-                      Positioned(right: 8, top: playerH / 2 - 20,
-                        child: GestureDetector(onTap: _goNext,
-                          child: Container(width: 40, height: 40,
-                            decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                            child: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 22)))),
-                  ],
+                  // Erro
+                  if (_extractFailed)
+                    Positioned.fill(child: ColoredBox(color: Colors.black,
+                      child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.error_outline_rounded, color: Colors.white54, size: 36),
+                        const SizedBox(height: 10),
+                        const Text('Não foi possível obter o vídeo.',
+                            style: TextStyle(color: Colors.white60, fontSize: 12)),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () => _extractAndPlay(widget.videoUrl!),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.white54),
+                              borderRadius: BorderRadius.circular(8)),
+                            child: const Text('Tentar novamente',
+                                style: TextStyle(color: Colors.white70, fontSize: 12)))),
+                      ])))),
 
-                  // Download button
+                  // Vazio
+                  if (_isEmpty)
+                    const Positioned.fill(child: ColoredBox(color: Colors.black)),
+
+                  // Botão download
                   if (_directUrl != null)
                     Positioned(top: 8, right: 8,
                       child: _SmallBtn(svg: _svgDl, onTap: _forceDownload)),
-
-                  if (_isEmpty)
-                    const Positioned.fill(child: ColoredBox(color: Colors.black)),
                 ]))),
           ),
 
-          // ── Descrição ──────────────────────────────────────────────────────
+          // ── Descrição ────────────────────────────────────────────────────
           if (!_isEmpty && video != null)
             AnimatedBuilder(
               animation: _descAnim,
               builder: (_, child) => FadeTransition(opacity: _descAnim,
                 child: Transform.translate(
                   offset: Offset(0, (1 - _descAnim.value) * 16), child: child)),
-              child: _VideoDescription(
-                video: video, nextVideo: _nextVideo,
-                onNextVideoTap: () {
-                  if (_nextVideo != null) { widget.onVideoTap(_nextVideo!); setState(() => _nextVideo = null); }
-                },
-                onNextVideoClose: () => setState(() => _nextVideo = null)),
+              child: _VideoDescription(video: video),
             ),
 
-          // ── Sugestões ──────────────────────────────────────────────────────
+          // ── Sugestões ─────────────────────────────────────────────────────
           Expanded(child: _SuggestionsSection(
             loading: _loadingRelated,
             related: _related,
             onVideoTap: (v) {
               final idx = _related.indexOf(v);
               setState(() => _currentPlaylistIndex = idx >= 0 ? idx : 0);
-              if (_nextVideo?.videoUrl == v.videoUrl) setState(() => _nextVideo = null);
               Navigator.of(context).push(CupertinoPageRoute(builder: (_) => ExibicaoPage(
                 videoUrl: v.videoUrl,
                 currentVideo: v,
-                onVideoTap: widget.onVideoTap, isActive: true,
-                playlist: _related, playlistIndex: idx >= 0 ? idx : 0)));
+                onVideoTap: widget.onVideoTap,
+                isActive: true,
+                playlist: _related,
+                playlistIndex: idx >= 0 ? idx : 0)));
             },
             onMenuTap: (v, pos) => _showVideoMenu(context, v, pos))),
         ])),
@@ -613,12 +681,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
 // ─── Descrição ────────────────────────────────────────────────────────────────
 class _VideoDescription extends StatelessWidget {
   final FeedVideo video;
-  final FeedVideo? nextVideo;
-  final VoidCallback onNextVideoTap;
-  final VoidCallback onNextVideoClose;
-
-  const _VideoDescription({required this.video, required this.nextVideo,
-      required this.onNextVideoTap, required this.onNextVideoClose});
+  const _VideoDescription({required this.video});
 
   @override Widget build(BuildContext context) {
     final t = AppTheme.current;
@@ -636,41 +699,12 @@ class _VideoDescription extends StatelessWidget {
           Text(video.sourceLabel, style: TextStyle(color: t.textSecondary,
               fontSize: 11.5, fontWeight: FontWeight.w500)),
           if (video.views.isNotEmpty)
-            Text('  ·  ${video.views} vis.', style: TextStyle(color: t.textHint, fontSize: 11.5)),
+            Text('  ·  ${video.views} vis.',
+                style: TextStyle(color: t.textHint, fontSize: 11.5)),
         ]),
         const SizedBox(height: 10),
         Divider(color: t.divider, thickness: 1, height: 1),
-        const SizedBox(height: 8),
-        if (nextVideo != null) ...[
-          GestureDetector(
-            onTap: onNextVideoTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: t.isDark ? const Color(0xFF2A1A1A) : const Color(0xFFFFF0F0),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: t.isDark ? const Color(0xFF5A2020) : const Color(0xFFFFCCCC))),
-              child: Row(children: [
-                SvgPicture.string(_svgPlaylist, width: 15, height: 15,
-                    colorFilter: ColorFilter.mode(AppTheme.ytRed, BlendMode.srcIn)),
-                const SizedBox(width: 10),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Seguinte:', style: TextStyle(color: AppTheme.ytRed,
-                      fontSize: 11, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 2),
-                  Text(nextVideo!.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: t.text, fontSize: 12.5, fontWeight: FontWeight.w600)),
-                  Text(nextVideo!.sourceLabel,
-                      style: TextStyle(color: t.textSecondary, fontSize: 11)),
-                ])),
-                GestureDetector(
-                  onTap: onNextVideoClose,
-                  child: Padding(padding: const EdgeInsets.only(left: 8),
-                      child: Icon(Icons.close_rounded, color: t.iconTertiary, size: 18))),
-              ])),
-          ),
-          const SizedBox(height: 8),
-        ],
+        const SizedBox(height: 4),
       ]),
     );
   }
@@ -686,6 +720,7 @@ class _SuggestionsSection extends StatefulWidget {
       required this.onVideoTap, required this.onMenuTap});
   @override State<_SuggestionsSection> createState() => _SuggestionsSectionState();
 }
+
 class _SuggestionsSectionState extends State<_SuggestionsSection> {
   final ScrollController _scroll = ScrollController();
   @override void dispose() { _scroll.dispose(); super.dispose(); }
