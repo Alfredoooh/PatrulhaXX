@@ -82,7 +82,6 @@ flutter:
     - assets/lottie/tick_mark.json
     - assets/lottie/lock.json
     - assets/lottie/no_connection.json
-    - assets/lottie/Cat_playing_animation.json
     - assets/lottie/wrong_feedback.json
     - assets/icons/svg/
     - assets/icons/svg/settings/
