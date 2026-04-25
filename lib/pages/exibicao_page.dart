@@ -14,6 +14,7 @@ import '../models/feed_video_model.dart';
 import '../services/download_service.dart';
 import '../theme/app_theme.dart';
 
+// ─── APIs de conversão ────────────────────────────────────────────────────────
 const List<String> _convertApis = [
   'https://nuxxconvert1.onrender.com',
   'https://nuxxconvert2.onrender.com',
@@ -52,6 +53,7 @@ Future<String?> _extractDirectLink(String videoUrl) async {
   return completer.future;
 }
 
+// ─── SVGs ─────────────────────────────────────────────────────────────────────
 const _svgSaveLater =
     '<svg id="Layer_1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
     '<path d="m14.181.207a1 1 0 0 0 -1.181.983v2.879a8.053 8.053 0 1 0 6.931 6.931h2.886'
@@ -83,6 +85,7 @@ const _svgDl =
     '<path d="M23,16h0a1,1,0,0,0-1,1v4a1,1,0,0,1-1,1H3a1,1,0,0,1-1-1V17a1,1,0,0,0-1-1H1'
     'a1,1,0,0,0-1,1v4a3,3,0,0,0,3,3H21a3,3,0,0,0,3-3V17A1,1,0,0,0,23,16Z"/></svg>';
 
+// ─── Shimmer ──────────────────────────────────────────────────────────────────
 class _Shimmer extends StatefulWidget {
   final double? width;
   final double? height;
@@ -128,6 +131,7 @@ List<Widget> _skeletonCards(int n) => List.generate(n, (_) =>
       ])),
     ])));
 
+// ─── _SmallBtn ────────────────────────────────────────────────────────────────
 class _SmallBtn extends StatelessWidget {
   final String svg;
   final VoidCallback onTap;
@@ -140,6 +144,7 @@ class _SmallBtn extends StatelessWidget {
         colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)))));
 }
 
+// ─── _RelatedCard ─────────────────────────────────────────────────────────────
 class _RelatedCard extends StatefulWidget {
   final FeedVideo video;
   final VoidCallback onTap;
@@ -271,6 +276,7 @@ class _ThumbCompactState extends State<_ThumbCompact> {
   }
 }
 
+// ─── ExibicaoPage ─────────────────────────────────────────────────────────────
 class ExibicaoPage extends StatefulWidget {
   final String? videoUrl;
   final FeedVideo? currentVideo;
@@ -303,17 +309,19 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   late final AnimationController _descAnim;
   late final AnimationController _playerEnterAnim;
 
+  // Player
   String? _directUrl;
   bool _extracting = false;
   bool _extractFailed = false;
   InAppWebViewController? _webCtrl;
   String? _playerHtmlTemplate;
 
+  // Thumb fade
   late final AnimationController _thumbFadeAnim;
   bool _thumbVisible = true;
 
-  // Volume — sem StreamSubscription, guardamos referência à função
-  void Function(double)? _volListener;
+  // Volume
+  StreamSubscription<double>? _volSub;
 
   bool get _isEmpty => widget.videoUrl == null || widget.currentVideo == null;
 
@@ -330,6 +338,7 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     }
   }
 
+  // ── Template ───────────────────────────────────────────────────────────────
   Future<void> _loadPlayerTemplate() async {
     try {
       final html = await rootBundle.loadString('assets/player.html');
@@ -364,6 +373,7 @@ window.setSystemVolume=function(p){
     return (_playerHtmlTemplate ?? _fallbackHtml).replaceAll('{{VIDEO_URL}}', escaped);
   }
 
+  // ── Extracção ──────────────────────────────────────────────────────────────
   Future<void> _extractAndPlay(String url) async {
     if (!mounted) return;
     setState(() {
@@ -383,6 +393,7 @@ window.setSystemVolume=function(p){
     setState(() { _directUrl = direct; _extracting = false; });
   }
 
+  // ── Thumb fade ─────────────────────────────────────────────────────────────
   void _onVideoStarted() {
     if (!_thumbVisible) return;
     _thumbFadeAnim.forward().then((_) {
@@ -391,15 +402,18 @@ window.setSystemVolume=function(p){
   }
 
   // ── Volume sistema ─────────────────────────────────────────────────────────
-  void _startVolumeSync() {
-    VolumeController.instance.showSystemUI = false;
-
-    VolumeController.instance.getVolume().then((vol) {
+  Future<void> _startVolumeSync() async {
+    try {
+      final vol = await VolumeController.instance.getVolume();
       _sendVolumeToPlayer((vol * 100).round());
-    });
+    } catch (_) {}
 
-    _volListener = (vol) => _sendVolumeToPlayer((vol * 100).round());
-    VolumeController.instance.addListener(_volListener!);
+    _volSub?.cancel();
+    try {
+      _volSub = VolumeController.instance.addListener((vol) {
+        _sendVolumeToPlayer((vol * 100).round());
+      }, fetchInitialVolume: false);
+    } catch (_) {}
   }
 
   void _sendVolumeToPlayer(int pct) {
@@ -407,12 +421,12 @@ window.setSystemVolume=function(p){
   }
 
   void _stopVolumeSync() {
-    if (_volListener != null) {
-      VolumeController.instance.removeListener(_volListener!);
-      _volListener = null;
-    }
+    _volSub?.cancel();
+    _volSub = null;
+    try { VolumeController.instance.removeListener(); } catch (_) {}
   }
 
+  // ── Ciclo de vida ──────────────────────────────────────────────────────────
   @override void didUpdateWidget(ExibicaoPage old) {
     super.didUpdateWidget(old);
     if (widget.currentVideo != old.currentVideo && !_isEmpty) {
@@ -437,6 +451,7 @@ window.setSystemVolume=function(p){
     super.dispose();
   }
 
+  // ── Download ───────────────────────────────────────────────────────────────
   Future<void> _forceDownload() async {
     if (_directUrl == null) { _snack('A extrair link...'); return; }
     DownloadService.instance.startDownload(
@@ -449,6 +464,7 @@ window.setSystemVolume=function(p){
     _snack('Download iniciado');
   }
 
+  // ── Related ────────────────────────────────────────────────────────────────
   Future<void> _loadRelated() async {
     if (!mounted) return;
     setState(() { _loadingRelated = true; _related.clear(); });
@@ -460,6 +476,7 @@ window.setSystemVolume=function(p){
     });
   }
 
+  // ── Snack ──────────────────────────────────────────────────────────────────
   void _snack(String msg) {
     final t = AppTheme.current;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -468,6 +485,7 @@ window.setSystemVolume=function(p){
       duration: const Duration(seconds: 2)));
   }
 
+  // ── Menu ───────────────────────────────────────────────────────────────────
   void _showVideoMenu(BuildContext ctx, FeedVideo v, Offset pos) {
     final t = AppTheme.current;
     final RenderBox overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
@@ -500,6 +518,7 @@ window.setSystemVolume=function(p){
         Expanded(child: Text(label, style: TextStyle(color: t.text, fontSize: 13.5))),
       ]));
 
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override Widget build(BuildContext context) {
     super.build(context);
     final t = AppTheme.current;
@@ -515,6 +534,7 @@ window.setSystemVolume=function(p){
         backgroundColor: t.bg,
         body: SafeArea(bottom: false, child: Column(children: [
 
+          // ── Player ──────────────────────────────────────────────────────
           AnimatedBuilder(
             animation: _playerEnterAnim,
             builder: (_, child) => FadeTransition(opacity: _playerEnterAnim,
@@ -524,6 +544,7 @@ window.setSystemVolume=function(p){
               child: ColoredBox(color: Colors.black,
                 child: Stack(children: [
 
+                  // WebView
                   if (_directUrl != null && _playerHtmlTemplate != null)
                     Positioned.fill(
                       child: InAppWebView(
@@ -555,17 +576,19 @@ window.setSystemVolume=function(p){
                             callback: (args) {
                               if (args.isEmpty) return;
                               final pct = (args[0] as num).toDouble();
-                              VolumeController.instance.showSystemUI = false;
-                              VolumeController.instance.setVolume(pct / 100);
+                              try {
+                                VolumeController.instance.setVolume(pct / 100);
+                              } catch (_) {}
                             },
                           );
                         },
                         onLoadStop: (ctrl, _) async {
-                          _startVolumeSync();
+                          await _startVolumeSync();
                         },
                       ),
                     ),
 
+                  // Thumb com fade-out
                   if (_thumbVisible && video != null && video.thumb.isNotEmpty)
                     Positioned.fill(
                       child: AnimatedBuilder(
@@ -589,6 +612,7 @@ window.setSystemVolume=function(p){
                       ),
                     ),
 
+                  // Erro
                   if (_extractFailed)
                     Positioned.fill(child: ColoredBox(color: Colors.black,
                       child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -608,15 +632,18 @@ window.setSystemVolume=function(p){
                                 style: TextStyle(color: Colors.white70, fontSize: 12)))),
                       ])))),
 
+                  // Vazio
                   if (_isEmpty)
                     const Positioned.fill(child: ColoredBox(color: Colors.black)),
 
+                  // Download
                   if (_directUrl != null)
                     Positioned(top: 8, right: 8,
                       child: _SmallBtn(svg: _svgDl, onTap: _forceDownload)),
                 ]))),
           ),
 
+          // ── Descrição ────────────────────────────────────────────────────
           if (!_isEmpty && video != null)
             AnimatedBuilder(
               animation: _descAnim,
@@ -626,6 +653,7 @@ window.setSystemVolume=function(p){
               child: _VideoDescription(video: video),
             ),
 
+          // ── Sugestões ─────────────────────────────────────────────────────
           Expanded(child: _SuggestionsSection(
             loading: _loadingRelated,
             related: _related,
@@ -647,6 +675,7 @@ window.setSystemVolume=function(p){
   }
 }
 
+// ─── Descrição ────────────────────────────────────────────────────────────────
 class _VideoDescription extends StatelessWidget {
   final FeedVideo video;
   const _VideoDescription({required this.video});
@@ -678,6 +707,7 @@ class _VideoDescription extends StatelessWidget {
   }
 }
 
+// ─── Sugestões ────────────────────────────────────────────────────────────────
 class _SuggestionsSection extends StatefulWidget {
   final bool loading;
   final List<FeedVideo> related;
