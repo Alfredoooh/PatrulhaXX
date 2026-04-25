@@ -53,38 +53,6 @@ Future<String?> _extractDirectLink(String videoUrl) async {
   return completer.future;
 }
 
-// ─── SVGs ─────────────────────────────────────────────────────────────────────
-const _svgSaveLater =
-    '<svg id="Layer_1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
-    '<path d="m14.181.207a1 1 0 0 0 -1.181.983v2.879a8.053 8.053 0 1 0 6.931 6.931h2.886'
-    'a1 1 0 0 0 .983-1.181 12.047 12.047 0 0 0 -9.619-9.612zm1.819 12.793h-2.277'
-    'a1.994 1.994 0 1 1 -2.723-2.723v-3.277a1 1 0 0 1 2 0v3.277a2 2 0 0 1 .723.723h2.277'
-    'a1 1 0 0 1 0 2zm-13.014-8.032a1 1 0 1 1 -1.17.8 1 1 0 0 1 1.17-.8z"/></svg>';
-
-const _svgPlaylist =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M1,6H23a1,1,0,0,0,0-2H1A1,1,0,0,0,1,6Z"/>'
-    '<path d="M23,9H9a1,1,0,0,0,0,2H23a1,1,0,0,0,0-2Z"/>'
-    '<path d="M23,19H1a1,1,0,0,0,0,2H23a1,1,0,0,0,0-2Z"/>'
-    '<path d="M23,14H9a1,1,0,0,0,0,2H23a1,1,0,0,0,0-2Z"/>'
-    '<path d="M1.707,16.245l2.974-2.974a1.092,1.092,0,0,0,0-1.542L1.707,8.755'
-    'A1,1,0,0,0,0,9.463v6.074A1,1,0,0,0,1.707,16.245Z"/></svg>';
-
-const _svgPlayNext =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M5,20c0,1.381-1.119,2.5-2.5,2.5S0,21.381,0,20s1.119-2.5,2.5-2.5S5,18.619,5,20Z"/>'
-    '<path d="M20.5,14H7a2.5,2.5,0,0,1,0-5H16.728l-1.293,1.293a1,1,0,0,0,1.414,1.414'
-    'l1.972-1.972a2.5,2.5,0,0,0,0-3.535L16.849.793A1,1,0,0,0,15.435,2.207L16.728,3.5H7'
-    'a4.5,4.5,0,0,0,0,9H20.5a2.5,2.5,0,0,1,0,5H18a1,1,0,0,0,0,2h2.5a4.5,4.5,0,0,0,0-9Z"/></svg>';
-
-const _svgDl =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<path d="M9.878,18.122a3,3,0,0,0,4.244,0l3.211-3.211A1,1,0,0,0,15.919,13.5'
-    'l-2.926,2.927L13,1a1,1,0,0,0-1-1h0a1,1,0,0,0-1,1l-.009,15.408L8.081,13.5'
-    'a1,1,0,0,0-1.414,1.415Z"/>'
-    '<path d="M23,16h0a1,1,0,0,0-1,1v4a1,1,0,0,1-1,1H3a1,1,0,0,1-1-1V17a1,1,0,0,0-1-1H1'
-    'a1,1,0,0,0-1,1v4a3,3,0,0,0,3,3H21a3,3,0,0,0,3-3V17A1,1,0,0,0,23,16Z"/></svg>';
-
 // ─── Shimmer ──────────────────────────────────────────────────────────────────
 class _Shimmer extends StatefulWidget {
   final double? width;
@@ -131,17 +99,30 @@ List<Widget> _skeletonCards(int n) => List.generate(n, (_) =>
       ])),
     ])));
 
+// ─── _SvgIcon — carrega SVG de assets/icons/svg/ ─────────────────────────────
+class _SvgIcon extends StatelessWidget {
+  final String name;
+  final double size;
+  final Color color;
+  const _SvgIcon(this.name, {this.size = 20, this.color = Colors.white});
+  @override Widget build(BuildContext context) => SvgPicture.asset(
+    'assets/icons/svg/$name.svg',
+    width: size, height: size,
+    colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+  );
+}
+
 // ─── _SmallBtn ────────────────────────────────────────────────────────────────
 class _SmallBtn extends StatelessWidget {
-  final String svg;
+  final String iconName;
   final VoidCallback onTap;
-  const _SmallBtn({required this.svg, required this.onTap});
+  const _SmallBtn({required this.iconName, required this.onTap});
   @override Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
-    child: Container(width: 36, height: 36,
+    child: Container(
+      width: 36, height: 36,
       decoration: BoxDecoration(color: Colors.black.withOpacity(0.7), shape: BoxShape.circle),
-      child: Center(child: SvgPicture.string(svg, width: 17, height: 17,
-        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)))));
+      child: Center(child: _SvgIcon(iconName, size: 17))));
 }
 
 // ─── _RelatedCard ─────────────────────────────────────────────────────────────
@@ -239,8 +220,9 @@ class _RelatedCardState extends State<_RelatedCard> with SingleTickerProviderSta
             GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTapUp: (d) => widget.onMenuTap(d.globalPosition),
-              child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                  child: Icon(Icons.more_vert_rounded, color: t.iconTertiary, size: 20))),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: _SvgIcon('more_vert', size: 20, color: t.iconTertiary))),
           ]),
         ),
       ),
@@ -260,7 +242,7 @@ class _ThumbCompactState extends State<_ThumbCompact> {
     final t = AppTheme.current;
     if (widget.url.isEmpty || _failed)
       return Container(color: widget.bg,
-          child: Center(child: Icon(Icons.play_circle_outline_rounded, color: t.iconSub, size: 32)));
+          child: Center(child: _SvgIcon('play_circle_outline', size: 32, color: t.iconSub)));
     return Image.network(
       _attempt == 0 ? widget.url : '${widget.url}?_r=$_attempt',
       key: ValueKey('${widget.url}_$_attempt'),
@@ -269,7 +251,7 @@ class _ThumbCompactState extends State<_ThumbCompact> {
         if (_attempt < 1) WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _attempt++); });
         else WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _failed = true); });
         return Container(color: widget.bg,
-            child: Center(child: Icon(Icons.play_circle_outline_rounded, color: t.iconSub, size: 32)));
+            child: Center(child: _SvgIcon('play_circle_outline', size: 32, color: t.iconSub)));
       },
       loadingBuilder: (_, child, p) => p == null ? child : const _Shimmer(radius: 0),
     );
@@ -309,16 +291,11 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   late final AnimationController _descAnim;
   late final AnimationController _playerEnterAnim;
 
-  // Player
   String? _directUrl;
   bool _extracting = false;
   bool _extractFailed = false;
   InAppWebViewController? _webCtrl;
   String? _playerHtmlTemplate;
-
-  // Thumb fade
-  late final AnimationController _thumbFadeAnim;
-  bool _thumbVisible = true;
 
   bool get _isEmpty => widget.videoUrl == null || widget.currentVideo == null;
 
@@ -327,7 +304,6 @@ class _ExibicaoPageState extends State<ExibicaoPage>
     _currentPlaylistIndex = widget.playlistIndex;
     _descAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 450))..forward();
     _playerEnterAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..forward();
-    _thumbFadeAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
     _loadPlayerTemplate();
     if (!_isEmpty) {
       _loadRelated();
@@ -373,13 +349,7 @@ window.setSystemVolume=function(p){
   // ── Extracção ──────────────────────────────────────────────────────────────
   Future<void> _extractAndPlay(String url) async {
     if (!mounted) return;
-    setState(() {
-      _extracting = true;
-      _extractFailed = false;
-      _directUrl = null;
-      _thumbVisible = true;
-    });
-    _thumbFadeAnim.value = 0.0;
+    setState(() { _extracting = true; _extractFailed = false; _directUrl = null; });
 
     final direct = await _extractDirectLink(url);
     if (!mounted) return;
@@ -388,14 +358,6 @@ window.setSystemVolume=function(p){
       return;
     }
     setState(() { _directUrl = direct; _extracting = false; });
-  }
-
-  // ── Thumb fade ─────────────────────────────────────────────────────────────
-  void _onVideoStarted() {
-    if (!_thumbVisible) return;
-    _thumbFadeAnim.forward().then((_) {
-      if (mounted) setState(() => _thumbVisible = false);
-    });
   }
 
   // ── Volume sistema ─────────────────────────────────────────────────────────
@@ -426,7 +388,6 @@ window.setSystemVolume=function(p){
       _descAnim.forward(from: 0.0);
       _playerEnterAnim.forward(from: 0.0);
       _webCtrl = null;
-      _thumbFadeAnim.value = 0.0;
       _stopVolumeSync();
       _extractAndPlay(widget.videoUrl!);
       _loadRelated();
@@ -439,7 +400,6 @@ window.setSystemVolume=function(p){
   @override void dispose() {
     _descAnim.dispose();
     _playerEnterAnim.dispose();
-    _thumbFadeAnim.dispose();
     _stopVolumeSync();
     super.dispose();
   }
@@ -488,9 +448,9 @@ window.setSystemVolume=function(p){
           side: BorderSide(color: t.borderSoft)),
       position: RelativeRect.fromRect(pos & const Size(1, 1), Offset.zero & overlay.size),
       items: [
-        _popItem('save', _svgSaveLater, 'Guardar para assistir mais tarde', t),
-        _popItem('playlist', _svgPlaylist, 'Adicionar na minha playlist', t),
-        _popItem('next', _svgPlayNext, 'Exibir como próximo vídeo', t),
+        _popItem('save',     'save_later',   'Guardar para assistir mais tarde', t),
+        _popItem('playlist', 'playlist_add', 'Adicionar na minha playlist', t),
+        _popItem('next',     'play_next',    'Exibir como próximo vídeo', t),
       ],
     ).then((val) {
       if (val == null || !mounted) return;
@@ -502,11 +462,10 @@ window.setSystemVolume=function(p){
     });
   }
 
-  PopupMenuItem<String> _popItem(String val, String svg, String label, AppTheme t) =>
+  PopupMenuItem<String> _popItem(String val, String iconName, String label, AppTheme t) =>
     PopupMenuItem<String>(value: val, height: 46,
       child: Row(children: [
-        SvgPicture.string(svg, width: 18, height: 18,
-            colorFilter: ColorFilter.mode(t.iconSub, BlendMode.srcIn)),
+        _SvgIcon(iconName, size: 18, color: t.iconSub),
         const SizedBox(width: 12),
         Expanded(child: Text(label, style: TextStyle(color: t.text, fontSize: 13.5))),
       ]));
@@ -533,12 +492,13 @@ window.setSystemVolume=function(p){
             builder: (_, child) => FadeTransition(opacity: _playerEnterAnim,
               child: Transform.translate(
                 offset: Offset(0, (1 - _playerEnterAnim.value) * -20), child: child)),
-            child: SizedBox(width: screenW, height: playerH,
+            child: SizedBox(
+              width: screenW, height: playerH,
               child: ColoredBox(color: Colors.black,
                 child: Stack(children: [
 
                   // WebView
-                  if (_directUrl != null && _playerHtmlTemplate != null)
+                  if (_playerHtmlTemplate != null && _directUrl != null)
                     Positioned.fill(
                       child: InAppWebView(
                         initialData: InAppWebViewInitialData(
@@ -560,54 +520,34 @@ window.setSystemVolume=function(p){
                           _webCtrl = ctrl;
                           ctrl.addJavaScriptHandler(
                             handlerName: 'onVideoPlaying',
-                            callback: (_) => _onVideoStarted(),
+                            callback: (_) {},
                           );
                           ctrl.addJavaScriptHandler(
                             handlerName: 'onVolumeChange',
                             callback: (args) {
                               if (args.isEmpty) return;
                               final pct = (args[0] as num).toDouble();
-                              try {
-                                VolumeController.instance.setVolume(pct / 100);
-                              } catch (_) {}
+                              try { VolumeController.instance.setVolume(pct / 100); } catch (_) {}
                             },
                           );
                         },
-                        onLoadStop: (ctrl, _) async {
-                          await _startVolumeSync();
-                        },
+                        onLoadStop: (ctrl, _) async => await _startVolumeSync(),
                       ),
                     ),
 
-                  // Thumb com fade-out
-                  if (_thumbVisible && video != null && video.thumb.isNotEmpty)
-                    Positioned.fill(
-                      child: AnimatedBuilder(
-                        animation: _thumbFadeAnim,
-                        builder: (_, child) => Opacity(
-                          opacity: 1.0 - _thumbFadeAnim.value,
-                          child: child),
-                        child: Stack(fit: StackFit.expand, children: [
-                          Image.network(
-                            video.thumb,
-                            fit: BoxFit.cover,
-                            headers: const {'User-Agent': 'Mozilla/5.0'},
-                            errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black),
-                          ),
-                          if (_extracting)
-                            Container(color: Colors.black54,
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  color: Colors.white70, strokeWidth: 1.5))),
-                        ]),
-                      ),
-                    ),
+                  // Spinner (a extrair ou template ainda a carregar)
+                  if (_extracting || (_playerHtmlTemplate == null && !_extractFailed))
+                    const Positioned.fill(
+                      child: ColoredBox(color: Colors.black,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white54, strokeWidth: 1.5)))),
 
                   // Erro
                   if (_extractFailed)
                     Positioned.fill(child: ColoredBox(color: Colors.black,
                       child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.error_outline_rounded, color: Colors.white54, size: 36),
+                        _SvgIcon('error_outline', size: 36, color: Colors.white54),
                         const SizedBox(height: 10),
                         const Text('Não foi possível obter o vídeo.',
                             style: TextStyle(color: Colors.white60, fontSize: 12)),
@@ -630,8 +570,9 @@ window.setSystemVolume=function(p){
                   // Download
                   if (_directUrl != null)
                     Positioned(top: 8, right: 8,
-                      child: _SmallBtn(svg: _svgDl, onTap: _forceDownload)),
-                ]))),
+                      child: _SmallBtn(iconName: 'download', onTap: _forceDownload)),
+                ])),
+            ),
           ),
 
           // ── Descrição ────────────────────────────────────────────────────

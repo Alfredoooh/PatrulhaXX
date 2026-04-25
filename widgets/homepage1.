@@ -23,6 +23,27 @@ Route<T> iosRoute<T>(Widget page) {
   return CupertinoPageRoute<T>(builder: (_) => page);
 }
 
+final kSites = <SiteModel>[
+  SiteModel(id: 'pornhub',    name: 'Pornhub',    baseUrl: 'https://www.pornhub.com',    allowedDomain: 'pornhub.com',    searchUrl: 'https://www.pornhub.com/video/search?search=',   primaryColor: const Color(0xFFFF9000)),
+  SiteModel(id: 'xvideos',   name: 'XVideos',    baseUrl: 'https://www.xvideos.com',    allowedDomain: 'xvideos.com',    searchUrl: 'https://www.xvideos.com/?k=',                     primaryColor: const Color(0xFF1A1A1A)),
+  SiteModel(id: 'xhamster',  name: 'xHamster',   baseUrl: 'https://xhamster.com',       allowedDomain: 'xhamster.com',   searchUrl: 'https://xhamster.com/search/',                    primaryColor: const Color(0xFFE8630A)),
+  SiteModel(id: 'redtube',   name: 'RedTube',    baseUrl: 'https://www.redtube.com',    allowedDomain: 'redtube.com',    searchUrl: 'https://www.redtube.com/?search=',                primaryColor: const Color(0xFFD40000)),
+  SiteModel(id: 'youporn',   name: 'YouPorn',    baseUrl: 'https://www.youporn.com',    allowedDomain: 'youporn.com',    searchUrl: 'https://www.youporn.com/search/video/?query=',    primaryColor: const Color(0xFF0D0D0D)),
+  SiteModel(id: 'spankbang', name: 'SpankBang',  baseUrl: 'https://spankbang.com',      allowedDomain: 'spankbang.com',  searchUrl: 'https://spankbang.com/s/',                        primaryColor: const Color(0xFFE3272D)),
+  SiteModel(id: 'eporner',   name: 'Eporner',    baseUrl: 'https://www.eporner.com',    allowedDomain: 'eporner.com',    searchUrl: 'https://www.eporner.com/search/',                 primaryColor: const Color(0xFF2196F3)),
+  SiteModel(id: 'xnxx',      name: 'XNXX',       baseUrl: 'https://www.xnxx.com',       allowedDomain: 'xnxx.com',       searchUrl: 'https://www.xnxx.com/search/',                    primaryColor: const Color(0xFF1A1A1A)),
+  SiteModel(id: 'tube8',     name: 'Tube8',      baseUrl: 'https://www.tube8.com',      allowedDomain: 'tube8.com',      searchUrl: 'https://www.tube8.com/search/video/?search=',     primaryColor: const Color(0xFFFF6600)),
+  SiteModel(id: 'txxx',      name: 'TXXX',       baseUrl: 'https://www.txxx.com',       allowedDomain: 'txxx.com',       searchUrl: 'https://www.txxx.com/search/',                    primaryColor: const Color(0xFF333333)),
+  SiteModel(id: 'bravotube', name: 'BravoTube',  baseUrl: 'https://www.bravotube.net',  allowedDomain: 'bravotube.net',  searchUrl: 'https://www.bravotube.net/search/',               primaryColor: const Color(0xFFE53935)),
+  SiteModel(id: 'drtuber',   name: 'DrTuber',    baseUrl: 'https://www.drtuber.com',    allowedDomain: 'drtuber.com',    searchUrl: 'https://www.drtuber.com/search/video/',           primaryColor: const Color(0xFF009688)),
+  SiteModel(id: 'gotporn',   name: 'GotPorn',    baseUrl: 'https://www.gotporn.com',    allowedDomain: 'gotporn.com',    searchUrl: 'https://www.gotporn.com/search/',                 primaryColor: const Color(0xFFFF5722)),
+  SiteModel(id: 'porndig',   name: 'PornDig',    baseUrl: 'https://www.porndig.com',    allowedDomain: 'porndig.com',    searchUrl: 'https://www.porndig.com/search/',                 primaryColor: const Color(0xFFAA00FF)),
+  SiteModel(id: 'hclips',    name: 'HClips',     baseUrl: 'https://hclips.com',         allowedDomain: 'hclips.com',     searchUrl: 'https://hclips.com/search/',                      primaryColor: const Color(0xFFCC2200)),
+  SiteModel(id: 'fuq',       name: 'Fuq',        baseUrl: 'https://www.fuq.com',        allowedDomain: 'fuq.com',        searchUrl: 'https://www.fuq.com/search/?q=',                  primaryColor: const Color(0xFF222222)),
+  SiteModel(id: 'porntube',  name: 'PornTube',   baseUrl: 'https://www.porntube.com',   allowedDomain: 'porntube.com',   searchUrl: 'https://www.porntube.com/search?term=',           primaryColor: const Color(0xFFDD2222)),
+  SiteModel(id: 'sunporno',  name: 'SunPorno',   baseUrl: 'https://www.sunporno.com',   allowedDomain: 'sunporno.com',   searchUrl: 'https://www.sunporno.com/search/',                primaryColor: const Color(0xFFFF8C00)),
+];
+
 class FreeBrowserPage extends StatelessWidget {
   final String url, title;
   const FreeBrowserPage({super.key, required this.url, required this.title});
@@ -97,6 +118,9 @@ class _HomePageState extends State<HomePage>
     super.dispose();
   }
 
+  void _openSite(SiteModel site) =>
+      Navigator.push(context, iosRoute(BrowserPage(site: site)));
+
   void _onColorExtracted(Color c) {
     if (mounted) {
       setState(() => _wallpaperColor = c);
@@ -160,23 +184,16 @@ class _HomePageState extends State<HomePage>
     final contentLeft = progress * _kAppShift;
     final drawerLeft  = -_kDrawerWidth + progress * _kDrawerWidth;
 
-    final overlayStyle = _tab == 0
-        ? const SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.light,
-          )
-        : SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: AppTheme.current.statusBar,
-          );
-
     return PopScope(
       canPop: !_drawerOpen,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _drawerOpen) _closeDrawer();
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: overlayStyle,
+        value: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: AppTheme.current.statusBar,
+        ),
         child: Scaffold(
           backgroundColor: AppTheme.current.bg,
           body: GestureDetector(
@@ -203,10 +220,12 @@ class _HomePageState extends State<HomePage>
                               children: [
                                 _HomeTab(
                                   fadeIn: _fadeIn,
+                                  onOpen: _openSite,
                                   onMenu: _toggleDrawer,
                                   onColorExtracted: _onColorExtracted,
                                 ),
                                 ExplorePage(onVideoTap: (_) {}),
+                                // ← SearchPage directa, sem SearchTabPage
                                 const SearchPage(),
                                 const BibliotecaPage(),
                               ],
@@ -257,7 +276,7 @@ class _HomePageState extends State<HomePage>
   }
 }
 
-// ─── BottomNav ────────────────────────────────────────────────────────────────
+// ─── BottomNav — sem labels, estilo Instagram ─────────────────────────────────
 class _BottomNav extends StatelessWidget {
   final int tab;
   final void Function(int) onTab;
@@ -276,14 +295,10 @@ class _BottomNav extends StatelessWidget {
       listenable: ThemeService.instance,
       builder: (_, __) {
         final t = AppTheme.current;
-        final isHome = tab == 0;
         return Container(
           decoration: BoxDecoration(
-            color: isHome ? const Color(0xFF0A0A0A) : t.bg,
-            border: Border(top: BorderSide(
-              color: isHome ? const Color(0xFF1A1A1A) : t.divider,
-              width: 0.6,
-            )),
+            color: t.bg,
+            border: Border(top: BorderSide(color: t.divider, width: 0.6)),
           ),
           child: SizedBox(
             height: navH + safeBottom,
@@ -297,28 +312,24 @@ class _BottomNav extends StatelessWidget {
                     assetOutline: 'assets/icons/svg/browse_outline.svg',
                     active: tab == 0,
                     onTap: () => onTab(0),
-                    forceLight: isHome,
                   ),
                   _NavIcon(
                     assetFilled:  'assets/icons/svg/explore_filled.svg',
                     assetOutline: 'assets/icons/svg/explore_outline.svg',
                     active: tab == 1,
                     onTap: () => onTab(1),
-                    forceLight: isHome,
                   ),
                   _NavIcon(
                     assetFilled:  'assets/icons/svg/search_filled.svg',
                     assetOutline: 'assets/icons/svg/search_outline.svg',
                     active: tab == 2,
                     onTap: () => onTab(2),
-                    forceLight: isHome,
                   ),
                   _NavIcon(
                     assetFilled:  'assets/icons/svg/library_filled.svg',
                     assetOutline: 'assets/icons/svg/library_outline.svg',
                     active: tab == 3,
                     onTap: () => onTab(3),
-                    forceLight: isHome,
                   ),
                 ],
               ),
@@ -333,7 +344,6 @@ class _BottomNav extends StatelessWidget {
 class _NavIcon extends StatelessWidget {
   final String assetFilled, assetOutline;
   final bool active;
-  final bool forceLight;
   final VoidCallback onTap;
 
   const _NavIcon({
@@ -341,17 +351,13 @@ class _NavIcon extends StatelessWidget {
     required this.onTap,
     required this.assetFilled,
     required this.assetOutline,
-    this.forceLight = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final Color color;
-    if (forceLight) {
-      color = active ? Colors.white : Colors.white38;
-    } else {
-      color = active ? AppTheme.current.navActive : AppTheme.current.navInactive;
-    }
+    final color = active
+        ? AppTheme.current.navActive
+        : AppTheme.current.navInactive;
 
     return GestureDetector(
       onTap: onTap,
@@ -545,11 +551,13 @@ class _DrawerItemSvg extends StatelessWidget {
 // ─── _HomeTab ─────────────────────────────────────────────────────────────────
 class _HomeTab extends StatelessWidget {
   final AnimationController fadeIn;
+  final void Function(SiteModel) onOpen;
   final VoidCallback onMenu;
   final void Function(Color) onColorExtracted;
 
   const _HomeTab({
     required this.fadeIn,
+    required this.onOpen,
     required this.onMenu,
     required this.onColorExtracted,
   });
@@ -557,9 +565,10 @@ class _HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ts = ThemeService.instance;
+    final t  = AppTheme.current;
 
     return Stack(fit: StackFit.expand, children: [
-      Container(color: const Color(0xFF0A0A0A)),
+      Container(color: t.bg),
 
       if (ts.useWallpaper && ts.bg.isNotEmpty)
         Positioned.fill(
@@ -589,6 +598,12 @@ class _HomeTab extends StatelessWidget {
           Expanded(
             child: CustomScrollView(
               slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: _SitesRow(sites: kSites, onTap: onOpen),
+                  ),
+                ),
                 const SliverToBoxAdapter(child: _HomeFeedSection()),
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
               ],
@@ -607,6 +622,7 @@ class _HomeAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppTheme.current;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       child: SizedBox(
@@ -621,7 +637,7 @@ class _HomeAppBar extends StatelessWidget {
                 child: SvgPicture.asset(
                   'assets/icons/svg/hamburger.svg',
                   width: 22, height: 22,
-                  colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                  colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
                 ),
               ),
             ),
@@ -636,7 +652,7 @@ class _HomeAppBar extends StatelessWidget {
                 child: SvgPicture.asset(
                   'assets/icons/svg/plus.svg',
                   width: 22, height: 22,
-                  colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                  colorFilter: ColorFilter.mode(t.icon, BlendMode.srcIn),
                 ),
               ),
             ),
@@ -849,6 +865,91 @@ class _PhotoCardSkeletonState extends State<_PhotoCardSkeleton>
             end: Alignment(_a.value + 1, 0),
             colors: AppTheme.current.shimmer,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── _SitesRow ────────────────────────────────────────────────────────────────
+class _SitesRow extends StatelessWidget {
+  final List<SiteModel> sites;
+  final void Function(SiteModel) onTap;
+  const _SitesRow({required this.sites, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 88,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: sites.length,
+        itemBuilder: (_, i) =>
+            _SiteCell(site: sites[i], onTap: () => onTap(sites[i])),
+      ),
+    );
+  }
+}
+
+class _SiteCell extends StatefulWidget {
+  final SiteModel site;
+  final VoidCallback onTap;
+  const _SiteCell({required this.site, required this.onTap});
+
+  @override
+  State<_SiteCell> createState() => _SiteCellState();
+}
+
+class _SiteCellState extends State<_SiteCell>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _s;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 90),
+        reverseDuration: const Duration(milliseconds: 200),
+        lowerBound: 0,
+        upperBound: 1);
+    _s = Tween<double>(begin: 1.0, end: 0.86)
+        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    const double iconSize = 52;
+    return GestureDetector(
+      onTapDown: (_) => _c.forward(),
+      onTapUp: (_) { _c.reverse(); widget.onTap(); },
+      onTapCancel: () => _c.reverse(),
+      child: AnimatedBuilder(
+        animation: _s,
+        builder: (_, child) => Transform.scale(scale: _s.value, child: child),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            SiteIconWidget(site: widget.site, size: iconSize, showShadow: true),
+            const SizedBox(height: 5),
+            SizedBox(
+              width: iconSize + 10,
+              child: Text(widget.site.name,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: AppTheme.current.iconSub,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500)),
+            ),
+          ]),
         ),
       ),
     );
