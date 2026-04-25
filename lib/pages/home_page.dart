@@ -3,9 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../models/site_model.dart';
-import '../widgets/site_icon_widget.dart';
 import 'browser_page.dart';
 import 'downloads_page.dart';
 import 'settings_page.dart';
@@ -14,7 +12,6 @@ import 'biblioteca_page.dart';
 import '../services/theme_service.dart';
 import 'explore_page.dart';
 import '../theme/app_theme.dart';
-import '../models/feed_photo_model.dart';
 import 'create_post_page.dart';
 
 const kPrimaryColor = Color(0xFFFF9000);
@@ -64,7 +61,7 @@ class _HomePageState extends State<HomePage>
   late final AnimationController _fadeIn;
   late final AnimationController _tabAnim;
 
-  Color _wallpaperColor = Colors.black;
+  Color _appBarColor = Colors.transparent;
 
   static const _kNavH = 48.0;
 
@@ -78,8 +75,6 @@ class _HomePageState extends State<HomePage>
     _tabAnim = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 280));
     _tabAnim.value = 1.0;
-    final saved = ThemeService.instance.wallpaperColor;
-    if (saved != null) _wallpaperColor = saved;
   }
 
   @override
@@ -98,10 +93,7 @@ class _HomePageState extends State<HomePage>
   }
 
   void _onColorExtracted(Color c) {
-    if (mounted) {
-      setState(() => _wallpaperColor = c);
-      ThemeService.instance.setWallpaperColor(c);
-    }
+    if (mounted) setState(() => _appBarColor = c);
   }
 
   void _openDownloads() =>
@@ -204,6 +196,7 @@ class _HomePageState extends State<HomePage>
                                 _HomeTab(
                                   fadeIn: _fadeIn,
                                   onMenu: _toggleDrawer,
+                                  appBarColor: _appBarColor,
                                   onColorExtracted: _onColorExtracted,
                                 ),
                                 ExplorePage(onVideoTap: (_) {}),
@@ -372,77 +365,6 @@ class _NavIcon extends StatelessWidget {
   }
 }
 
-// ─── _WallpaperColorExtractor ─────────────────────────────────────────────────
-class _WallpaperColorExtractor extends StatefulWidget {
-  final String imageUrl;
-  final void Function(Color) onColor;
-  const _WallpaperColorExtractor({required this.imageUrl, required this.onColor});
-
-  @override
-  State<_WallpaperColorExtractor> createState() => _WallpaperColorExtractorState();
-}
-
-class _WallpaperColorExtractorState extends State<_WallpaperColorExtractor> {
-  bool _done = false;
-
-  String get _html => '''
-<!DOCTYPE html><html><head><meta charset="utf-8"></head>
-<body style="margin:0;background:#000">
-<canvas id="c" width="64" height="64" style="display:none"></canvas>
-<script>
-(function() {
-  var img = new Image();
-  img.crossOrigin = "anonymous";
-  img.onload = function() {
-    var c = document.getElementById("c");
-    var ctx = c.getContext("2d");
-    ctx.drawImage(img, 0, 0, 64, 64);
-    var data = ctx.getImageData(0, 0, 64, 64).data;
-    var r=0,g=0,b=0,n=0;
-    for (var i=0; i<data.length; i+=4) {
-      var pr=data[i],pg=data[i+1],pb=data[i+2];
-      if ((pr+pg+pb)/3 > 20) { r+=pr; g+=pg; b+=pb; n++; }
-    }
-    if (n===0) { window.flutter_inappwebview.callHandler("color","0,0,0"); return; }
-    r=Math.round(r/n); g=Math.round(g/n); b=Math.round(b/n);
-    window.flutter_inappwebview.callHandler("color", r+","+g+","+b);
-  };
-  img.onerror = function() { window.flutter_inappwebview.callHandler("color","0,0,0"); };
-  img.src = "${widget.imageUrl}";
-})();
-</script></body></html>
-''';
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.imageUrl.isEmpty) return const SizedBox.shrink();
-    return SizedBox(
-      width: 1, height: 1,
-      child: InAppWebView(
-        initialData: InAppWebViewInitialData(data: _html, mimeType: 'text/html'),
-        initialSettings: InAppWebViewSettings(
-            javaScriptEnabled: true, transparentBackground: true),
-        onWebViewCreated: (ctrl) {
-          ctrl.addJavaScriptHandler(
-            handlerName: 'color',
-            callback: (args) {
-              if (_done) return;
-              _done = true;
-              try {
-                final p = (args[0] as String).split(',');
-                widget.onColor(Color.fromARGB(255, int.parse(p[0]),
-                    int.parse(p[1]), int.parse(p[2])));
-              } catch (_) {
-                widget.onColor(Colors.black);
-              }
-            },
-          );
-        },
-      ),
-    );
-  }
-}
-
 // ─── _NavDrawer ───────────────────────────────────────────────────────────────
 class _NavDrawer extends StatelessWidget {
   final VoidCallback onDownloads, onSettings;
@@ -546,64 +468,226 @@ class _DrawerItemSvg extends StatelessWidget {
 class _HomeTab extends StatelessWidget {
   final AnimationController fadeIn;
   final VoidCallback onMenu;
+  final Color appBarColor;
   final void Function(Color) onColorExtracted;
 
   const _HomeTab({
     required this.fadeIn,
     required this.onMenu,
+    required this.appBarColor,
     required this.onColorExtracted,
   });
 
   @override
   Widget build(BuildContext context) {
-    final ts = ThemeService.instance;
+    final safePadding = MediaQuery.of(context).padding;
 
     return Stack(fit: StackFit.expand, children: [
-      Container(color: const Color(0xFF0A0A0A)),
+      // ── WebView fullscreen com shorties ──────────────────────────────────
+      Positioned.fill(
+        child: _ShortiesWebView(onColorExtracted: onColorExtracted),
+      ),
 
-      if (ts.useWallpaper && ts.bg.isNotEmpty)
-        Positioned.fill(
-          child: Image.asset(
-            ts.bg,
-            fit: BoxFit.cover,
-            key: ValueKey(ts.bg),
-            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-          ),
-        ),
-
-      if (ts.useWallpaper && ts.bg.isNotEmpty)
-        Positioned(
-          left: -1, top: -1, width: 1, height: 1,
-          child: _WallpaperColorExtractor(
-              imageUrl: ts.bg,
-              onColor: onColorExtracted),
-        ),
-
-      FadeTransition(
-        opacity: CurvedAnimation(parent: fadeIn, curve: Curves.easeOut),
-        child: Column(children: [
-          SafeArea(
-            bottom: false,
-            child: _HomeAppBar(onMenu: onMenu),
-          ),
-          Expanded(
-            child: CustomScrollView(
-              slivers: [
-                const SliverToBoxAdapter(child: _HomeFeedSection()),
-                const SliverToBoxAdapter(child: SizedBox(height: 16)),
-              ],
+      // ── Gradiente topo para AppBar legível ───────────────────────────────
+      Positioned(
+        top: 0, left: 0, right: 0,
+        height: safePadding.top + 80,
+        child: IgnorePointer(
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xCC000000), Colors.transparent],
+              ),
             ),
           ),
-        ]),
+        ),
+      ),
+
+      // ── AppBar flutuante com cor extraída ────────────────────────────────
+      Positioned(
+        top: 0, left: 0, right: 0,
+        child: FadeTransition(
+          opacity: CurvedAnimation(parent: fadeIn, curve: Curves.easeOut),
+          child: SafeArea(
+            bottom: false,
+            child: _HomeAppBar(
+              onMenu: onMenu,
+              accentColor: appBarColor,
+            ),
+          ),
+        ),
       ),
     ]);
+  }
+}
+
+// ─── _ShortiesWebView ─────────────────────────────────────────────────────────
+class _ShortiesWebView extends StatefulWidget {
+  final void Function(Color) onColorExtracted;
+  const _ShortiesWebView({required this.onColorExtracted});
+
+  @override
+  State<_ShortiesWebView> createState() => _ShortiesWebViewState();
+}
+
+class _ShortiesWebViewState extends State<_ShortiesWebView> {
+  InAppWebViewController? _ctrl;
+  bool _colorExtracted = false;
+
+  // CSS injectado para esconder elementos indesejados:
+  // .actionScribe   → botão de seguir (+ laranja)
+  // .headerLogo     → logo do PH no canto
+  // .rightMenuSection, .flag.topMenuFlag → menu kebab e flag
+  static const String _hideCSS = '''
+    .actionScribe,
+    .headerLogo,
+    .rightMenuSection,
+    .flag.topMenuFlag,
+    .joinNowWrapper,
+    .externalLinkButton,
+    .menuContainer {
+      display: none !important;
+    }
+  ''';
+
+  // JS para extrair a cor dominante do thumbnail do vídeo atual
+  static const String _extractColorJS = '''
+  (function() {
+    try {
+      var video = document.querySelector('video.mgp_videoElement');
+      if (!video) return '0,0,0';
+      var c = document.createElement('canvas');
+      c.width = 32; c.height = 32;
+      var ctx = c.getContext('2d');
+      ctx.drawImage(video, 0, 0, 32, 32);
+      var d = ctx.getImageData(0, 0, 32, 32).data;
+      var r=0,g=0,b=0,n=0;
+      for(var i=0;i<d.length;i+=4){
+        var avg=(d[i]+d[i+1]+d[i+2])/3;
+        if(avg>20&&avg<235){r+=d[i];g+=d[i+1];b+=d[i+2];n++;}
+      }
+      if(n===0) return '0,0,0';
+      return Math.round(r/n)+','+Math.round(g/n)+','+Math.round(b/n);
+    } catch(e){ return '0,0,0'; }
+  })();
+  ''';
+
+  void _injectCSS(InAppWebViewController ctrl) {
+    ctrl.evaluateJavascript(source: '''
+      (function() {
+        var s = document.getElementById('_nuxxx_hide');
+        if (s) return;
+        s = document.createElement('style');
+        s.id = '_nuxxx_hide';
+        s.textContent = `$_hideCSS`;
+        document.head.appendChild(s);
+      })();
+    ''');
+  }
+
+  Future<void> _extractColor() async {
+    if (_ctrl == null) return;
+    try {
+      final result = await _ctrl!.evaluateJavascript(source: _extractColorJS);
+      final raw = result?.toString() ?? '0,0,0';
+      final parts = raw.replaceAll("'", '').split(',');
+      if (parts.length == 3) {
+        final r = int.tryParse(parts[0].trim()) ?? 0;
+        final g = int.tryParse(parts[1].trim()) ?? 0;
+        final b = int.tryParse(parts[2].trim()) ?? 0;
+        if (r + g + b > 0) {
+          widget.onColorExtracted(Color.fromARGB(255, r, g, b));
+          _colorExtracted = true;
+        }
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InAppWebView(
+      initialUrlRequest: URLRequest(
+        url: WebUri('https://www.pornhub.com/shorties'),
+        headers: {
+          'User-Agent':
+              'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
+              '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        },
+      ),
+      initialSettings: InAppWebViewSettings(
+        javaScriptEnabled: true,
+        mediaPlaybackRequiresUserGesture: false,
+        allowsInlineMediaPlayback: true,
+        transparentBackground: true,
+        useHybridComposition: true,
+        domStorageEnabled: true,
+        databaseEnabled: true,
+        supportZoom: false,
+        disableHorizontalScroll: false,
+        disableVerticalScroll: false,
+      ),
+      onWebViewCreated: (ctrl) {
+        _ctrl = ctrl;
+
+        // Handler para extração de cor via JS handler (fallback)
+        ctrl.addJavaScriptHandler(
+          handlerName: 'nuxxx_color',
+          callback: (args) {
+            if (_colorExtracted) return;
+            try {
+              final parts = (args[0] as String).split(',');
+              widget.onColorExtracted(Color.fromARGB(
+                255,
+                int.parse(parts[0]),
+                int.parse(parts[1]),
+                int.parse(parts[2]),
+              ));
+              _colorExtracted = true;
+            } catch (_) {}
+          },
+        );
+      },
+      onLoadStop: (ctrl, url) async {
+        _injectCSS(ctrl);
+        // Aguarda vídeo iniciar antes de extrair cor
+        await Future.delayed(const Duration(milliseconds: 1500));
+        _extractColor();
+      },
+      onScrollChanged: (ctrl, x, y) {
+        // Reinjecta CSS ao fazer scroll (novo slide carregado)
+        _injectCSS(ctrl);
+        // Re-extrai cor do novo vídeo visível
+        _colorExtracted = false;
+        Future.delayed(const Duration(milliseconds: 600), _extractColor);
+      },
+      shouldOverrideUrlLoading: (ctrl, action) async {
+        final url = action.request.url?.toString() ?? '';
+        // Mantém dentro do shorties, bloqueia navegação externa
+        if (url.contains('pornhub.com')) {
+          return NavigationActionPolicy.ALLOW;
+        }
+        return NavigationActionPolicy.CANCEL;
+      },
+    );
   }
 }
 
 // ─── _HomeAppBar ──────────────────────────────────────────────────────────────
 class _HomeAppBar extends StatelessWidget {
   final VoidCallback onMenu;
-  const _HomeAppBar({required this.onMenu});
+  final Color accentColor;
+  const _HomeAppBar({required this.onMenu, required this.accentColor});
+
+  // Luminosidade relativa para decidir cor do ícone sobre o accent
+  bool get _isDark {
+    final r = accentColor.red / 255;
+    final g = accentColor.green / 255;
+    final b = accentColor.blue / 255;
+    final lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return lum < 0.5;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -621,14 +705,35 @@ class _HomeAppBar extends StatelessWidget {
                 child: SvgPicture.asset(
                   'assets/icons/svg/hamburger.svg',
                   width: 22, height: 22,
-                  colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                  colorFilter: const ColorFilter.mode(
+                      Colors.white, BlendMode.srcIn),
                 ),
               ),
             ),
           ),
           const Spacer(),
+          // Indicador de cor extraída (opcional — remove se não quiseres)
+          if (accentColor != Colors.transparent &&
+              accentColor != Colors.black)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 600),
+              width: 8, height: 8,
+              decoration: BoxDecoration(
+                color: accentColor,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: accentColor.withOpacity(0.6),
+                    blurRadius: 6,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(width: 12),
           GestureDetector(
-            onTap: () => Navigator.push(context, iosRoute(const CreatePostPage())),
+            onTap: () => Navigator.push(
+                context, iosRoute(const CreatePostPage())),
             behavior: HitTestBehavior.opaque,
             child: SizedBox(
               width: 38, height: 44,
@@ -636,220 +741,13 @@ class _HomeAppBar extends StatelessWidget {
                 child: SvgPicture.asset(
                   'assets/icons/svg/plus.svg',
                   width: 22, height: 22,
-                  colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                  colorFilter: const ColorFilter.mode(
+                      Colors.white, BlendMode.srcIn),
                 ),
               ),
             ),
           ),
         ]),
-      ),
-    );
-  }
-}
-
-// ─── _HomeFeedSection ─────────────────────────────────────────────────────────
-class _HomeFeedSection extends StatefulWidget {
-  const _HomeFeedSection();
-  @override
-  State<_HomeFeedSection> createState() => _HomeFeedSectionState();
-}
-
-class _HomeFeedSectionState extends State<_HomeFeedSection>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-
-  final List<FeedPhoto> _photos = [];
-  bool _loading = true;
-  bool _fetching = false;
-  int  _page = 1;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    final photos = await PhotoFetcher.fetchAll(_page);
-    if (!mounted) return;
-    setState(() {
-      _photos.addAll(photos);
-      _page++;
-      _loading = false;
-    });
-  }
-
-  Future<void> _loadMore() async {
-    if (_fetching || _loading) return;
-    _fetching = true;
-    final photos = await PhotoFetcher.fetchAll(_page);
-    _fetching = false;
-    if (!mounted) return;
-    setState(() {
-      _photos.addAll(photos);
-      _page++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final t = AppTheme.current;
-
-    if (_loading) {
-      return Column(children: List.generate(3, (_) => _PhotoCardSkeleton()));
-    }
-
-    if (_photos.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        child: Center(
-          child: Text('Sem conteúdo disponível',
-              style: TextStyle(color: t.textSecondary, fontSize: 13)),
-        ),
-      );
-    }
-
-    return NotificationListener<ScrollNotification>(
-      onNotification: (n) {
-        if (n is ScrollEndNotification) _loadMore();
-        return false;
-      },
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(children: [
-              Text('Fotos em destaque',
-                  style: TextStyle(
-                    color: t.text,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
-                  )),
-            ]),
-          ),
-          MasonryGridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: 3,
-            crossAxisSpacing: 3,
-            padding: const EdgeInsets.symmetric(horizontal: 3),
-            itemCount: _photos.length,
-            itemBuilder: (_, i) => _HomeFeedPhotoTile(photo: _photos[i]),
-          ),
-          const SizedBox(height: 12),
-        ],
-      ),
-    );
-  }
-}
-
-class _HomeFeedPhotoTile extends StatelessWidget {
-  final FeedPhoto photo;
-  const _HomeFeedPhotoTile({required this.photo});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTheme.current;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(5),
-      child: Stack(
-        children: [
-          Image.network(
-            photo.url,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            headers: const {
-              'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36',
-              'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-            },
-            errorBuilder: (_, __, ___) => Container(
-              height: 120,
-              color: t.thumbBg,
-              child: Center(child: Icon(Icons.image_not_supported_rounded,
-                  color: t.iconSub, size: 28)),
-            ),
-            loadingBuilder: (_, child, p) => p == null
-                ? child
-                : Container(
-                    height: 120,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: t.shimmer,
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                    ),
-                  ),
-          ),
-          if (photo.sourceLabel.isNotEmpty)
-            Positioned(
-              bottom: 0, left: 0, right: 0,
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [Color(0xCC000000), Colors.transparent],
-                  ),
-                ),
-                padding: const EdgeInsets.fromLTRB(6, 16, 6, 5),
-                child: Text(photo.sourceLabel,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PhotoCardSkeleton extends StatefulWidget {
-  @override
-  State<_PhotoCardSkeleton> createState() => _PhotoCardSkeletonState();
-}
-
-class _PhotoCardSkeletonState extends State<_PhotoCardSkeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-  late final Animation<double> _a;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
-    _a = Tween<double>(begin: -2, end: 2)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() { _c.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
-    return AnimatedBuilder(
-      animation: _a,
-      builder: (_, __) => Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        width: w, height: w * 0.6,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment(_a.value - 1, 0),
-            end: Alignment(_a.value + 1, 0),
-            colors: AppTheme.current.shimmer,
-          ),
-        ),
       ),
     );
   }
