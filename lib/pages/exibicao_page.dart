@@ -312,7 +312,8 @@ class _ExibicaoPageState extends State<ExibicaoPage>
   late final AnimationController _thumbFadeAnim;
   bool _thumbVisible = true;
 
-  StreamSubscription<double>? _volSub;
+  // Volume — sem StreamSubscription, guardamos referência à função
+  void Function(double)? _volListener;
 
   bool get _isEmpty => widget.videoUrl == null || widget.currentVideo == null;
 
@@ -397,10 +398,8 @@ window.setSystemVolume=function(p){
       _sendVolumeToPlayer((vol * 100).round());
     });
 
-    _volSub?.cancel();
-    _volSub = VolumeController.instance.listener((vol) {
-      _sendVolumeToPlayer((vol * 100).round());
-    });
+    _volListener = (vol) => _sendVolumeToPlayer((vol * 100).round());
+    VolumeController.instance.addListener(_volListener!);
   }
 
   void _sendVolumeToPlayer(int pct) {
@@ -408,9 +407,10 @@ window.setSystemVolume=function(p){
   }
 
   void _stopVolumeSync() {
-    _volSub?.cancel();
-    _volSub = null;
-    VolumeController.instance.removeListener();
+    if (_volListener != null) {
+      VolumeController.instance.removeListener(_volListener!);
+      _volListener = null;
+    }
   }
 
   @override void didUpdateWidget(ExibicaoPage old) {
@@ -555,7 +555,8 @@ window.setSystemVolume=function(p){
                             callback: (args) {
                               if (args.isEmpty) return;
                               final pct = (args[0] as num).toDouble();
-                              VolumeController.instance.setVolume(pct / 100, showSystemUI: false);
+                              VolumeController.instance.showSystemUI = false;
+                              VolumeController.instance.setVolume(pct / 100);
                             },
                           );
                         },
